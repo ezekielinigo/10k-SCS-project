@@ -1,0 +1,100 @@
+import { useGame } from "./game/GameContext"
+
+function PlayerSummary() {
+  const { state } = useGame()
+  const p = state.player
+
+  return (
+    <div style={{ padding: "0.75rem", borderBottom: "1px solid #333" }}>
+      <div>
+        <strong>{p.name}</strong> - {Math.floor(p.ageMonths / 12)} yrs
+      </div>
+      <div>Month: {state.month}</div>
+      <div>Money: ¤{p.money}</div>
+      <div>Stress: {p.stress}</div>
+      <div>
+        STR {p.stats.str} • INT {p.stats.int} • REF {p.stats.ref} • CHR {p.stats.chr}
+      </div>
+    </div>
+  )
+}
+
+function TaskList() {
+  const { state, dispatch } = useGame()
+
+  const handleResolve = (taskId: string) => {
+    dispatch({ type: "RESOLVE_TASK", taskId })
+    dispatch({ type: "ADD_LOG", text: `You handled: ${taskId}` })
+  }
+
+  return (
+    <div style={{ padding: "0.75rem", borderRight: "1px solid #333", width: "40%" }}>
+      <h2>Tasks this month</h2>
+      {state.tasks.length === 0 && <p>No tasks yet. Advance month.</p>}
+      {state.tasks.map(task => (
+        <div
+          key={task.id}
+          style={{
+            marginBottom: "0.5rem",
+            padding: "0.5rem",
+            border: "1px solid #444",
+            opacity: task.resolved ? 0.6 : 1,
+          }}
+        >
+          <div>
+            <strong>{task.title}</strong> <small>({task.kind})</small>
+          </div>
+          <p style={{ fontSize: "0.85rem" }}>{task.description}</p>
+          {!task.resolved && (
+            <button onClick={() => handleResolve(task.id)}>Resolve</button>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function LogPanel() {
+  const { state } = useGame()
+  return (
+    <div style={{ padding: "0.75rem", flex: 1 }}>
+      <h2>Log</h2>
+      <div style={{ maxHeight: "60vh", overflowY: "auto", fontSize: "0.85rem" }}>
+        {state.log
+          .slice()
+          .reverse()
+          .map(entry => (
+            <div key={entry.id} style={{ marginBottom: "0.5rem" }}>
+              <div style={{ opacity: 0.6 }}>Month {entry.month}</div>
+              <div>{entry.text}</div>
+            </div>
+          ))}
+      </div>
+    </div>
+  )
+}
+
+function AdvanceMonthButton() {
+  const { dispatch } = useGame()
+
+  return (
+    <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
+      <button onClick={() => dispatch({ type: "ADVANCE_MONTH" })}>
+        Advance 1 month
+      </button>
+    </div>
+  )
+}
+
+export default function App() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <PlayerSummary />
+      <div style={{ display: "flex", flex: 1 }}>
+        <TaskList />
+        <LogPanel />
+      </div>
+      <AdvanceMonthButton />
+    </div>
+  )
+}
