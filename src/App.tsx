@@ -108,19 +108,33 @@ function LogPanel() {
   }, [state.log.length])
 
   return (
-    <div style={{ padding: "0.75rem", flex: 1 }}>
+    <div style={{ padding: "0.75rem", flex: 1, display: "flex", flexDirection: "column", maxHeight: "70vh" }}>
       <h2>Log</h2>
-      <div ref={scrollRef} className="hide-scrollbar" style={{ maxHeight: "60vh", overflowY: "auto", fontSize: "0.85rem" }}>
-        {months.map(month => (
-          <div key={`month-${month}`} style={{ marginBottom: "0.75rem" }}>
-            <div style={{ opacity: 0.6, marginBottom: "0.25rem" }}>Month {month}</div>
-            {groups[month].map(entry => (
-              <div key={entry.id} style={{ marginBottom: "0.5rem" }}>
-                <div>{entry.text}</div>
+      <div ref={scrollRef} className="hide-scrollbar" style={{ overflowY: "auto", fontSize: "0.85rem", flex: 1, minHeight: 0 }}>
+        {
+          // format months as calendar names starting at January 2077
+          (() => {
+            const monthNames = [
+              'January','February','March','April','May','June','July','August','September','October','November','December'
+            ]
+            const formatMonthYear = (m: number) => {
+              const year = 2077 + Math.floor(m / 12)
+              const mon = monthNames[((m % 12) + 12) % 12]
+              return `${mon} ${year}`
+            }
+
+            return months.map(month => (
+              <div key={`month-${month}`} style={{ marginBottom: "0.75rem" }}>
+                <div style={{ opacity: 0.6, marginBottom: "0.25rem" }}>{formatMonthYear(month)}</div>
+                {groups[month].map(entry => (
+                  <div key={entry.id} style={{ marginBottom: "0.5rem" }}>
+                    <div>{entry.text}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ))}
+            ))
+          })()
+        }
       </div>
     </div>
   )

@@ -15,7 +15,7 @@ export const createInitialGameState = (): GameState => {
   const npcB = createNpc()
 
   const baseState: GameState = {
-    month: 1,
+    month: 0,
     player: {
       id: randId(),
       // spread the randomly chosen profile, then assign district fields
