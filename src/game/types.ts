@@ -1,19 +1,24 @@
-export type StatBlock = {
+export type StatBlock = { // stat block is mainly the numeric data
+  health: number
+  humanity: number
+  stress: number
+  money: number
+  looks: number
+  skills: SkillBlock
+}
+
+export type SkillBlock = {
   str: number
   int: number
   ref: number
   chr: number
 }
 
-export type PlayerState = {
+export type PlayerState = { // while player state is mainly data based on other datatypes
   id: string
   name: string
   ageMonths: number
   stats: StatBlock
-  health: number
-  humanity: number
-  stress: number
-  money: number
   lifestyle: "lawful" | "risky" | "underground"
   homeDistrictId: string
   currentDistrictId: string

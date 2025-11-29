@@ -1,38 +1,38 @@
 import type { GameState } from "./types"
+import { getRandomProfile } from "./content/playerProfiles"
+import DISTRICTS from "./districts"
+import { createNpc } from "./content/npcProfiles"
+import { createJob } from "./content/jobs"
+import { createRandomEvent } from "./content/randomEvents"
 
 const randId = () => Math.random().toString(36).slice(2)
 
 export const createInitialGameState = (): GameState => {
   const homeDistrictId = "downtown"
 
+  const profile = getRandomProfile()
+
+  // create a couple of starter NPCs and seed tasks
+  const npcA = createNpc()
+  const npcB = createNpc()
+
+  const starterNpcs = { [npcA.id]: npcA, [npcB.id]: npcB }
+
+  const starterTasks = [createJob(), createRandomEvent()]
+
   return {
     month: 0,
     player: {
       id: randId(),
-      name: "New Runner",
-      ageMonths: 18 * 12,
-      stats: { str: 5, int: 5, ref: 5, chr: 5 },
-      health: 100,
-      humanity: 100,
-      stress: 0,
-      money: 500,
-      lifestyle: "lawful",
+      // spread the randomly chosen profile, then assign district fields
+      ...profile,
       homeDistrictId,
       currentDistrictId: homeDistrictId,
-      inventoryIds: [],
-      relationshipNpcIds: [],
     },
-    npcs: {},
-    districts: {
-      [homeDistrictId]: {
-        id: homeDistrictId,
-        name: "Downtown Ark",
-        security: 50,
-        unrest: 30,
-        economy: 60,
-      },
-    },
-    tasks: [],
+    npcs: starterNpcs,
+    // Use centralized districts data. Spread to avoid accidental mutation at runtime.
+    districts: { ...DISTRICTS },
+    tasks: starterTasks,
     log: [
       {
         id: randId(),

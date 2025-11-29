@@ -1,4 +1,4 @@
-import { useGame } from "./game/GameContext"
+import { useGame } from "./game/GameContext.tsx"
 
 function PlayerSummary() {
   const { state } = useGame()
@@ -10,10 +10,10 @@ function PlayerSummary() {
         <strong>{p.name}</strong> - {Math.floor(p.ageMonths / 12)} yrs
       </div>
       <div>Month: {state.month}</div>
-      <div>Money: ¤{p.money}</div>
-      <div>Stress: {p.stress}</div>
+      <div>Money: ¤{p.stats.money}</div>
+      <div>Stress: {p.stats.stress}</div>
       <div>
-        STR {p.stats.str} • INT {p.stats.int} • REF {p.stats.ref} • CHR {p.stats.chr}
+        STR {p.stats.skills.str} • INT {p.stats.skills.int} • REF {p.stats.skills.ref} • CHR {p.stats.skills.chr}
       </div>
     </div>
   )
