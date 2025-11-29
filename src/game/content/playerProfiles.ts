@@ -17,7 +17,7 @@ const profiles: PlayerProfile[] = [
       stress: 10,
       money: 350,
       looks: 6,
-      skills: { str: 6, int: 5, ref: 7, chr: 4 },
+      skills: { str: 6, int: 8, ref: 7, chr: 4 },
     },
     lifestyle: "underground",
     jobId: "apprentice_mechanic",
