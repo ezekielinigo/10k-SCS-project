@@ -1,38 +1,10 @@
 import type {
-  GameState,
   OutcomeDefinition,
   OutcomeTier,
   TaskGraph,
 } from "../types"
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
-const applyStatDelta = (
-  state: GameState,
-  delta: Partial<{
-    health: number
-    humanity: number
-    stress: number
-    money: number
-  }>,
-): GameState => {
-  const stats = state.player.stats
-  const nextStats = {
-    ...stats,
-    health: clamp(stats.health + (delta.health ?? 0), 0, 100),
-    humanity: clamp(stats.humanity + (delta.humanity ?? 0), 0, 100),
-    stress: clamp(stats.stress + (delta.stress ?? 0), 0, 100),
-    money: stats.money + (delta.money ?? 0),
-  }
-
-  return {
-    ...state,
-    player: {
-      ...state.player,
-      stats: nextStats,
-    },
-  }
-}
 
 const genericJobGraph: TaskGraph = {
   id: "generic_job_shift",
@@ -73,21 +45,24 @@ export const TASK_GRAPHS: Record<string, TaskGraph> = {
 export const getTaskGraphById = (id: string): TaskGraph | undefined => TASK_GRAPHS[id]
 
 export const OUTCOME_DEFINITIONS: Record<OutcomeTier, OutcomeDefinition> = {
+  // Outcome tiers remain defined for UI purposes (e.g. coloring). The numeric stat deltas
+  // have been moved into Ink stories and are applied from the Ink variables at runtime.
+  // Keep applyEffects as a no-op so reducer code that calls these remains compatible.
   great_success: {
     tier: "great_success",
-    applyEffects: state => applyStatDelta(state, { money: 250, stress: -15, humanity: 3 }),
+    applyEffects: state => state,
   },
   success: {
     tier: "success",
-    applyEffects: state => applyStatDelta(state, { money: 120, stress: -5 }),
+    applyEffects: state => state,
   },
   failure: {
     tier: "failure",
-    applyEffects: state => applyStatDelta(state, { money: -60, stress: 12 }),
+    applyEffects: state => state,
   },
   great_failure: {
     tier: "great_failure",
-    applyEffects: state => applyStatDelta(state, { money: -150, stress: 20, health: -10 }),
+    applyEffects: state => state,
   },
 }
 

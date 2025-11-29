@@ -10,7 +10,12 @@
 // -------------------------------------------------------------
 
 // JS will read this at the end of each story
-VAR outcome = "" 
+VAR outcome = ""
+// Local accumulators for stat deltas — set these during the story and the app will apply them once at the end
+VAR delta_money = 0
+VAR delta_stress = 0
+VAR delta_health = 0
+VAR delta_humanity = 0
 // External functions provided by the game engine
 EXTERNAL hasStat (name, min)
 EXTERNAL hasMoney (amount)
@@ -33,6 +38,8 @@ Lifted groundcars hover above you, humming with unstable charge. Clients pace ou
 
 + Keep a steady pace
     ~ outcome = "success"
+    ~ delta_money = 120
+    ~ delta_stress = -5
     The shift ends smoothly. You finish on time with only minor burns.
     -> END
 
@@ -46,15 +53,22 @@ The Valkarna diagnostic console vomits error codes. The system flickers in neon-
 { hasStat("int", 7):
     + Triple-check the firmware
         You dive deep into Valkarna firmware and catch a corrupted packet.
-        ~ outcome = "great_success"
-        -> END
+    ~ outcome = "great_success"
+    ~ delta_money = 250
+    ~ delta_stress = -15
+    ~ delta_humanity = 3
+    -> END
 - else:
     ~ outcome = "failure"
+    ~ delta_money = -60
+    ~ delta_stress = 12
 }
 
 + Rush the diagnostics
     The backlog is massive; corners are cut.
     ~ outcome = "failure"
+    ~ delta_money = -60
+    ~ delta_stress = 12
     -> END
 
 + Trace the weird knocking noise
@@ -67,23 +81,33 @@ A Vulcamax engine misfires violently. Sparks scatter across the bay, and a clien
 { hasStat("chr", 6):
     + Calm the client and stabilize wiring
         You stabilize the wiring and walk the client through your plan.
-        ~ outcome = "success"
-        -> END
+    ~ outcome = "success"
+    ~ delta_money = 120
+    ~ delta_stress = -5
+    -> END
 }
 
 { hasStat("ref", 6):
     + Dive in and reroute power manually
         With lightning reflexes, you bypass the faulty regulators.
-        ~ outcome = "great_success"
-        -> END
+    ~ outcome = "great_success"
+    ~ delta_money = 250
+    ~ delta_stress = -15
+    ~ delta_humanity = 3
+    -> END
 }
 
 + Call the supervisor to take over
     You hand it off. No shame, but no glory either.
     ~ outcome = "failure"
+    ~ delta_money = -60
+    ~ delta_stress = 12
     -> END
 
 + Panic and hit the wrong circuit
     Sparks explode; sensors scream.
     ~ outcome = "great_failure"
+    ~ delta_money = -150
+    ~ delta_stress = 20
+    ~ delta_health = -10
     -> END

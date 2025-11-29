@@ -3,50 +3,7 @@ import { getJobTemplateById } from "./game/content/jobs.ts"
 import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
 import { buildContentContext } from "./game/content/tagEngine"
-import { getTaskGraphById } from "./game/content/tasks"
 import { useState } from "react"
-
-function TaskModal() {
-  const { state, dispatch } = useGame()
-  const run = state.activeTaskRun
-  if (!run) return null
-
-  const graph = getTaskGraphById(run.taskGraphId)
-  if (!graph) return null
-
-  const node = graph.nodes[run.currentNodeId ?? graph.entryNodeId]
-  if (!node) return null
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.65)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-      }}
-    >
-      <div style={{ background: "#111", color: "#fff", padding: "1.25rem", width: "520px", borderRadius: 8 }}>
-        <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}>{graph.id.replace(/_/g, " ")}</h3>
-        <p style={{ marginBottom: "1rem" }}>{node.description}</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          {node.choices.map(choice => (
-            <button
-              key={choice.id}
-              style={{ textAlign: "left", padding: "0.5rem", borderRadius: 6 }}
-              onClick={() => dispatch({ type: "MAKE_TASK_CHOICE", choiceId: choice.id })}
-            >
-              {choice.text}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function PlayerSummary() {
   const { state } = useGame()
@@ -68,7 +25,7 @@ function PlayerSummary() {
   )
 }
 
-function TaskList({ onOpenInk }: { onOpenInk?: (taskGraphId: string) => void }) {
+function TaskList({ onOpenInk }: { onOpenInk?: (taskId: string, taskGraphId: string) => void }) {
   const { state, dispatch } = useGame()
 
   const handleResolve = (taskId: string) => {
@@ -77,7 +34,7 @@ function TaskList({ onOpenInk }: { onOpenInk?: (taskGraphId: string) => void }) 
 
     if (task.taskGraphId) {
       if (onOpenInk) {
-        onOpenInk(task.taskGraphId)
+        onOpenInk(task.id, task.taskGraphId)
         return
       }
 
@@ -168,44 +125,66 @@ function AdvanceMonthButton() {
   )
 }
 
-function InkModal({ open, onClose, story, text, choices, onChoose }: { open: boolean; onClose: () => void; story: Story | null; text: string; choices: any[]; onChoose: (i: number) => void }) {
+function InkModal({ open, onClose, frames, onChoose }: { open: boolean; onClose: () => void; frames: { text: string; choices: any[] }[]; onChoose: (choiceIndex: number) => void }) {
   if (!open) return null
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.65)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 60,
-      }}
-    >
-      <div style={{ background: "#111", color: "#fff", padding: "1.25rem", width: "520px", borderRadius: 8 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}></h3>
-          <button onClick={onClose}>Close</button>
-        </div>
-        <div style={{ whiteSpace: "pre-wrap", marginBottom: "1rem" }}>{text}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          {choices.map((c, idx) => (
-            <button key={idx} style={{ textAlign: "left", padding: "0.5rem", borderRadius: 6 }} onClick={() => onChoose(c.index ?? idx)}>
-              {c.text}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+    <>
+      {frames.map((frame, idx) => {
+        const isTop = idx === frames.length - 1
+        return (
+          <div
+            key={idx}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.65)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 60 + idx,
+            }}
+          >
+            <div style={{ background: "#111", color: "#fff", padding: "1.25rem", width: "520px", borderRadius: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}></h3>
+                {/* Top-right close removed; modal can only be closed by OK at end of tree */}
+              </div>
+              <div style={{ whiteSpace: "pre-wrap", marginBottom: "1rem" }}>{frame.text}</div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {frame.choices.map((c, cidx) => (
+                  <button
+                    key={cidx}
+                    style={{ textAlign: "left", padding: "0.5rem", borderRadius: 6 }}
+                    onClick={() => onChoose(c.index ?? cidx)}
+                    disabled={!isTop}
+                  >
+                    {c.text}
+                  </button>
+                ))}
+
+                {/* If this is the top frame and there are no choices, show OK as a choice-style button */}
+                {isTop && (frame.choices?.length ?? 0) === 0 && (
+                  <button style={{ textAlign: "left", padding: "0.5rem", borderRadius: 6 }} onClick={onClose}>
+                    OK
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </>
   )
 }
 
 export default function App() {
   const [inkOpen, setInkOpen] = useState(false)
-  const [inkStory, setInkStory] = useState<Story | null>(null)
-  const [inkText, setInkText] = useState("")
-  const [inkChoices, setInkChoices] = useState<any[]>([])
+  const [inkStory, setInkStory] = useState<any | null>(null)
+  const [inkFrames, setInkFrames] = useState<{ text: string; choices: any[] }[]>([])
+  const [inkTaskPendingResolve, setInkTaskPendingResolve] = useState<string | null>(null)
+  const [inkTaskPendingGraphId, setInkTaskPendingGraphId] = useState<string | null>(null)
   const { state, dispatch } = useGame()
 
   const openInkDebug = async () => {
@@ -213,13 +192,12 @@ export default function App() {
       // Dynamically import inkjs and the compiled json to avoid module-level runtime errors
       const InkModule = await import("inkjs")
       const tasks = (await import("./ink/career_mechanic.json")) as any
-      const StoryCtor = InkModule?.default?.Story ?? InkModule?.Story ?? InkModule?.default
+      const StoryCtor = (InkModule as any).Story ?? (InkModule as any).default ?? InkModule
       if (!StoryCtor) throw new Error("inkjs Story constructor not found")
 
       const s = new StoryCtor(tasks)
       // bind external functions expected by the ink stories
       try {
-        const bind = (s as any).BindExternalFunction ?? (s as any).bindExternalFunction ?? (s as any).BindExternal
         if (typeof (s as any).BindExternalFunction === "function") {
           ;(s as any).BindExternalFunction("hasStat", (statName: any, threshold: any) => {
             try {
@@ -276,24 +254,25 @@ export default function App() {
       }
 
       setInkStory(s)
-      setInkText(out)
-      setInkChoices(s.currentChoices ?? [])
+      setInkFrames([{ text: out, choices: s.currentChoices ?? [] }])
       setInkOpen(true)
     } catch (err: any) {
       console.error("Ink debug open failed:", err)
       setInkStory(null)
-      setInkText("Error opening ink story: " + (err?.message ?? String(err)))
-      setInkChoices([])
+      setInkFrames([])
       setInkOpen(true)
     }
   }
 
-  const openInkForTask = async (taskGraphId: string) => {
+  const openInkForTask = async (taskId: string, taskGraphId: string) => {
     try {
+      // mark this modal as associated with a task so we can resolve it when the player finishes
+      setInkTaskPendingResolve(taskId)
+      setInkTaskPendingGraphId(taskGraphId)
       const InkModule = await import("inkjs")
       // load the career json - user renamed compiled file to career_mechanic.json
       const tasks = (await import("./ink/career_mechanic.json")) as any
-      const StoryCtor = InkModule?.default?.Story ?? InkModule?.Story ?? InkModule?.default
+      const StoryCtor = (InkModule as any).Story ?? (InkModule as any).default ?? InkModule
       if (!StoryCtor) throw new Error("inkjs Story constructor not found")
 
       const s = new StoryCtor(tasks)
@@ -355,20 +334,22 @@ export default function App() {
       }
 
       setInkStory(s)
-      setInkText(out)
-      setInkChoices(s.currentChoices ?? [])
+      setInkFrames([{ text: out, choices: s.currentChoices ?? [] }])
       setInkOpen(true)
     } catch (err: any) {
       console.error("openInkForTask failed:", err)
+      // if we fail to open, clear pending task resolve so we don't accidentally resolve later
+      setInkTaskPendingResolve(null)
+      setInkTaskPendingGraphId(null)
       setInkStory(null)
-      setInkText("Error opening ink story: " + (err?.message ?? String(err)))
-      setInkChoices([])
+      setInkFrames([{ text: "Error opening ink story: " + (err?.message ?? String(err)), choices: [] }])
       setInkOpen(true)
     }
   }
 
   const handleChoose = (choiceIndex: number) => {
     if (!inkStory) return
+    // advance story and capture the new output as a fresh single frame (replace previous)
     inkStory.ChooseChoiceIndex(choiceIndex)
     let out = ""
     while (inkStory.canContinue) {
@@ -376,8 +357,9 @@ export default function App() {
       if (inkStory.canContinue) out += "\n"
     }
 
-    setInkText(prev => prev + "\n" + out)
-    setInkChoices(inkStory.currentChoices ?? [])
+    const nextChoices = inkStory.currentChoices ?? []
+    // replace previous frame with the new one so only one modal is visible at a time
+    setInkFrames([{ text: out, choices: nextChoices }])
   }
 
   return (
@@ -391,8 +373,56 @@ export default function App() {
         <AdvanceMonthButton />
         <button style={{ marginLeft: "0.5rem" }} onClick={openInkDebug}>DEBUG: ink</button>
       </div>
-      <TaskModal />
-      <InkModal open={inkOpen} onClose={() => setInkOpen(false)} story={inkStory} text={inkText} choices={inkChoices} onChoose={(i) => handleChoose(i)} />
+
+      {/* TaskModal removed — no active task-run modal. InkModal handles story choices. */}
+
+      <InkModal
+        open={inkOpen}
+        onClose={() => {
+          // If the ink story set an 'outcome' variable, apply outcome effects first
+          try {
+            const outcome = (inkStory as any)?.variablesState?.outcome
+            if (outcome && inkTaskPendingGraphId) {
+              dispatch({ type: "APPLY_OUTCOME", outcome: String(outcome), taskGraphId: inkTaskPendingGraphId })
+            }
+          } catch (e) {
+            // ignore
+          }
+
+            // Read accumulated delta_* variables from the ink story and apply them in one action
+            try {
+              const vars = (inkStory as any)?.variablesState ?? {}
+              const dm = Number(vars.delta_money ?? 0)
+              const ds = Number(vars.delta_stress ?? 0)
+              const dh = Number(vars.delta_health ?? 0)
+              const dhu = Number(vars.delta_humanity ?? 0)
+              const delta: any = {}
+              if (dm !== 0) delta.money = dm
+              if (ds !== 0) delta.stress = ds
+              if (dh !== 0) delta.health = dh
+              if (dhu !== 0) delta.humanity = dhu
+              if (Object.keys(delta).length > 0) {
+                dispatch({ type: "APPLY_STATS_DELTA", delta })
+              }
+            } catch (e) {
+              // ignore
+            }
+
+          // if this modal was opened for a task, resolve it now
+          if (inkTaskPendingResolve) {
+            dispatch({ type: "RESOLVE_TASK", taskId: inkTaskPendingResolve })
+            dispatch({ type: "ADD_LOG", text: `You handled: ${inkTaskPendingResolve}` })
+            setInkTaskPendingResolve(null)
+            setInkTaskPendingGraphId(null)
+          }
+
+          setInkOpen(false)
+          setInkFrames([])
+          setInkStory(null)
+        }}
+        frames={inkFrames}
+        onChoose={(i) => handleChoose(i)}
+      />
     </div>
   )
 }

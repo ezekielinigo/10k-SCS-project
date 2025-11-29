@@ -7,6 +7,8 @@ export type GameAction =
   | { type: "ADD_LOG"; text: string }
   | { type: "SET_TASKS"; tasks: TaskState[] }
   | { type: "RESOLVE_TASK"; taskId: string }
+  | { type: "APPLY_STATS_DELTA"; delta: Partial<{ health: number; humanity: number; stress: number; money: number }> }
+  | { type: "APPLY_OUTCOME"; outcome: string; taskGraphId?: string }
   | { type: "START_TASK_RUN"; taskId: string; taskGraphId: string }
   | { type: "MAKE_TASK_CHOICE"; choiceId: string }
 
@@ -100,8 +102,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         const outcome = OUTCOME_DEFINITIONS[choice.outcome]
         const override = TASK_OUTCOME_OVERRIDES[graph.id]?.[choice.outcome]
 
-        const texts = override?.texts ?? outcome.texts
-        const flavor = texts[Math.floor(Math.random() * texts.length)]
+  // outcome definitions may not include flavor texts here (ink now handles story text).
+  // Fall back to a simple flavor if none provided.
+  const texts: string[] = (override as any)?.texts ?? (outcome as any)?.texts ?? [`You handled: ${choice.id}`]
+  const flavor = texts[Math.floor(Math.random() * texts.length)]
         const applyEffects = override?.applyEffects ?? outcome.applyEffects
 
         const afterEffects = applyEffects(state, { taskGraphId: graph.id })
@@ -125,6 +129,44 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       }
 
       return { ...state, activeTaskRun: null }
+    }
+
+    case "APPLY_OUTCOME": {
+      const outcomeKey = action.outcome as keyof typeof OUTCOME_DEFINITIONS
+      const outcomeDef = OUTCOME_DEFINITIONS[outcomeKey]
+      if (!outcomeDef) return state
+
+      const override =
+        action.taskGraphId ? TASK_OUTCOME_OVERRIDES[action.taskGraphId]?.[outcomeKey] : undefined
+      const applyEffects = override?.applyEffects ?? outcomeDef.applyEffects
+
+      // apply the outcome effects to the state
+  const afterEffects = applyEffects(state, { taskGraphId: action.taskGraphId ?? "" })
+
+      return afterEffects
+    }
+
+    case "APPLY_STATS_DELTA": {
+      const delta = action.delta || {}
+
+      const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+      const stats = state.player.stats
+
+      const nextStats = {
+        ...stats,
+        health: clamp(stats.health + (delta.health ?? 0), 0, 100),
+        humanity: clamp(stats.humanity + (delta.humanity ?? 0), 0, 100),
+        stress: clamp(stats.stress + (delta.stress ?? 0), 0, 100),
+        money: stats.money + (delta.money ?? 0),
+      }
+
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          stats: nextStats,
+        },
+      }
     }
 
     default:

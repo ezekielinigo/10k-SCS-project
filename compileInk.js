@@ -1,17 +1,38 @@
-import { execSync } from "child_process"
-import fs from "fs"
-import path from "path"
+import { execFileSync } from "child_process";
+import { existsSync } from "fs";
+import path from "path";
 
-const inklecate = "src/ink/tools/inklecate"
-const inkDir = "src/ink"
+const root = process.cwd();
+const toolsDir = path.join(root, "src", "ink", "tools");
+const inklecateBase = path.join(toolsDir, "inklecate");
 
-const files = fs.readdirSync(inkDir)
+// try common Windows/Unix extensions
+const exts = ["", ".exe", ".cmd", ".bat", ".ps1"];
+let inklecatePath = null;
+for (const ext of exts) {
+  const p = inklecateBase + ext;
+  if (existsSync(p)) {
+    inklecatePath = p;
+    break;
+  }
+}
 
-files.filter(f => f.endsWith(".ink")).forEach(file => {
-  const input = path.join(inkDir, file)
-  const output = path.join(inkDir, file.replace(".ink", ".json"))
-  console.log(`Compiling ${file} → ${output}`)
-  execSync(`${inklecate} -o ${output} ${input}`, { stdio: "inherit" })
-})
+if (!inklecatePath) {
+  console.error(`inklecate not found in ${toolsDir}. Put inklecate(.exe) there or install it globally and update this script.`);
+  process.exit(1);
+}
 
-console.log("All Ink files compiled!")
+const files = [
+  { in: path.join("src", "ink", "career_mechanic.ink"), out: path.join("src", "ink", "career_mechanic.json") },
+  // add other ink files here
+];
+
+for (const f of files) {
+  console.log(`Compiling ${f.in} -> ${f.out} using ${inklecatePath}`);
+  try {
+    execFileSync(inklecatePath, ["-o", f.out, f.in], { stdio: "inherit" });
+  } catch (err) {
+    console.error("Compile failed:", err.message || err);
+    process.exit(1);
+  }
+}
