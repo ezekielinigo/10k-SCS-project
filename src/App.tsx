@@ -3,7 +3,7 @@ import { getJobTemplateById } from "./game/content/jobs.ts"
 import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
 import { buildContentContext } from "./game/content/tagEngine"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 function PlayerSummary() {
   const { state } = useGame()
@@ -12,9 +12,8 @@ function PlayerSummary() {
   return (
     <div style={{ padding: "0.75rem", borderBottom: "1px solid #333" }}>
       <div>
-        <strong>{p.name}</strong> - {Math.floor(p.ageMonths / 12)} yrs
+        <strong>{p.name}</strong> - {Math.floor((p.ageMonths + state.month) / 12)} yrs
       </div>
-      <div>Month: {state.month}</div>
       <div>Money: ¤{p.stats.money}</div>
       <div>Stress: {p.stats.stress}</div>
       <div>Occupation: {(getJobTemplateById(p.jobId))?.title} @ {getAffiliationById(p.affiliationId)?.name}</div>
@@ -43,7 +42,13 @@ function TaskList({ onOpenInk }: { onOpenInk?: (taskId: string, taskGraphId: str
     }
 
     dispatch({ type: "RESOLVE_TASK", taskId })
-    dispatch({ type: "ADD_LOG", text: `You handled: ${taskId}` })
+    // Log a nicer message with task title
+    try {
+      const presentation = describeTask(task)
+      dispatch({ type: "ADD_LOG", text: `Finished ${presentation.title}.` })
+    } catch (e) {
+      dispatch({ type: "ADD_LOG", text: `Finished ${taskId}.` })
+    }
   }
 
   return (
@@ -78,19 +83,44 @@ function TaskList({ onOpenInk }: { onOpenInk?: (taskId: string, taskGraphId: str
 
 function LogPanel() {
   const { state } = useGame()
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  // compute grouped months once per render
+  const groups: Record<number, any[]> = {}
+  for (const entry of state.log) {
+    const m = Number(entry.month ?? 0)
+    if (!groups[m]) groups[m] = []
+    groups[m].push(entry)
+  }
+  const months = Object.keys(groups).map(k => Number(k)).sort((a, b) => a - b)
+
+  // auto-scroll to bottom whenever the log length changes
+  useEffect(() => {
+    if (!scrollRef.current) return
+    // wait for the DOM to update
+    requestAnimationFrame(() => {
+      try {
+        scrollRef.current!.scrollTop = scrollRef.current!.scrollHeight
+      } catch (e) {
+        // ignore
+      }
+    })
+  }, [state.log.length])
+
   return (
     <div style={{ padding: "0.75rem", flex: 1 }}>
       <h2>Log</h2>
-      <div className="hide-scrollbar" style={{ maxHeight: "60vh", overflowY: "auto", fontSize: "0.85rem" }}>
-        {state.log
-          .slice()
-          .reverse()
-          .map(entry => (
-            <div key={entry.id} style={{ marginBottom: "0.5rem" }}>
-              <div style={{ opacity: 0.6 }}>Month {entry.month}</div>
-              <div>{entry.text}</div>
-            </div>
-          ))}
+      <div ref={scrollRef} className="hide-scrollbar" style={{ maxHeight: "60vh", overflowY: "auto", fontSize: "0.85rem" }}>
+        {months.map(month => (
+          <div key={`month-${month}`} style={{ marginBottom: "0.75rem" }}>
+            <div style={{ opacity: 0.6, marginBottom: "0.25rem" }}>Month {month}</div>
+            {groups[month].map(entry => (
+              <div key={entry.id} style={{ marginBottom: "0.5rem" }}>
+                <div>{entry.text}</div>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -410,8 +440,31 @@ export default function App() {
 
           // if this modal was opened for a task, resolve it now
           if (inkTaskPendingResolve) {
+            // capture task title before resolving
+            const taskObj = state.tasks.find(t => t.id === inkTaskPendingResolve)
+            const taskTitle = taskObj ? describeTask(taskObj).title : String(inkTaskPendingResolve)
+
             dispatch({ type: "RESOLVE_TASK", taskId: inkTaskPendingResolve })
-            dispatch({ type: "ADD_LOG", text: `You handled: ${inkTaskPendingResolve}` })
+
+            // Build a received summary from the delta we applied (if any)
+            try {
+              const vars = (inkStory as any)?.variablesState ?? {}
+              const dm = Number(vars.delta_money ?? 0)
+              const ds = Number(vars.delta_stress ?? 0)
+              const dh = Number(vars.delta_health ?? 0)
+              const dhu = Number(vars.delta_humanity ?? 0)
+              const parts: string[] = []
+              if (dm !== 0) parts.push(`${dm > 0 ? '+' : '-'}¤${Math.abs(dm)}`)
+              if (ds !== 0) parts.push(`${ds > 0 ? '+' : '-'}${Math.abs(ds)} stress`)
+              if (dh !== 0) parts.push(`${dh > 0 ? '+' : '-'}${Math.abs(dh)} health`)
+              if (dhu !== 0) parts.push(`${dhu > 0 ? '+' : '-'}${Math.abs(dhu)} humanity`)
+
+              const received = parts.length > 0 ? ` Received: ${parts.join(', ')}` : ''
+              dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.${received}` })
+            } catch (e) {
+              dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.` })
+            }
+
             setInkTaskPendingResolve(null)
             setInkTaskPendingGraphId(null)
           }

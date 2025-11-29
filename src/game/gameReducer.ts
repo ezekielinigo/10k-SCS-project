@@ -14,6 +14,12 @@ export type GameAction =
 
 const randId = () => Math.random().toString(36).slice(2)
 
+function pick<T>(value: T | T[]): T {
+  return Array.isArray(value)
+    ? value[Math.floor(Math.random() * value.length)]
+    : value;
+}
+
 export const gameReducer = (state: GameState, action: GameAction): GameState => {
   switch (action.type) {
     case "ADVANCE_MONTH": {
@@ -30,7 +36,28 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
           {
             id: randId(),
             month: newMonth,
-            text: `Month ${newMonth}. New cycle begins.`,
+            text: pick([
+              "Mayor Denies Allegations of Illegal Cyberware Donations from Corpo Syndicate",
+              "Mysterious EMP Pulse Blackouts District 7 for 3 Minutes, Authorities 'Investigating'",
+              "Netrunner Collective Claims Responsibility for Overnight Transit Shutdown",
+              "Food Printer Malfunction Causes Neon-Green Protein Sludge Recall",
+              "Biotech Firm Unveils New 'Emotion Regulator' Implant, Critics Raise Concerns",
+              "Gang Leader ‘ChromeJack’ Spotted in High-Security Zone, How Did He Get In?",
+              "Illegal Drone Racing Ring Busted Under Old MagRail Tunnels",
+              "Rising Radiation Levels Near the Dead Zone Prompt Evacuation Order",
+              "Street Vendors Protest New Microtax on Augmented Hands Payments",
+              "Corpo War Rumors Spike After CEO Found Dead in Encrypted Hotel Capsule",
+              "District 3 Water Supply Contaminated After Factory Coolant Leak",
+              "Arcology’s AI Assistant Glitches, Issues 2,000 False Eviction Notices",
+              "Black Market Cyberware Prices Triple After Border Checkpoint Crackdowns",
+              "Valkarna Auto Consortium Announces Layoffs Following Plant Explosion",
+              "Hyperloop Station Hijacked, Passengers Forced to Watch Pirate Broadcast",
+              "Synthetic Pets Firmware Update Causes Mass Runaways Across the City",
+              "Anonymous Tips Reveal Hidden Vault Beneath Decommissioned Police Precinct",
+              "Cyberpsychosis Cases Surge After Release of Experimental Brain Mod",
+              "Coastal Weather Shields Fail, Acid Rain Warning Issued for Entire Weekend",
+              "AI Judge Sentences Itself to Maintenance After 'Ethical Conflict Detected'"
+            ]),
           },
         ],
       }

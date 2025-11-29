@@ -12,3 +12,23 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* hide-scrollbar: visually hide scrollbars while keeping content scrollable */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/WebKit */
+}
+
+/* Hide scrollbars site-wide. This hides the visual scrollbar but keeps content scrollable. */
+html, body {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
+}
