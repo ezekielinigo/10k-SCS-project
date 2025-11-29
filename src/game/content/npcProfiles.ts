@@ -1,11 +1,22 @@
-import type { NpcState } from "../types"
+import type { NpcState, Tag } from "../types"
 
 const randId = () => Math.random().toString(36).slice(2)
 
-export type NpcProfile = Omit<NpcState, "id">
+export type NpcProfile = {
+  id: string
+  name: string
+  age: number
+  avatarId: string
+  stats: NpcState["stats"]
+  trust: number
+  relationship: number
+  affiliationId: string | null
+  tags: Tag[]
+}
 
-const NPC_PROFILES: NpcProfile[] = [
-  {
+const NPC_PROFILES: Record<string, NpcProfile> = {
+  kea_face: {
+    id: "kea_face",
     name: "Kea",
     age: 28,
     avatarId: "avatar-1",
@@ -19,9 +30,11 @@ const NPC_PROFILES: NpcProfile[] = [
     },
     trust: 50,
     relationship: 0,
-    affiliationId: null,
+    affiliationId: "instafood_collective",
+    tags: ["fixer", "charismatic", "midlands"],
   },
-  {
+  vik_hardline: {
+    id: "vik_hardline",
     name: "Vik",
     age: 35,
     avatarId: "avatar-2",
@@ -35,14 +48,38 @@ const NPC_PROFILES: NpcProfile[] = [
     },
     trust: 40,
     relationship: 0,
-    affiliationId: null,
+    affiliationId: "valkarna_auto",
+    tags: ["mechanic", "veteran", "industrial"],
   },
-]
+}
 
-export const createNpc = (): NpcState => {
-  const i = Math.floor(Math.random() * NPC_PROFILES.length)
-  const base = NPC_PROFILES[i]
-  return { id: randId(), ...base }
+export const listNpcProfiles = (): NpcProfile[] => Object.values(NPC_PROFILES)
+
+export const getNpcProfileById = (id: string): NpcProfile | undefined =>
+  NPC_PROFILES[id]
+
+export const createNpc = (profileId?: string): NpcState => {
+  const profiles = listNpcProfiles()
+  const base = profileId
+    ? NPC_PROFILES[profileId]
+    : profiles[Math.floor(Math.random() * profiles.length)]
+
+  if (!base) {
+    throw new Error("Requested NPC profile not found")
+  }
+
+  return {
+    templateId: base.id,
+    id: randId(),
+    name: base.name,
+    age: base.age,
+    avatarId: base.avatarId,
+    stats: base.stats,
+    trust: base.trust,
+    relationship: base.relationship,
+    affiliationId: base.affiliationId,
+    tags: base.tags,
+  }
 }
 
 export default NPC_PROFILES

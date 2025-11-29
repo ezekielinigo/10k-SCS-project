@@ -1,4 +1,7 @@
+import { getAffiliationById } from "./game/content/affiliations.ts"
+import { getJobTemplateById } from "./game/content/jobs.ts"
 import { useGame } from "./game/GameContext.tsx"
+import { describeTask } from "./game/taskLookup.ts"
 
 function PlayerSummary() {
   const { state } = useGame()
@@ -12,6 +15,7 @@ function PlayerSummary() {
       <div>Month: {state.month}</div>
       <div>Money: ¤{p.stats.money}</div>
       <div>Stress: {p.stats.stress}</div>
+      <div>Occupation: {(getJobTemplateById(p.jobId))?.title} @ {getAffiliationById(p.affiliationId)?.name}</div>
       <div>
         STR {p.stats.skills.str} • INT {p.stats.skills.int} • REF {p.stats.skills.ref} • CHR {p.stats.skills.chr}
       </div>
@@ -31,25 +35,28 @@ function TaskList() {
     <div style={{ padding: "0.75rem", borderRight: "1px solid #333", width: "40%" }}>
       <h2>Tasks this month</h2>
       {state.tasks.length === 0 && <p>No tasks yet. Advance month.</p>}
-      {state.tasks.map(task => (
-        <div
-          key={task.id}
-          style={{
-            marginBottom: "0.5rem",
-            padding: "0.5rem",
-            border: "1px solid #444",
-            opacity: task.resolved ? 0.6 : 1,
-          }}
-        >
-          <div>
-            <strong>{task.title}</strong> <small>({task.kind})</small>
+      {state.tasks.map(task => {
+        const presentation = describeTask(task)
+        return (
+          <div
+            key={task.id}
+            style={{
+              marginBottom: "0.5rem",
+              padding: "0.5rem",
+              border: "1px solid #444",
+              opacity: task.resolved ? 0.6 : 1,
+            }}
+          >
+            <div>
+              <strong>{presentation.title}</strong> <small>({task.kind})</small>
+            </div>
+            <p style={{ fontSize: "0.85rem" }}>{presentation.description}</p>
+            {!task.resolved && (
+              <button onClick={() => handleResolve(task.id)}>Resolve</button>
+            )}
           </div>
-          <p style={{ fontSize: "0.85rem" }}>{task.description}</p>
-          {!task.resolved && (
-            <button onClick={() => handleResolve(task.id)}>Resolve</button>
-          )}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

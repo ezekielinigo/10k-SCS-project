@@ -1,4 +1,5 @@
 import type { GameState, TaskState } from "./types"
+import { generateMonthlyTasks } from "./taskGenerator"
 
 export type GameAction =
   | { type: "ADVANCE_MONTH" }
@@ -8,37 +9,12 @@ export type GameAction =
 
 const randId = () => Math.random().toString(36).slice(2)
 
-function generateDummyTasks(month: number): TaskState[] {
-  return [
-    {
-      id: randId(),
-      kind: "job",
-      title: "Shift at Valkarna Auto Shop",
-      description: "A basic mechanic shift. Pays a little, raises stress.",
-      resolved: false,
-    },
-    {
-      id: randId(),
-      kind: "bill",
-      title: "Apartment rent",
-      description: "Pay your monthly rent or risk trouble.",
-      resolved: false,
-    },
-    {
-      id: randId(),
-      kind: "randomEvent",
-      title: "Cybernetic glitch",
-      description: "Your cheap neural implant flickers during the commute.",
-      resolved: false,
-    },
-  ]
-}
-
 export const gameReducer = (state: GameState, action: GameAction): GameState => {
   switch (action.type) {
     case "ADVANCE_MONTH": {
       const newMonth = state.month + 1
-      const tasks = generateDummyTasks(newMonth)
+      const interimState: GameState = { ...state, month: newMonth }
+      const tasks = generateMonthlyTasks(interimState)
 
       return {
         ...state,

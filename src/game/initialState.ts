@@ -2,8 +2,7 @@ import type { GameState } from "./types"
 import { getRandomProfile } from "./content/playerProfiles"
 import DISTRICTS from "./districts"
 import { createNpc } from "./content/npcProfiles"
-import { createJob } from "./content/jobs"
-import { createRandomEvent } from "./content/randomEvents"
+import { generateMonthlyTasks } from "./taskGenerator"
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -12,15 +11,10 @@ export const createInitialGameState = (): GameState => {
 
   const profile = getRandomProfile()
 
-  // create a couple of starter NPCs and seed tasks
   const npcA = createNpc()
   const npcB = createNpc()
 
-  const starterNpcs = { [npcA.id]: npcA, [npcB.id]: npcB }
-
-  const starterTasks = [createJob(), createRandomEvent()]
-
-  return {
+  const baseState: GameState = {
     month: 0,
     player: {
       id: randId(),
@@ -29,16 +23,21 @@ export const createInitialGameState = (): GameState => {
       homeDistrictId,
       currentDistrictId: homeDistrictId,
     },
-    npcs: starterNpcs,
+    npcs: { [npcA.id]: npcA, [npcB.id]: npcB },
     // Use centralized districts data. Spread to avoid accidental mutation at runtime.
     districts: { ...DISTRICTS },
-    tasks: starterTasks,
+    tasks: [],
     log: [
       {
         id: randId(),
         month: 0,
-        text: "You wake up in Downtown Ark. Eighteen years old. Fresh start.",
+        text: "You wake up in Downtown Ark. Fresh start.",
       },
     ],
+    worldTags: ["baseline", "season_late_spring"],
   }
+
+  const starterTasks = generateMonthlyTasks(baseState)
+
+  return { ...baseState, tasks: starterTasks }
 }

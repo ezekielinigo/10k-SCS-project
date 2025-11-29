@@ -7,6 +7,7 @@ export const DISTRICTS: Record<string, DistrictState> = {
     security: 50,
     unrest: 30,
     economy: 60,
+    tags: ["downtown", "district1", "commercial", "high_security"],
   },
   midlands: {
     id: "midlands",
@@ -14,6 +15,7 @@ export const DISTRICTS: Record<string, DistrictState> = {
     security: 35,
     unrest: 45,
     economy: 40,
+    tags: ["midlands", "district3", "residential", "low_security"],
   },
   industrial: {
     id: "industrial",
@@ -21,6 +23,7 @@ export const DISTRICTS: Record<string, DistrictState> = {
     security: 60,
     unrest: 20,
     economy: 70,
+    tags: ["industrial", "district5", "manufacturing", "blue_collar"],
   },
 }
 
