@@ -1,5 +1,5 @@
 import type { GameState } from "./types"
-import { getRandomProfile } from "./content/playerProfiles"
+import { getProfileById, getRandomProfile } from "./content/playerProfiles"
 import DISTRICTS from "./districts"
 import { createNpc } from "./content/npcProfiles"
 import { generateMonthlyTasks } from "./taskGenerator"
@@ -9,7 +9,7 @@ const randId = () => Math.random().toString(36).slice(2)
 export const createInitialGameState = (): GameState => {
   const homeDistrictId = "downtown"
 
-  const profile = getRandomProfile()
+  const profile = getProfileById("rook_grease") ?? getRandomProfile()
 
   const npcA = createNpc()
   const npcB = createNpc()

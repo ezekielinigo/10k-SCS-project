@@ -114,7 +114,6 @@ export type TaskGraph = {
 
 export type OutcomeDefinition = {
   tier: OutcomeTier
-  texts: string[]
   applyEffects: (state: GameState, context: { taskGraphId: string }) => GameState
 }
 

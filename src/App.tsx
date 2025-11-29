@@ -4,6 +4,7 @@ import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
 import { buildContentContext } from "./game/content/tagEngine"
 import { getTaskGraphById } from "./game/content/tasks"
+import { useState } from "react"
 
 function TaskModal() {
   const { state, dispatch } = useGame()
@@ -67,7 +68,7 @@ function PlayerSummary() {
   )
 }
 
-function TaskList() {
+function TaskList({ onOpenInk }: { onOpenInk?: (taskGraphId: string) => void }) {
   const { state, dispatch } = useGame()
 
   const handleResolve = (taskId: string) => {
@@ -75,6 +76,11 @@ function TaskList() {
     if (!task) return
 
     if (task.taskGraphId) {
+      if (onOpenInk) {
+        onOpenInk(task.taskGraphId)
+        return
+      }
+
       dispatch({ type: "START_TASK_RUN", taskId: task.id, taskGraphId: task.taskGraphId })
       return
     }
@@ -162,16 +168,231 @@ function AdvanceMonthButton() {
   )
 }
 
+function InkModal({ open, onClose, story, text, choices, onChoose }: { open: boolean; onClose: () => void; story: Story | null; text: string; choices: any[]; onChoose: (i: number) => void }) {
+  if (!open) return null
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.65)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 60,
+      }}
+    >
+      <div style={{ background: "#111", color: "#fff", padding: "1.25rem", width: "520px", borderRadius: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}></h3>
+          <button onClick={onClose}>Close</button>
+        </div>
+        <div style={{ whiteSpace: "pre-wrap", marginBottom: "1rem" }}>{text}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {choices.map((c, idx) => (
+            <button key={idx} style={{ textAlign: "left", padding: "0.5rem", borderRadius: 6 }} onClick={() => onChoose(c.index ?? idx)}>
+              {c.text}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
+  const [inkOpen, setInkOpen] = useState(false)
+  const [inkStory, setInkStory] = useState<Story | null>(null)
+  const [inkText, setInkText] = useState("")
+  const [inkChoices, setInkChoices] = useState<any[]>([])
+  const { state, dispatch } = useGame()
+
+  const openInkDebug = async () => {
+    try {
+      // Dynamically import inkjs and the compiled json to avoid module-level runtime errors
+      const InkModule = await import("inkjs")
+      const tasks = (await import("./ink/career_mechanic.json")) as any
+      const StoryCtor = InkModule?.default?.Story ?? InkModule?.Story ?? InkModule?.default
+      if (!StoryCtor) throw new Error("inkjs Story constructor not found")
+
+      const s = new StoryCtor(tasks)
+      // bind external functions expected by the ink stories
+      try {
+        const bind = (s as any).BindExternalFunction ?? (s as any).bindExternalFunction ?? (s as any).BindExternal
+        if (typeof (s as any).BindExternalFunction === "function") {
+          ;(s as any).BindExternalFunction("hasStat", (statName: any, threshold: any) => {
+            try {
+              const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
+              const stats = state.player.stats.skills as any
+              const value = stats[key] ?? stats[key.slice(0, 3)] ?? 0
+              return Number(value) >= Number(threshold)
+            } catch (e) {
+              return false
+            }
+          })
+
+          ;(s as any).BindExternalFunction("hasMoney", (amount: any) => {
+            try {
+              return Number(state.player.stats.money) >= Number(amount)
+            } catch (e) {
+              return false
+            }
+          })
+        } else if (typeof (s as any).bindExternalFunction === "function") {
+          ;(s as any).bindExternalFunction("hasStat", (statName: any, threshold: any) => {
+            try {
+              const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
+              const stats = state.player.stats.skills as any
+              const value = stats[key] ?? stats[key.slice(0, 3)] ?? 0
+              return Number(value) >= Number(threshold)
+            } catch (e) {
+              return false
+            }
+          })
+
+          ;(s as any).bindExternalFunction("hasMoney", (amount: any) => {
+            try {
+              return Number(state.player.stats.money) >= Number(amount)
+            } catch (e) {
+              return false
+            }
+          })
+        }
+      } catch (e) {
+        console.warn("Failed to bind ink externals:", e)
+      }
+      // jump to the named knot
+      try {
+        if (typeof s.ChoosePathString === "function") s.ChoosePathString("mechanic_apprentice_shift")
+      } catch (e) {
+        // ignore - path may already be at entry
+      }
+
+      let out = ""
+      while (s.canContinue) {
+        out += (s.Continue() as string)
+        if (s.canContinue) out += "\n"
+      }
+
+      setInkStory(s)
+      setInkText(out)
+      setInkChoices(s.currentChoices ?? [])
+      setInkOpen(true)
+    } catch (err: any) {
+      console.error("Ink debug open failed:", err)
+      setInkStory(null)
+      setInkText("Error opening ink story: " + (err?.message ?? String(err)))
+      setInkChoices([])
+      setInkOpen(true)
+    }
+  }
+
+  const openInkForTask = async (taskGraphId: string) => {
+    try {
+      const InkModule = await import("inkjs")
+      // load the career json - user renamed compiled file to career_mechanic.json
+      const tasks = (await import("./ink/career_mechanic.json")) as any
+      const StoryCtor = InkModule?.default?.Story ?? InkModule?.Story ?? InkModule?.default
+      if (!StoryCtor) throw new Error("inkjs Story constructor not found")
+
+      const s = new StoryCtor(tasks)
+
+      // bind externals similar to debug flow
+      try {
+        if (typeof (s as any).BindExternalFunction === "function") {
+          ;(s as any).BindExternalFunction("hasStat", (statName: any, threshold: any) => {
+            try {
+              const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
+              const stats = state.player.stats.skills as any
+              const value = stats[key] ?? stats[key.slice(0, 3)] ?? 0
+              return Number(value) >= Number(threshold)
+            } catch (e) {
+              return false
+            }
+          })
+
+          ;(s as any).BindExternalFunction("hasMoney", (amount: any) => {
+            try {
+              return Number(state.player.stats.money) >= Number(amount)
+            } catch (e) {
+              return false
+            }
+          })
+        } else if (typeof (s as any).bindExternalFunction === "function") {
+          ;(s as any).bindExternalFunction("hasStat", (statName: any, threshold: any) => {
+            try {
+              const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
+              const stats = state.player.stats.skills as any
+              const value = stats[key] ?? stats[key.slice(0, 3)] ?? 0
+              return Number(value) >= Number(threshold)
+            } catch (e) {
+              return false
+            }
+          })
+
+          ;(s as any).bindExternalFunction("hasMoney", (amount: any) => {
+            try {
+              return Number(state.player.stats.money) >= Number(amount)
+            } catch (e) {
+              return false
+            }
+          })
+        }
+      } catch (e) {
+        console.warn("Failed to bind ink externals:", e)
+      }
+
+      // try to jump to the taskGraphId knot
+      try {
+        if (typeof s.ChoosePathString === "function") s.ChoosePathString(taskGraphId)
+      } catch (e) {}
+
+      let out = ""
+      while (s.canContinue) {
+        out += (s.Continue() as string)
+        if (s.canContinue) out += "\n"
+      }
+
+      setInkStory(s)
+      setInkText(out)
+      setInkChoices(s.currentChoices ?? [])
+      setInkOpen(true)
+    } catch (err: any) {
+      console.error("openInkForTask failed:", err)
+      setInkStory(null)
+      setInkText("Error opening ink story: " + (err?.message ?? String(err)))
+      setInkChoices([])
+      setInkOpen(true)
+    }
+  }
+
+  const handleChoose = (choiceIndex: number) => {
+    if (!inkStory) return
+    inkStory.ChooseChoiceIndex(choiceIndex)
+    let out = ""
+    while (inkStory.canContinue) {
+      out += (inkStory.Continue() as string)
+      if (inkStory.canContinue) out += "\n"
+    }
+
+    setInkText(prev => prev + "\n" + out)
+    setInkChoices(inkStory.currentChoices ?? [])
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <PlayerSummary />
       <div style={{ display: "flex", flex: 1 }}>
-        <TaskList />
+        <TaskList onOpenInk={openInkForTask} />
         <LogPanel />
       </div>
-      <AdvanceMonthButton />
+      <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
+        <AdvanceMonthButton />
+        <button style={{ marginLeft: "0.5rem" }} onClick={openInkDebug}>DEBUG: ink</button>
+      </div>
       <TaskModal />
+      <InkModal open={inkOpen} onClose={() => setInkOpen(false)} story={inkStory} text={inkText} choices={inkChoices} onChoose={(i) => handleChoose(i)} />
     </div>
   )
 }

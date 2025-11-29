@@ -71,4 +71,8 @@ export const getRandomProfile = (): PlayerProfile => {
   return { ...profiles[i] }
 }
 
+export const getProfileById = (id: string): PlayerProfile | undefined => {
+  return profiles.find(p => p.profileId === id)
+}
+
 export default profiles

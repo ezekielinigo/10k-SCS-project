@@ -29,15 +29,19 @@ export const describeTask = (
     }
   }
 
-  if (template.kind === "job") {
+  // Use the task's kind (from the TaskState) to decide how to present the template
+  if (task.kind === "job") {
+    // Job templates store description as a string[]; join for presentation
     return {
       title: template.title,
-      description: template.taskSummary,
+      description: Array.isArray((template as any).description)
+        ? (template as any).description.join(" ")
+        : (template as any).description,
     }
   }
 
   return {
     title: template.title,
-    description: template.description,
+    description: (template as any).description as string,
   }
 }
