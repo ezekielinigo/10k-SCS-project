@@ -10,6 +10,12 @@ export type EventScope =
   | "health"
   | "cyberware"
 
+export type OutcomeTier =
+  | "great_success"
+  | "success"
+  | "failure"
+  | "great_failure"
+
 export type StatBlock = { // stat block is mainly the numeric data
   health: number
   humanity: number
@@ -72,9 +78,52 @@ export type TaskState = {
   id: string
   templateId: string
   kind: TaskKind
+  taskGraphId: string | null
   resolved: boolean
   assignedNpcId?: string | null
   contextTags: Tag[]
+}
+
+export type TaskChoiceCondition = {
+  minStats?: Partial<Omit<StatBlock, "skills">> & { skills?: Partial<SkillBlock> }
+  maxStress?: number
+  requiresItemIds?: string[]
+  minMoney?: number
+}
+
+export type TaskChoice = {
+  id: string
+  text: string
+  nextNodeId?: string
+  outcome?: OutcomeTier
+  weight?: number
+  condition?: TaskChoiceCondition
+}
+
+export type TaskNode = {
+  id: string
+  description: string
+  choices: TaskChoice[]
+}
+
+export type TaskGraph = {
+  id: string
+  entryNodeId: string
+  nodes: Record<string, TaskNode>
+}
+
+export type OutcomeDefinition = {
+  tier: OutcomeTier
+  texts: string[]
+  applyEffects: (state: GameState, context: { taskGraphId: string }) => GameState
+}
+
+export type ActiveTaskRun = {
+  taskGraphId: string
+  originTaskId: string
+  currentNodeId: string | null
+  pendingOutcome?: OutcomeTier
+  outcomeFlavorText?: string
 }
 
 export type LogEntry = {
@@ -91,4 +140,5 @@ export type GameState = {
   tasks: TaskState[]
   log: LogEntry[]
   worldTags: Tag[]
+  activeTaskRun: ActiveTaskRun | null
 }

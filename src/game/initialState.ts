@@ -35,6 +35,7 @@ export const createInitialGameState = (): GameState => {
       },
     ],
     worldTags: ["baseline", "season_late_spring"],
+    activeTaskRun: null,
   }
 
   const starterTasks = generateMonthlyTasks(baseState)

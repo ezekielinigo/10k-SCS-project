@@ -2,6 +2,50 @@ import { getAffiliationById } from "./game/content/affiliations.ts"
 import { getJobTemplateById } from "./game/content/jobs.ts"
 import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
+import { buildContentContext } from "./game/content/tagEngine"
+import { getTaskGraphById } from "./game/content/tasks"
+
+function TaskModal() {
+  const { state, dispatch } = useGame()
+  const run = state.activeTaskRun
+  if (!run) return null
+
+  const graph = getTaskGraphById(run.taskGraphId)
+  if (!graph) return null
+
+  const node = graph.nodes[run.currentNodeId ?? graph.entryNodeId]
+  if (!node) return null
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.65)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+      }}
+    >
+      <div style={{ background: "#111", color: "#fff", padding: "1.25rem", width: "520px", borderRadius: 8 }}>
+        <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}>{graph.id.replace(/_/g, " ")}</h3>
+        <p style={{ marginBottom: "1rem" }}>{node.description}</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {node.choices.map(choice => (
+            <button
+              key={choice.id}
+              style={{ textAlign: "left", padding: "0.5rem", borderRadius: 6 }}
+              onClick={() => dispatch({ type: "MAKE_TASK_CHOICE", choiceId: choice.id })}
+            >
+              {choice.text}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function PlayerSummary() {
   const { state } = useGame()
@@ -27,6 +71,14 @@ function TaskList() {
   const { state, dispatch } = useGame()
 
   const handleResolve = (taskId: string) => {
+    const task = state.tasks.find(t => t.id === taskId)
+    if (!task) return
+
+    if (task.taskGraphId) {
+      dispatch({ type: "START_TASK_RUN", taskId: task.id, taskGraphId: task.taskGraphId })
+      return
+    }
+
     dispatch({ type: "RESOLVE_TASK", taskId })
     dispatch({ type: "ADD_LOG", text: `You handled: ${taskId}` })
   }
@@ -66,7 +118,7 @@ function LogPanel() {
   return (
     <div style={{ padding: "0.75rem", flex: 1 }}>
       <h2>Log</h2>
-      <div style={{ maxHeight: "60vh", overflowY: "auto", fontSize: "0.85rem" }}>
+      <div className="hide-scrollbar" style={{ maxHeight: "60vh", overflowY: "auto", fontSize: "0.85rem" }}>
         {state.log
           .slice()
           .reverse()
@@ -82,13 +134,30 @@ function LogPanel() {
 }
 
 function AdvanceMonthButton() {
-  const { dispatch } = useGame()
+  const { state, dispatch } = useGame()
+
+  const handleDebugTags = () => {
+    const ctx = buildContentContext(state)
+    const parts = [
+      `jobTags: ${ctx.jobTags.join(", ") || "-"}`,
+      `districtTags: ${ctx.districtTags.join(", ") || "-"}`,
+      `npcTags: ${ctx.npcTags.join(", ") || "-"}`,
+      `affiliationTags: ${ctx.affiliationTags.join(", ") || "-"}`,
+      `lifestyleTags: ${ctx.lifestyleTags.join(", ") || "-"}`,
+      `statTags: ${ctx.statTags.join(", ") || "-"}`,
+      `playerTags: ${ctx.playerTags.join(", ") || "-"}`,
+      `worldTags: ${ctx.worldTags.join(", ") || "-"}`,
+    ]
+
+    dispatch({ type: "ADD_LOG", text: `TAGS — ${parts.join(" | ")}` })
+  }
 
   return (
     <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
-      <button onClick={() => dispatch({ type: "ADVANCE_MONTH" })}>
+      <button style={{ marginRight: "0.5rem" }} onClick={() => dispatch({ type: "ADVANCE_MONTH" })}>
         Advance 1 month
       </button>
+      <button onClick={handleDebugTags}>Debug Tags</button>
     </div>
   )
 }
@@ -102,6 +171,7 @@ export default function App() {
         <LogPanel />
       </div>
       <AdvanceMonthButton />
+      <TaskModal />
     </div>
   )
 }

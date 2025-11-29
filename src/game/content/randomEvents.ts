@@ -17,6 +17,7 @@ export type RandomEventTemplate = {
   scope: EventScope
   tags: Tag[]
   baseWeight?: number
+  taskGraphId: string
 }
 
 const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
@@ -28,6 +29,7 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     scope: "job_related",
     tags: ["mechanic", "industrial", "blue_collar", "tech"],
     baseWeight: 2,
+    taskGraphId: "mechanic_apprentice_shift",
   },
   instafood_grease_fire: {
     id: "instafood_grease_fire",
@@ -36,6 +38,7 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     description: "A grease flare threatens to shut down the lunch rush.",
     scope: "job_related",
     tags: ["food_service", "customer_facing", "midlands"],
+    taskGraphId: "generic_random_event",
   },
   district5_drone_collapse: {
     id: "district5_drone_collapse",
@@ -44,6 +47,7 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     description: "A delivery drone crashes near a street booth, scattering contraband.",
     scope: "district_related",
     tags: ["district5", "industrial", "security"],
+    taskGraphId: "generic_random_event",
   },
   midnight_subway_graffiti: {
     id: "midnight_subway_graffiti",
@@ -52,6 +56,7 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     description: "Artists tag the corporate tram; enforcers swarm the tunnels.",
     scope: "world",
     tags: ["street", "culture", "rebellion"],
+    taskGraphId: "generic_random_event",
   },
   chrome_spike_overload: {
     id: "chrome_spike_overload",
@@ -60,6 +65,7 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     description: "Your neural implant spikes, forcing you to reroute biofeedback.",
     scope: "health",
     tags: ["cyberware", "health", "stress"],
+    taskGraphId: "chrome_spike_overload",
   },
   fixer_calls_in_favor: {
     id: "fixer_calls_in_favor",
@@ -68,6 +74,7 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     description: "A nearby fixer leans on you to smooth over a street deal.",
     scope: "npc_related",
     tags: ["fixer", "favor", "midlands"],
+    taskGraphId: "generic_random_event",
   },
   union_dues_audit: {
     id: "union_dues_audit",
@@ -76,6 +83,7 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     description: "Your affiliation sends an auditor to review lost dues.",
     scope: "faction_related",
     tags: ["union", "mechanic", "industrial"],
+    taskGraphId: "generic_random_event",
   },
   surprise_apartment_inspection: {
     id: "surprise_apartment_inspection",
@@ -84,6 +92,7 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     description: "Housing wardens sweep through your block looking for contraband.",
     scope: "personal_life",
     tags: ["midlands", "tenant", "lawful"],
+    taskGraphId: "generic_random_event",
   },
 }
 
@@ -120,6 +129,7 @@ export const createRandomEventTaskForState = (state: GameState): TaskState | nul
     id: randId(),
     templateId: template.id,
     kind: "randomEvent",
+    taskGraphId: template.taskGraphId,
     resolved: false,
     contextTags: template.tags,
   }

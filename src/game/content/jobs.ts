@@ -9,6 +9,7 @@ export type JobTemplate = {
   description: string
   taskSummary: string
   tags: Tag[]
+  taskGraphId: string
 }
 
 const JOB_TEMPLATES: Record<string, JobTemplate> = {
@@ -19,6 +20,7 @@ const JOB_TEMPLATES: Record<string, JobTemplate> = {
     description: "Tune up battered groundcars at Valkarna Auto.",
     taskSummary: "Complete this week's diagnostics and repairs.",
     tags: ["mechanic", "tech", "blue_collar", "industrial"],
+    taskGraphId: "mechanic_apprentice_shift",
   },
   line_cook: {
     id: "line_cook",
@@ -27,6 +29,7 @@ const JOB_TEMPLATES: Record<string, JobTemplate> = {
     description: "Keep the vats stirred at InstaFood.",
     taskSummary: "Prep ingredients and survive the lunch rush.",
     tags: ["food_service", "customer_facing", "blue_collar"],
+    taskGraphId: "generic_job_shift",
   },
   courier: {
     id: "courier",
@@ -35,6 +38,7 @@ const JOB_TEMPLATES: Record<string, JobTemplate> = {
     description: "Run sensitive packages through the grid.",
     taskSummary: "Deliver encrypted parcels before curfew hits.",
     tags: ["runner", "transport", "streetwise"],
+    taskGraphId: "generic_job_shift",
   },
 }
 
@@ -51,6 +55,7 @@ export const createJobTaskForState = (state: GameState): TaskState | null => {
     id: randId(),
     templateId: template.id,
     kind: "job",
+    taskGraphId: template.taskGraphId,
     resolved: false,
     contextTags: template.tags,
   }
