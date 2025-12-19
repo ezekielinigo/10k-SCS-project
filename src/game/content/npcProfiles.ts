@@ -1,4 +1,4 @@
-import type { NpcState, Tag } from "../types"
+import type { Tag, SkillBlock, VitalBlock, NpcState } from "../types"
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -7,11 +7,24 @@ export type NpcProfile = {
   name: string
   age: number
   avatarId: string
-  stats: NpcState["stats"]
-  trust: number
-  relationship: number
-  affiliationId: string | null
+  vitals: VitalBlock
+  skills: SkillBlock
   tags: Tag[]
+}
+
+const zeroSubSkills: SkillBlock["subSkills"] = {
+  athletics: 0,
+  closeCombat: 0,
+  heavyHandling: 0,
+  hacking: 0,
+  medical: 0,
+  engineering: 0,
+  marksmanship: 0,
+  stealth: 0,
+  mobility: 0,
+  persuasion: 0,
+  deception: 0,
+  streetwise: 0,
 }
 
 const NPC_PROFILES: Record<string, NpcProfile> = {
@@ -20,17 +33,15 @@ const NPC_PROFILES: Record<string, NpcProfile> = {
     name: "Kea",
     age: 28,
     avatarId: "avatar-1",
-    stats: {
+    vitals: {
       health: 90,
       humanity: 80,
       stress: 5,
       money: 200,
       looks: 6,
-      skills: { str: 4, int: 7, ref: 6, chr: 8 },
+      bounty: 0,
     },
-    trust: 50,
-    relationship: 0,
-    affiliationId: "instafood_collective",
+    skills: { str: 4, int: 7, ref: 6, chr: 8, subSkills: { ...zeroSubSkills } },
     tags: ["fixer", "charismatic", "midlands"],
   },
   vik_hardline: {
@@ -38,17 +49,15 @@ const NPC_PROFILES: Record<string, NpcProfile> = {
     name: "Vik",
     age: 35,
     avatarId: "avatar-2",
-    stats: {
+    vitals: {
       health: 80,
       humanity: 60,
       stress: 20,
       money: 1000,
       looks: 5,
-      skills: { str: 8, int: 4, ref: 6, chr: 3 },
+      bounty: 0,
     },
-    trust: 40,
-    relationship: 0,
-    affiliationId: "valkarna_auto",
+    skills: { str: 8, int: 4, ref: 6, chr: 3, subSkills: { ...zeroSubSkills } },
     tags: ["mechanic", "veteran", "industrial"],
   },
 }
@@ -69,15 +78,13 @@ export const createNpc = (profileId?: string): NpcState => {
   }
 
   return {
-    templateId: base.id,
     id: randId(),
     name: base.name,
     age: base.age,
     avatarId: base.avatarId,
-    stats: base.stats,
-    trust: base.trust,
-    relationship: base.relationship,
-    affiliationId: base.affiliationId,
+    vitals: base.vitals,
+    skills: base.skills,
+    currentDistrict: "downtown",
     tags: base.tags,
   }
 }

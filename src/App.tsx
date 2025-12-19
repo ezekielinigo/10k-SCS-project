@@ -12,17 +12,19 @@ import iconDefault from "./assets/icon_default.png"
 function PlayerSummary() {
   const { state } = useGame()
   const p = state.player
+  const assignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === p.id)
+  const job = assignment ? getJobTemplateById(assignment.jobId) : undefined
 
   return (
     <div style={{ padding: "0.75rem", borderBottom: "1px solid #333" }}>
       <div>
         <strong>{p.name}</strong> - {Math.floor((p.ageMonths + state.month) / 12)} yrs
       </div>
-      <div>Money: ¤{p.stats.money}</div>
-      <div>Stress: {p.stats.stress}</div>
-      <div>Occupation: {(getJobTemplateById(p.jobId))?.title} @ {getAffiliationById(p.affiliationId)?.name}</div>
+      <div>Money: ¤{p.vitals.money}</div>
+      <div>Stress: {p.vitals.stress}</div>
+      <div>Occupation: {job?.title ?? "Unemployed"} @ {getAffiliationById(job?.employerId ?? undefined)?.name ?? "-"}</div>
       <div>
-        STR {p.stats.skills.str} • INT {p.stats.skills.int} • REF {p.stats.skills.ref} • CHR {p.stats.skills.chr}
+        STR {p.skills.str} • INT {p.skills.int} • REF {p.skills.ref} • CHR {p.skills.chr}
       </div>
     </div>
   )
@@ -153,8 +155,6 @@ function AdvanceMonthButton() {
       `jobTags: ${ctx.jobTags.join(", ") || "-"}`,
       `districtTags: ${ctx.districtTags.join(", ") || "-"}`,
       `npcTags: ${ctx.npcTags.join(", ") || "-"}`,
-      `affiliationTags: ${ctx.affiliationTags.join(", ") || "-"}`,
-      `lifestyleTags: ${ctx.lifestyleTags.join(", ") || "-"}`,
       `statTags: ${ctx.statTags.join(", ") || "-"}`,
       `playerTags: ${ctx.playerTags.join(", ") || "-"}`,
       `worldTags: ${ctx.worldTags.join(", ") || "-"}`,
@@ -308,8 +308,8 @@ export default function App() {
           ;(s as any).BindExternalFunction("hasStat", (statName: any, threshold: any) => {
             try {
               const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
-              const stats = state.player.stats.skills as any
-              const value = stats[key] ?? stats[key.slice(0, 3)] ?? 0
+              const skills = state.player.skills as any
+              const value = skills[key] ?? skills[key.slice(0, 3)] ?? skills.subSkills?.[key] ?? 0
               return Number(value) >= Number(threshold)
             } catch (e) {
               return false
@@ -318,7 +318,7 @@ export default function App() {
 
           ;(s as any).BindExternalFunction("hasMoney", (amount: any) => {
             try {
-              return Number(state.player.stats.money) >= Number(amount)
+              return Number(state.player.vitals.money) >= Number(amount)
             } catch (e) {
               return false
             }
@@ -327,8 +327,8 @@ export default function App() {
           ;(s as any).bindExternalFunction("hasStat", (statName: any, threshold: any) => {
             try {
               const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
-              const stats = state.player.stats.skills as any
-              const value = stats[key] ?? stats[key.slice(0, 3)] ?? 0
+              const skills = state.player.skills as any
+              const value = skills[key] ?? skills[key.slice(0, 3)] ?? skills.subSkills?.[key] ?? 0
               return Number(value) >= Number(threshold)
             } catch (e) {
               return false
@@ -337,7 +337,7 @@ export default function App() {
 
           ;(s as any).bindExternalFunction("hasMoney", (amount: any) => {
             try {
-              return Number(state.player.stats.money) >= Number(amount)
+              return Number(state.player.vitals.money) >= Number(amount)
             } catch (e) {
               return false
             }
@@ -389,8 +389,8 @@ export default function App() {
           ;(s as any).BindExternalFunction("hasStat", (statName: any, threshold: any) => {
             try {
               const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
-              const stats = state.player.stats.skills as any
-              const value = stats[key] ?? stats[key.slice(0, 3)] ?? 0
+              const skills = state.player.skills as any
+              const value = skills[key] ?? skills[key.slice(0, 3)] ?? skills.subSkills?.[key] ?? 0
               return Number(value) >= Number(threshold)
             } catch (e) {
               return false
@@ -399,7 +399,7 @@ export default function App() {
 
           ;(s as any).BindExternalFunction("hasMoney", (amount: any) => {
             try {
-              return Number(state.player.stats.money) >= Number(amount)
+              return Number(state.player.vitals.money) >= Number(amount)
             } catch (e) {
               return false
             }
@@ -408,8 +408,8 @@ export default function App() {
           ;(s as any).bindExternalFunction("hasStat", (statName: any, threshold: any) => {
             try {
               const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
-              const stats = state.player.stats.skills as any
-              const value = stats[key] ?? stats[key.slice(0, 3)] ?? 0
+              const skills = state.player.skills as any
+              const value = skills[key] ?? skills[key.slice(0, 3)] ?? skills.subSkills?.[key] ?? 0
               return Number(value) >= Number(threshold)
             } catch (e) {
               return false
@@ -418,7 +418,7 @@ export default function App() {
 
           ;(s as any).bindExternalFunction("hasMoney", (amount: any) => {
             try {
-              return Number(state.player.stats.money) >= Number(amount)
+              return Number(state.player.vitals.money) >= Number(amount)
             } catch (e) {
               return false
             }

@@ -29,7 +29,11 @@ export const getJobTemplateById = (id?: string | null): JobTemplate | undefined 
   id ? JOB_TEMPLATES[id] : undefined
 
 export const createJobTaskForState = (state: GameState): TaskState | null => {
-  const template = getJobTemplateById(state.player.jobId)
+  const assignments = state.jobAssignments ?? {}
+  const assignment = Object.values(assignments).find(a => a.memberId === state.player.id)
+  if (!assignment) return null
+
+  const template = getJobTemplateById(assignment.jobId)
   if (!template) return null
 
   return {

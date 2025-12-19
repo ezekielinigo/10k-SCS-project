@@ -177,21 +177,21 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const delta = action.delta || {}
 
       const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
-      const stats = state.player.stats
+      const vitals = state.player.vitals
 
-      const nextStats = {
-        ...stats,
-        health: clamp(stats.health + (delta.health ?? 0), 0, 100),
-        humanity: clamp(stats.humanity + (delta.humanity ?? 0), 0, 100),
-        stress: clamp(stats.stress + (delta.stress ?? 0), 0, 100),
-        money: stats.money + (delta.money ?? 0),
+      const nextVitals = {
+        ...vitals,
+        health: clamp(vitals.health + (delta.health ?? 0), 0, 100),
+        humanity: clamp(vitals.humanity + (delta.humanity ?? 0), 0, 100),
+        stress: clamp(vitals.stress + (delta.stress ?? 0), 0, 100),
+        money: vitals.money + (delta.money ?? 0),
       }
 
       return {
         ...state,
         player: {
           ...state.player,
-          stats: nextStats,
+          vitals: nextVitals,
         },
       }
     }

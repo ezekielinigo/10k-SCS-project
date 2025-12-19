@@ -1,13 +1,10 @@
 import type { EventScope, GameState, PlayerState, Tag } from "../types"
 import { getJobTemplateById } from "./jobs"
-import { getAffiliationById } from "./affiliations"
 
 export type ContentContext = {
   jobTags: Tag[]
   districtTags: Tag[]
   npcTags: Tag[]
-  affiliationTags: Tag[]
-  lifestyleTags: Tag[]
   statTags: Tag[]
   playerTags: Tag[]
   worldTags: Tag[]
@@ -17,27 +14,26 @@ const uniq = (tags: Tag[]): Tag[] => Array.from(new Set(tags))
 
 const deriveStatTags = (player: PlayerState): Tag[] => {
   const tags: Tag[] = []
-  const { stats } = player
+  const { vitals } = player
 
-  if (stats.health <= 40) tags.push("low_health")
-  if (stats.health >= 80) tags.push("high_health")
-  if (stats.stress >= 60) tags.push("high_stress")
-  if (stats.stress <= 20) tags.push("low_stress")
-  if (stats.humanity <= 40) tags.push("low_humanity")
-  if (stats.money >= 1000) tags.push("wealthy")
-  if (stats.money <= 200) tags.push("broke")
+  if (vitals.health <= 40) tags.push("low_health")
+  if (vitals.health >= 80) tags.push("high_health")
+  if (vitals.stress >= 60) tags.push("high_stress")
+  if (vitals.stress <= 20) tags.push("low_stress")
+  if (vitals.humanity <= 40) tags.push("low_humanity")
+  if (vitals.money >= 1000) tags.push("wealthy")
+  if (vitals.money <= 200) tags.push("broke")
 
   return tags
 }
 
 export const buildContentContext = (state: GameState): ContentContext => {
   const player = state.player
-  const jobTags = getJobTemplateById(player.jobId)?.tags ?? []
-  const district = state.districts[player.currentDistrictId]
+  const assignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === player.id)
+  const jobTags = assignment ? getJobTemplateById(assignment.jobId)?.tags ?? [] : []
+  const district = state.districts[player.currentDistrict]
   const districtTags = district?.tags ?? []
   const npcTags = Object.values(state.npcs).flatMap(npc => npc.tags)
-  const affiliationTags = getAffiliationById(player.affiliationId)?.tags ?? []
-  const lifestyleTags = [player.lifestyle]
   const statTags = deriveStatTags(player)
   const playerTags = player.tags
   const worldTags = state.worldTags
@@ -46,8 +42,6 @@ export const buildContentContext = (state: GameState): ContentContext => {
     jobTags: uniq(jobTags),
     districtTags: uniq(districtTags),
     npcTags: uniq(npcTags),
-    affiliationTags: uniq(affiliationTags),
-    lifestyleTags: uniq(lifestyleTags),
     statTags: uniq(statTags),
     playerTags: uniq(playerTags),
     worldTags: uniq(worldTags),
@@ -64,9 +58,9 @@ const scopeTagSelector: Record<EventScope, (ctx: ContentContext) => Tag[]> = {
   job_related: ctx => ctx.jobTags,
   district_related: ctx => ctx.districtTags,
   npc_related: ctx => ctx.npcTags,
-  faction_related: ctx => ctx.affiliationTags,
+  faction_related: ctx => ctx.jobTags,
   world: ctx => ctx.worldTags,
-  personal_life: ctx => [...ctx.playerTags, ...ctx.lifestyleTags],
+  personal_life: ctx => [...ctx.playerTags],
   health: ctx => ctx.statTags,
   cyberware: ctx => [...ctx.statTags, ...ctx.playerTags],
 }
