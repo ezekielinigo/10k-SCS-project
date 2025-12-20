@@ -9,6 +9,16 @@ type PostingOptions = {
   seed?: string
 }
 
+type BatchOptions = Partial<{
+  salaryJitter: number
+  maxListings: number
+  // if provided, skip postings from this career+affiliation pair
+  playerCareerId: string | null
+  playerAffiliationId: string | null
+  // if provided, skip postings for the exact same job+affiliation the player already holds
+  playerCurrentJobId: string | null
+}>
+
 // Builds a single job posting from a job template. Intended for procedural generation.
 export function generateJobPosting(opts: PostingOptions): JobPosting | null {
   const tmpl = getJobById(opts.templateId)
@@ -46,12 +56,129 @@ export function generateJobPosting(opts: PostingOptions): JobPosting | null {
   }
 }
 
-// Convenience: create multiple postings from a list of template IDs.
-export function generateJobPostings(templateIds: string[], overrides?: Partial<PostingOptions>): JobPosting[] {
-  const postings: JobPosting[] = []
-  for (const templateId of templateIds) {
-    const p = generateJobPosting({ templateId, ...overrides })
-    if (p) postings.push(p)
+// Create multiple postings from a list of template IDs.
+// Respects options to maximize filling `maxListings`, skip player's own career+affiliation, and dedupe lower-salary duplicates per employer+title.
+export function generateJobPostings(templateIds: string[], overrides?: Partial<PostingOptions> & BatchOptions): JobPosting[] {
+  const maxListings = overrides?.maxListings ?? 5
+  const salaryJitter = overrides?.salaryJitter
+
+  // shuffle templates to get varied selection
+  const templates = [...templateIds]
+  for (let i = templates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const t = templates[i]
+    templates[i] = templates[j]
+    templates[j] = t
   }
-  return postings
+
+  const postings: JobPosting[] = []
+
+  const normalizeAff = (aff: string | null | undefined) => aff ?? null
+
+  // helper to find existing posting with same employer+title
+  const findExistingIndex = (affId: string | null | undefined, title: string | undefined) => {
+    const targetAff = normalizeAff(affId)
+    return postings.findIndex(p => normalizeAff(p.affiliationId) === targetAff && (getJobById(p.templateId)?.title ?? p.templateId) === (title ?? p.templateId))
+  }
+
+  // try each template once; if we still have slots, allow another pass to try different random affiliations
+  const passes = Math.max(1, Math.ceil(maxListings / Math.max(1, templates.length)))
+
+  for (let pass = 0; pass < passes && postings.length < maxListings; pass++) {
+    for (const templateId of templates) {
+      if (postings.length >= maxListings) break
+
+      const tmpl = getJobById(templateId)
+      if (!tmpl) continue
+
+      // rule: skip postings from the player's current career tree at the same affiliation
+      try {
+        const career = getCareerForJobId(tmpl.id)
+        if (overrides?.playerCareerId && overrides?.playerAffiliationId) {
+          if (career?.id === overrides.playerCareerId) {
+            // affiliation selection happens inside generateJobPosting; we can pre-check by looking at career.affiliationId
+            const candidateAffiliations = career.affiliationId ?? []
+            // if player's affiliation is the only possible affiliation for this career, skip entirely
+            if (candidateAffiliations.length === 1 && candidateAffiliations[0] === overrides.playerAffiliationId) {
+              continue
+            }
+            // otherwise, if candidateAffiliations includes player's affiliation we still allow generateJobPosting to possibly pick another affiliation; we'll filter after generation
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      const p = generateJobPosting({ templateId, salaryJitter })
+      if (!p) continue
+
+      const normalizedAff = normalizeAff(p.affiliationId)
+
+      // skip if player already holds this exact job at this affiliation
+      if (overrides?.playerCurrentJobId && overrides.playerCurrentJobId === p.templateId) {
+        if (!overrides.playerAffiliationId || overrides.playerAffiliationId === normalizedAff) {
+          continue
+        }
+      }
+
+      // if playerCareer+affiliation specified, skip when both career and chosen affiliation match player's
+      if (overrides?.playerCareerId && overrides?.playerAffiliationId) {
+        const tmplCareer = getCareerForJobId(p.templateId)
+        if (tmplCareer?.id === overrides.playerCareerId && normalizedAff === overrides.playerAffiliationId) {
+          // skip this posting
+          continue
+        }
+      }
+
+      // dedupe: if same employer and same job title exists, keep higher salary only
+      const jobTitle = getJobById(p.templateId)?.title
+      const existingIndex = findExistingIndex(normalizedAff, jobTitle)
+      if (existingIndex !== -1) {
+        const existing = postings[existingIndex]
+        if ((existing.salary ?? 0) >= (p.salary ?? 0)) {
+          // existing is better or equal, skip new one
+          continue
+        } else {
+          // replace existing with higher salary new one
+          postings.splice(existingIndex, 1, p)
+          continue
+        }
+      }
+
+      postings.push(p)
+      if (postings.length >= maxListings) break
+    }
+  }
+
+  // final pass: if still not full, attempt to fill with any templates ignoring career-affiliation rule (only when impossible otherwise)
+  if (postings.length < maxListings) {
+    for (const templateId of templates) {
+      if (postings.length >= maxListings) break
+      const p = generateJobPosting({ templateId, salaryJitter })
+      if (!p) continue
+      const normalizedAff = normalizeAff(p.affiliationId)
+
+      if (overrides?.playerCurrentJobId && overrides.playerCurrentJobId === p.templateId) {
+        if (!overrides.playerAffiliationId || overrides.playerAffiliationId === normalizedAff) {
+          continue
+        }
+      }
+
+      const jobTitle = getJobById(p.templateId)?.title
+      const existingIndex = findExistingIndex(normalizedAff, jobTitle)
+      if (existingIndex !== -1) {
+        const existing = postings[existingIndex]
+        if ((existing.salary ?? 0) >= (p.salary ?? 0)) {
+          continue
+        } else {
+          postings.splice(existingIndex, 1, p)
+          continue
+        }
+      }
+      postings.push(p)
+    }
+  }
+
+  // ensure no more than maxListings
+  return postings.slice(0, maxListings)
 }

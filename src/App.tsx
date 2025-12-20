@@ -3,21 +3,26 @@ import { getJobById, listCareers, getCareerForJobId } from "./game/content/caree
 import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
 import { buildContentContext } from "./game/content/tagEngine"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import iconMoney from "./assets/icon_money.png"
 import iconStress from "./assets/icon_stress.png"
 import iconHealth from "./assets/icon_health.png"
 import iconDefault from "./assets/icon_default.png"
+import ProfileModal from "./components/ProfileModal"
+import ChangeJobModal from "./components/ChangeJobModal"
+const InkModal = lazy(() => import("./components/InkModal"))
+
 import type { GameState, PlayerState } from "./game/types"
 
 type InkFrame = { text: string; choices: any[] }
 
 const getPlayerProfileData = (state: GameState) => {
   const player = state.player
-  const assignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === player.id)
-  const job = assignment ? getJobById(assignment.jobId) : undefined
+  const assignments = Object.values(state.jobAssignments ?? {}).filter(a => a.memberId === player.id)
+  const jobs = assignments.map(a => getJobById(a.jobId)).filter(Boolean)
+  const membership = Object.values(state.memberships ?? {}).find(m => m.memberId === player.id)
 
-  return { player, assignment, job }
+  return { player, assignments, jobs, membership }
 }
 
 const bindInkExternals = (story: any, player: PlayerState) => {
@@ -97,9 +102,10 @@ const createInkStory = async (knot: string | undefined, player: PlayerState, ink
 
 function PlayerSummary() {
   const { state } = useGame()
-  const { player, job } = getPlayerProfileData(state)
-  const careerForJob = job ? getCareerForJobId(job.id) : undefined
-  const primaryAffId = careerForJob?.affiliationId?.[0] ?? null
+  const { player, jobs, membership } = getPlayerProfileData(state)
+  const titles = jobs.map(j => j?.title).filter(Boolean) as string[]
+  const titleText = titles.length === 0 ? "Unemployed" : titles.join(titles.length > 2 ? ", " : " & ")
+  const affId = membership?.affiliationId ?? (jobs[0] ? getCareerForJobId(jobs[0]?.id ?? undefined)?.affiliationId?.[0] : null)
 
   return (
     <div style={{ padding: "0.75rem", borderBottom: "1px solid #333" }}>
@@ -108,7 +114,7 @@ function PlayerSummary() {
       </div>
       <div>Money: ¤{player.vitals.money}</div>
       <div>Stress: {player.vitals.stress}</div>
-      <div>Occupation: {job?.title ?? "Unemployed"} @ {getAffiliationById(primaryAffId ?? undefined)?.name ?? "-"}</div>
+      <div>Occupation: {titleText}</div>
       <div>
         STR {player.skills.str} • INT {player.skills.int} • REF {player.skills.ref} • CHR {player.skills.chr}
       </div>
@@ -269,270 +275,7 @@ function AdvanceMonthButton({ onShowProfile, onChangeJob }: { onShowProfile?: ()
   )
 }
 
-function ChangeJobModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state, dispatch } = useGame()
 
-  if (!open) return null
-
-  const careers = listCareers()
-
-  const jobPostings = Object.values(state.jobPostings ?? {})
-
-  const currentAssignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === state.player.id)
-
-  const handleChoose = (jobId: string | null) => {
-    dispatch({ type: "SET_PLAYER_JOB", jobId })
-    onClose()
-  }
-
-  const handleTakePosting = (postingId: string) => {
-    dispatch({ type: "TAKE_JOB_POSTING", postingId })
-    onClose()
-  }
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80 }}>
-      <div style={{ background: "#111", color: "#fff", padding: "1rem", width: 560, borderRadius: 8 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0 }}>Change Job</h3>
-          <button onClick={onClose}>Close</button>
-        </div>
-
-        <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <div>
-            <strong>Current:</strong> {currentAssignment ? currentAssignment.jobId : 'Unemployed'}
-          </div>
-
-          {jobPostings.length > 0 && (
-            <div style={{ border: "1px solid #444", borderRadius: 6, padding: "0.5rem" }}>
-              <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>Available Postings (procedural)</div>
-              {jobPostings.map(p => {
-                const job = getJobById(p.templateId)
-                const career = job ? careers.find(c => c.levels.some(l => l.id === job.id)) : undefined
-                const affId = p.affiliationId ?? (career?.affiliationId?.[0] ?? null)
-                const employerName = getAffiliationById(affId ?? undefined)?.name ?? affId ?? "-"
-                const salaryText = p.salary != null ? `¤${p.salary}` : job?.salary != null ? `¤${job.salary}` : ""
-                const desc = p.description ?? (Array.isArray(job?.description) ? job?.description[0] : job?.description)
-                return (
-                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0" }}>
-                    <div>
-                      <div style={{ fontWeight: 700 }}>{job?.title ?? p.templateId}</div>
-                      <div style={{ fontSize: "0.85rem", opacity: 0.85 }}>{desc}</div>
-                      <div style={{ fontSize: "0.8rem", opacity: 0.75 }}>{employerName}{salaryText ? ` • ${salaryText}` : ""}</div>
-                    </div>
-                    <div>
-                      <button onClick={() => handleTakePosting(p.id)} style={{ marginRight: 8 }}>Take</button>
-                      <small style={{ opacity: 0.8 }}>{job?.careerId ?? ""}</small>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {jobPostings.length === 0 && (
-            <div style={{ opacity: 0.8 }}>No postings available.</div>
-          )}
-
-          <div style={{ marginTop: 8 }}>
-            <button onClick={() => handleChoose(null)}>Unassign</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function InkModal({ open, onClose, frames, onChoose, statsVars }: { open: boolean; onClose: () => void; frames: InkFrame[]; onChoose: (choiceIndex: number) => void; statsVars?: any }) {
-  if (!open) return null
-
-  return (
-    <>
-      {frames.map((frame, idx) => {
-        const isTop = idx === frames.length - 1
-        return (
-          <div
-            key={idx}
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.65)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 60 + idx,
-            }}
-          >
-            {
-              // determine modal colors based on outcome variable
-            }
-            <div style={{
-              background: ((): string => {
-                const outcome = (statsVars as any)?.outcome ?? null
-                if (outcome === "great_failure") return "#8b0000" // dark red
-                if (outcome === "failure") return "#ce5408ff" // orange
-                if (outcome === "success") return "#0054a9ff" // blue
-                if (outcome === "great_success") return "#ffd21eff" // yellow
-                return "#111" // default
-              })(),
-              color: ((): string => {
-                const outcome = (statsVars as any)?.outcome ?? null
-                // yellow background needs dark text for contrast
-                if (outcome === "great_success") return "#000"
-                return "#fff"
-              })(),
-              padding: "1.25rem",
-              width: "520px",
-              borderRadius: 8
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}></h3>
-                {/* Top-right close removed; modal can only be closed by OK at end of tree */}
-              </div>
-              <div style={{ whiteSpace: "pre-wrap", marginBottom: "1rem"}}>{frame.text}</div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {frame.choices.map((c, cidx) => (
-                  <button
-                    key={cidx}
-                    style={{ textAlign: "center", padding: "0.5rem", borderRadius: 6 }}
-                    onClick={() => onChoose(c.index ?? cidx)}
-                    disabled={!isTop}
-                  >
-                    {c.text}
-                  </button>
-                ))}
-
-                {/* If this is the top frame and there are no choices, show stat icons/changes then OK as a choice-style button */}
-                {isTop && (frame.choices?.length ?? 0) === 0 && (
-                  <>
-                    {/* icons row */}
-                    <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                      {(() => {
-                        const vars = statsVars ?? {}
-                        const items: { icon: string; value: number; key: string }[] = []
-                        const dm = Number(vars.delta_money ?? 0)
-                        const ds = Number(vars.delta_stress ?? 0)
-                        const dh = Number(vars.delta_health ?? 0)
-                        const dhu = Number(vars.delta_humanity ?? 0)
-                        if (dm !== 0) items.push({ icon: iconMoney, value: dm, key: "money" })
-                        if (ds !== 0) items.push({ icon: iconStress, value: ds, key: "stress" })
-                        if (dh !== 0) items.push({ icon: iconHealth, value: dh, key: "health" })
-                        if (dhu !== 0) items.push({ icon: iconDefault, value: dhu, key: "humanity" })
-
-                        if (items.length === 0) return null
-
-                        return (
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-                            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", marginBottom: "0.25rem" }}>
-                              {items.map(it => (
-                                <div key={it.key} style={{ flexDirection: "column", width: 90, height: 110, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff", borderRadius: 6, padding: 4, background: "#000" }}>
-                                  <img src={it.icon} alt={it.key} style={{ minWidth: 70, minHeight: 70, imageRendering: 'pixelated' as any }} />
-                                  <div style={{ color: "#fff", fontWeight: 600, marginTop: "0.5rem" , fontSize: "0.70rem" }}>
-                                    {it.key === "money" ? `${it.value > 0 ? '+ ' : '- '}¤${Math.abs(it.value)}` : `${it.value > 0 ? '+ ' : '- '}${Math.abs(it.value)} ${it.key}`}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-
-                          </div>
-                        )
-                      })()}
-                    </div>
-
-                    <button style={{ textAlign: "center", padding: "0.5rem", borderRadius: 6 }} onClick={onClose}>
-                      OK
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )
-      })}
-    </>
-  )
-}
-
-function ProfileModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state } = useGame()
-  const { player, job } = getPlayerProfileData(state)
-  const subSkillEntries = Object.entries(player.skills.subSkills ?? {})
-  const tags = (player.tags ?? []).join(", ") || "-"
-
-  if (!open) return null
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80 }}>
-      <div style={{ background: "#111", color: "#fff", padding: "1rem", width: 640, borderRadius: 8 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0 }}>{player.name} — Profile</h3>
-          <button onClick={onClose}>Close</button>
-        </div>
-
-        <div style={{ marginTop: "0.75rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
-          <div>
-            <strong>ID</strong>
-            <div>{player.id}</div>
-          </div>
-          <div>
-            <strong>Profile</strong>
-            <div>{player.profileId}</div>
-          </div>
-
-          <div>
-            <strong>Age (months)</strong>
-            <div>{player.ageMonths}</div>
-          </div>
-          <div>
-            <strong>Current District</strong>
-            <div>{player.currentDistrict}</div>
-          </div>
-
-          <div style={{ gridColumn: "1 / -1" }}>
-            <strong>Vitals</strong>
-            <div style={{ display: "flex", gap: "1rem", marginTop: "0.25rem" }}>
-              <div>Health: {player.vitals.health}</div>
-              <div>Humanity: {player.vitals.humanity}</div>
-              <div>Stress: {player.vitals.stress}</div>
-              <div>Looks: {player.vitals.looks}</div>
-              <div>Money: ¤{player.vitals.money}</div>
-            </div>
-          </div>
-
-          <div style={{ gridColumn: "1 / -1" }}>
-            <strong>Skills</strong>
-            <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.25rem" }}>
-              <div>STR: {player.skills.str}</div>
-              <div>INT: {player.skills.int}</div>
-              <div>REF: {player.skills.ref}</div>
-              <div>CHR: {player.skills.chr}</div>
-            </div>
-            <div style={{ marginTop: "0.5rem" }}>
-              <em>Subskills:</em>
-              <div style={{ marginTop: "0.25rem" }}>{subSkillEntries.map(([k, v]) => (
-                <span key={k} style={{ marginRight: 8 }}>{k}: {v}</span>
-              ))}</div>
-            </div>
-          </div>
-
-          <div style={{ gridColumn: "1 / -1" }}>
-            <strong>Tags</strong>
-            <div style={{ marginTop: "0.25rem" }}>{tags}</div>
-          </div>
-
-          <div style={{ gridColumn: "1 / -1" }}>
-            <strong>Occupation</strong>
-            <div style={{ marginTop: "0.25rem" }}>
-              {job?.title ?? "Unemployed"} — {getAffiliationById(getCareerForJobId(job?.id ?? undefined)?.affiliationId?.[0] ?? undefined)?.name ?? "-"}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export default function App() {
   const [inkOpen, setInkOpen] = useState(false)
@@ -688,13 +431,15 @@ export default function App() {
         <button style={{ marginLeft: "0.5rem" }} onClick={openInkDebug}>DEBUG: ink</button>
       </div>
 
-      <InkModal
-        open={inkOpen}
-        onClose={handleCloseInkModal}
-        frames={inkFrames}
-        statsVars={(inkStory as any)?.variablesState ?? {}}
-        onChoose={handleChoose}
-      />
+      <Suspense fallback={<div style={{position:'fixed', inset:0, display:'flex',alignItems:'center',justifyContent:'center'}}>Loading...</div>}>
+        <InkModal
+          open={inkOpen}
+          onClose={handleCloseInkModal}
+          frames={inkFrames}
+          statsVars={(inkStory as any)?.variablesState ?? {}}
+          onChoose={handleChoose}
+        />
+      </Suspense>
 
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
       <ChangeJobModal open={jobModalOpen} onClose={() => setJobModalOpen(false)} />

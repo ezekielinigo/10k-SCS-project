@@ -83,22 +83,25 @@ export const getCareerById = (id?: string | null): Career | undefined =>
 export const getCareerForJobId = (jobId?: string | null): Career | undefined =>
   jobId ? JOB_TO_CAREER[jobId] : undefined
 
-export const createCareerTaskForState = (state: GameState): TaskState | null => {
-  const assignments = state.jobAssignments ?? {}
-  const assignment = Object.values(assignments).find(a => a.memberId === state.player.id)
-  if (!assignment) return null
+export const createCareerTasksForState = (state: GameState): TaskState[] => {
+  const assignments = Object.values(state.jobAssignments ?? {}).filter(a => a.memberId === state.player.id)
+  return assignments.flatMap(assignment => {
+    const template = getJobById(assignment.jobId)
+    if (!template) return []
 
-  const template = getJobById(assignment.jobId)
-  if (!template) return null
-
-  return {
-    id: randId(),
-    templateId: template.id,
-    kind: "job",
-    taskGraphId: template.taskGraphId ?? null,
-    resolved: false,
-    contextTags: template.tags ?? [],
-  }
+    return [
+      {
+        id: randId(),
+        templateId: template.id,
+        kind: "job",
+        taskGraphId: template.taskGraphId ?? null,
+        resolved: false,
+        contextTags: template.tags ?? [],
+      },
+    ]
+  })
 }
+
+export const createCareerTaskForState = (state: GameState): TaskState | null => createCareerTasksForState(state)[0] ?? null
 
 export default CAREERS

@@ -1,5 +1,6 @@
 import type { GameState, TaskState } from "./types"
-import { getJobById } from "./content/careers"
+import { getJobById, getCareerForJobId } from "./content/careers"
+import { getAffiliationById } from "./content/affiliations"
 import { generateMonthlyTasks } from "./taskGenerator"
 import { generateJobPostings } from "./generators/jobPostingGenerator"
 import { listCareers } from "./content/careers"
@@ -15,7 +16,7 @@ export type GameAction =
   | { type: "START_TASK_RUN"; taskId: string; taskGraphId: string }
   | { type: "MAKE_TASK_CHOICE"; choiceId: string }
   | { type: "SET_PLAYER_JOB"; jobId: string | null }
-  | { type: "TAKE_JOB_POSTING"; postingId: string }
+  | { type: "TAKE_JOB_POSTING"; postingId: string; replaceCareer?: boolean }
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -33,14 +34,27 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const tasks = generateMonthlyTasks(interimState)
       // generate fresh procedural job postings (replace previous)
       try {
-        const maxListings = 5
         const careers = listCareers()
         const templates = careers.flatMap(c => c.levels.map(l => l.id))
-        const selected: string[] = []
-        for (let i = 0; i < Math.min(maxListings, Math.max(1, templates.length)); i++) {
-          selected.push(templates[Math.floor(Math.random() * templates.length)])
-        }
-        const postings = generateJobPostings(selected, { salaryJitter: 0.15 })
+
+        // determine player's current job, career, and affiliation
+        const assignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === state.player.id)
+        const playerCareerId = assignment ? getCareerForJobId(assignment.jobId)?.id ?? null : null
+
+        // try to get affiliation from memberships first; fallback to filled job posting if present
+        const membership = Object.values(state.memberships ?? {}).find((m: any) => m.memberId === state.player.id)
+        const playerAffiliationId = membership ? membership.affiliationId ?? null : (() => {
+          const playerPosting = Object.values(state.jobPostings ?? {}).find((p: any) => p.filledBy === state.player.id)
+          return playerPosting ? playerPosting.affiliationId ?? null : null
+        })()
+
+        const postings = generateJobPostings(templates, {
+          salaryJitter: 0.15,
+          maxListings: 5,
+          playerCareerId,
+          playerAffiliationId,
+          playerCurrentJobId: assignment?.jobId ?? null,
+        })
         const jobPostings = postings.reduce<Record<string, any>>((m, p) => {
           m[p.id] = p
           return m
@@ -279,8 +293,17 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const memberId = state.player.id
 
       const nextAssignments: Record<string, any> = { ...(state.jobAssignments ?? {}) }
-      for (const k of Object.keys(nextAssignments)) {
-        if (nextAssignments[k]?.memberId === memberId) delete nextAssignments[k]
+
+      // If replacing within the same career, drop only those assignments; otherwise keep multiples
+      const careerOfNew = getCareerForJobId(jobId)?.id ?? null
+      if (action.replaceCareer && careerOfNew) {
+        for (const k of Object.keys(nextAssignments)) {
+          const aj = nextAssignments[k]
+          if (aj?.memberId === memberId) {
+            const existingCareer = getCareerForJobId(aj.jobId)?.id ?? null
+            if (existingCareer === careerOfNew) delete nextAssignments[k]
+          }
+        }
       }
 
       const id = `${jobId}__${memberId}`
@@ -289,6 +312,18 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const nextPostings = { ...(state.jobPostings ?? {}) }
       nextPostings[action.postingId] = { ...posting, filledBy: memberId }
 
+      // ensure membership is recorded for the posting's affiliation if present
+      const nextMemberships = { ...(state.memberships ?? {}) }
+      if (posting.affiliationId) {
+        const membershipId = `${posting.affiliationId}__${memberId}`
+        nextMemberships[membershipId] = {
+          id: membershipId,
+          affiliationId: posting.affiliationId,
+          memberId,
+          reputation: nextMemberships[membershipId]?.reputation ?? 0,
+        }
+      }
+
       const job = getJobById(jobId)
       const jobTitle = job?.title ?? jobId
 
@@ -296,12 +331,13 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         ...state,
         jobAssignments: nextAssignments,
         jobPostings: nextPostings,
+        memberships: nextMemberships,
         log: [
           ...state.log,
           {
             id: randId(),
             month: state.month,
-            text: `Accepted posting: ${jobTitle}`,
+            text: `I took a job as a ${jobTitle} for ${getAffiliationById(posting.affiliationId?.toString() ?? undefined)?.name ?? 'an unknown employer'}.`,
           },
         ],
       }
