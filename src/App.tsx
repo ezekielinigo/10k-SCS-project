@@ -1,5 +1,5 @@
 import { getAffiliationById } from "./game/content/affiliations.ts"
-import { getJobById } from "./game/content/careers.ts"
+import { getJobById, listCareers } from "./game/content/careers.ts"
 import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
 import { buildContentContext } from "./game/content/tagEngine"
@@ -68,11 +68,22 @@ const resolveInkFrames = (story: any): InkFrame[] => {
   return [{ text: out, choices: story.currentChoices ?? [] }]
 }
 
-const createInkStory = async (knot: string | undefined, player: PlayerState) => {
+const createInkStory = async (knot: string | undefined, player: PlayerState, inkSource?: string) => {
   const InkModule = await import("inkjs")
-  const tasks = (await import("./ink/career_mechanic.json")) as any
   const StoryCtor = (InkModule as any).Story ?? (InkModule as any).default ?? InkModule
   if (!StoryCtor) throw new Error("inkjs Story constructor not found")
+
+  let tasks: any
+  try {
+    if (inkSource) {
+      tasks = (await import(/* @vite-ignore */ inkSource)) as any
+    } else {
+      tasks = (await import("./ink/career_mechanic.json")) as any
+    }
+  } catch (e) {
+    // rethrow with helpful message
+    throw new Error(`Failed to load ink content from ${inkSource ?? './ink/career_mechanic.json'}: ${(e as any)?.message ?? e}`)
+  }
 
   const story = new StoryCtor(tasks)
   bindInkExternals(story, player)
@@ -219,7 +230,7 @@ function LogPanel() {
   )
 }
 
-function AdvanceMonthButton({ onShowProfile }: { onShowProfile?: () => void }) {
+function AdvanceMonthButton({ onShowProfile, onChangeJob }: { onShowProfile?: () => void; onChangeJob?: () => void }) {
   const { state, dispatch } = useGame()
 
   const handleDebugTags = () => {
@@ -240,6 +251,10 @@ function AdvanceMonthButton({ onShowProfile }: { onShowProfile?: () => void }) {
     if (onShowProfile) onShowProfile()
   }
 
+  const handleChangeJob = () => {
+    if (onChangeJob) onChangeJob()
+  }
+
   return (
     <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
       <button style={{ marginRight: "0.5rem" }} onClick={() => dispatch({ type: "ADVANCE_MONTH" })}>
@@ -247,6 +262,59 @@ function AdvanceMonthButton({ onShowProfile }: { onShowProfile?: () => void }) {
       </button>
       <button onClick={handleDebugTags}>DEBUG: Tags</button>
       <button onClick={handleShowProfile}>DEBUG: Profile</button>
+      <button onClick={handleChangeJob}>DEBUG: Change Job</button>
+    </div>
+  )
+}
+
+function ChangeJobModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { state, dispatch } = useGame()
+
+  if (!open) return null
+
+  const careers = listCareers()
+
+  // flattened job list
+  const jobs = careers.flatMap(c => c.levels.map(l => ({ ...l, careerId: c.id })))
+
+  const currentAssignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === state.player.id)
+
+  const handleChoose = (jobId: string | null) => {
+    dispatch({ type: "SET_PLAYER_JOB", jobId })
+    onClose()
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80 }}>
+      <div style={{ background: "#111", color: "#fff", padding: "1rem", width: 560, borderRadius: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ margin: 0 }}>Change Job</h3>
+          <button onClick={onClose}>Close</button>
+        </div>
+
+        <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <div>
+            <strong>Current:</strong> {currentAssignment ? currentAssignment.jobId : 'Unemployed'}
+          </div>
+
+          {jobs.map(job => (
+            <div key={job.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem", border: "1px solid #333", borderRadius: 6 }}>
+              <div>
+                <div style={{ fontWeight: 700 }}>{job.title}</div>
+                <div style={{ fontSize: "0.85rem", opacity: 0.9 }}>{Array.isArray(job.description) ? job.description[0] : job.description}</div>
+              </div>
+              <div>
+                <button onClick={() => handleChoose(job.id)} style={{ marginRight: 8 }}>Assign</button>
+                <small style={{ opacity: 0.8 }}>{job.careerId}</small>
+              </div>
+            </div>
+          ))}
+
+          <div style={{ marginTop: 8 }}>
+            <button onClick={() => handleChoose(null)}>Unassign</button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -447,11 +515,23 @@ export default function App() {
   const [inkTaskPendingResolve, setInkTaskPendingResolve] = useState<string | null>(null)
   const [inkTaskPendingGraphId, setInkTaskPendingGraphId] = useState<string | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [jobModalOpen, setJobModalOpen] = useState(false)
   const { state, dispatch } = useGame()
 
   const openInkDebug = async () => {
     try {
-      const story = await createInkStory("mechanic_apprentice_shift", state.player)
+      // try to locate ink source for mechanic apprentice; fallback to default inside createInkStory
+      const careers = listCareers()
+      let inkSource: string | undefined
+      for (const c of careers) {
+        const level = c.levels.find(l => l.taskGraphId === "mechanic_apprentice_shift")
+        if (level) {
+          inkSource = level.inkSource ?? c.inkSource
+          break
+        }
+      }
+
+      const story = await createInkStory("mechanic_apprentice_shift", state.player, inkSource)
       setInkStory(story)
       setInkFrames(resolveInkFrames(story))
       setInkOpen(true)
@@ -467,7 +547,18 @@ export default function App() {
     setInkTaskPendingResolve(taskId)
     setInkTaskPendingGraphId(taskGraphId)
     try {
-      const story = await createInkStory(taskGraphId, state.player)
+      // find inkSource by scanning careers for a level with matching taskGraphId
+      const careers = listCareers()
+      let inkSource: string | undefined
+      for (const c of careers) {
+        const level = c.levels.find(l => l.taskGraphId === taskGraphId)
+        if (level) {
+          inkSource = level.inkSource ?? c.inkSource
+          break
+        }
+      }
+
+      const story = await createInkStory(taskGraphId, state.player, inkSource)
       setInkStory(story)
       setInkFrames(resolveInkFrames(story))
       setInkOpen(true)
@@ -567,7 +658,7 @@ export default function App() {
         <LogPanel />
       </div>
       <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
-        <AdvanceMonthButton onShowProfile={() => setProfileOpen(true)} />
+        <AdvanceMonthButton onShowProfile={() => setProfileOpen(true)} onChangeJob={() => setJobModalOpen(true)} />
         <button style={{ marginLeft: "0.5rem" }} onClick={openInkDebug}>DEBUG: ink</button>
       </div>
 
@@ -580,6 +671,7 @@ export default function App() {
       />
 
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <ChangeJobModal open={jobModalOpen} onClose={() => setJobModalOpen(false)} />
     </div>
   )
 }

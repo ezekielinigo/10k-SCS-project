@@ -6,7 +6,9 @@ const CAREERS: Record<string, Career> = {
   mechanic: {
     id: "mechanic",
     title: "Mechanic Career",
+	description: "Work your way up in the world of vehicle maintenance and repair.",
     inkSource: "./ink/career_mechanic.json",
+	affiliationId: ["valkarna_auto", "ironclad_garage"],
     levels: [
       {
         id: "apprentice_mechanic",
@@ -17,9 +19,30 @@ const CAREERS: Record<string, Career> = {
         ],
         tags: ["mechanic", "tech", "blue_collar", "industrial"],
         taskGraphId: "mechanic_apprentice_shift",
+		requirements: { str: 4, int: 4, ref: 3, chr: 2 },
       },
     ],
   },
+  courier: {
+	id: "courier",
+	title: "Courier Career",
+	description: "Deliver packages and messages across the city, navigating its dangers and opportunities.",
+	inkSource: "./ink/career_courier.json",
+	affiliationId: ["swift_runners", "night_owl_couriers"],
+	levels: [
+	  {
+		id: "courier",
+		title: "Courier",
+		description: [
+		  "Deliver packages and messages across the city.",
+		  "Navigate through traffic and avoid hazards.",
+		],
+		tags: ["courier", "delivery", "street_smart"],
+		taskGraphId: "courier_shift",
+		requirements: { str: 5, int: 5, ref: 6, chr: 3 },
+	  },
+	],
+  }
 }
 
 const JOB_LOOKUP: Record<string, Job> = Object.values(CAREERS).flatMap(c => c.levels).reduce((map, job) => {

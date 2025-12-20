@@ -11,6 +11,7 @@ export type GameAction =
   | { type: "APPLY_OUTCOME"; outcome: string; taskGraphId?: string }
   | { type: "START_TASK_RUN"; taskId: string; taskGraphId: string }
   | { type: "MAKE_TASK_CHOICE"; choiceId: string }
+  | { type: "SET_PLAYER_JOB"; jobId: string | null }
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -193,6 +194,41 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
           ...state.player,
           vitals: nextVitals,
         },
+      }
+    }
+
+    case "SET_PLAYER_JOB": {
+      // create or remove a JobAssignment for the current player
+      const jobId = action.jobId
+      const memberId = state.player.id
+
+      const nextAssignments: Record<string, any> = { ...(state.jobAssignments ?? {}) }
+
+      // remove any existing assignments for this member
+      for (const k of Object.keys(nextAssignments)) {
+        if (nextAssignments[k]?.memberId === memberId) {
+          delete nextAssignments[k]
+        }
+      }
+
+      if (jobId) {
+        const id = `${jobId}__${memberId}`
+        nextAssignments[id] = { id, jobId, memberId, performance: 50 }
+      }
+
+      const logText = jobId ? `Assigned player to job ${jobId}` : `Removed player's job assignment`
+
+      return {
+        ...state,
+        jobAssignments: nextAssignments,
+        log: [
+          ...state.log,
+          {
+            id: randId(),
+            month: state.month,
+            text: logText,
+          },
+        ],
       }
     }
 

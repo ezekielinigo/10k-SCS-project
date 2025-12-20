@@ -276,7 +276,7 @@ export type Career = {
   title: string
   description?: string
   // optional context for the career
-  affiliationId?: string
+  affiliationId?: string[]
   districtId?: string
   tags?: Tag[]
   // optional path to the compiled Ink file that contains job/task knots for this career
