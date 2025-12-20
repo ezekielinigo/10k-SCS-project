@@ -1,4 +1,5 @@
 import { useGame } from "../game/GameContext"
+import { useModalDismiss } from "../utils/ui"
 import { getAffiliationById } from "../game/content/affiliations"
 import { getCareerForJobId, getJobById } from "../game/content/careers"
 
@@ -25,6 +26,8 @@ export default function ProfileModal({ open, onClose }: { open: boolean; onClose
   const player = state.player
 
   if (!open) return null
+
+  const containerRef = useModalDismiss(onClose)
 
   const assignments = Object.values(state.jobAssignments ?? {}).filter(a => a.memberId === player.id)
   const jobsRaw = assignments.map(a => getJobById(a.jobId))
@@ -55,11 +58,10 @@ export default function ProfileModal({ open, onClose }: { open: boolean; onClose
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80 }}>
-      <div style={{ background: "#111", color: "#fff", padding: "1rem", width: 700, borderRadius: 8 }}>
+      <div ref={containerRef as any} style={{ background: "#111", color: "#fff", padding: "1rem", width: 700, borderRadius: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <h3 style={{ margin: 0 }}>{player.name}</h3>
           <div style={{ color: "#aaa" }}>{ageYears} yr{ageYears !== 1 ? "s" : ""}</div>
-          <button onClick={onClose}>Close</button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>

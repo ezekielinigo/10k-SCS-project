@@ -3,11 +3,14 @@ import iconMoney from "../assets/icon_money.png"
 import iconStress from "../assets/icon_stress.png"
 import iconHealth from "../assets/icon_health.png"
 import iconDefault from "../assets/icon_default.png"
+import { useModalDismiss } from "../utils/ui"
 
 type InkFrame = { text: string; choices: any[] }
 
 export default function InkModal({ open, onClose, frames, onChoose, statsVars }: { open: boolean; onClose: () => void; frames: InkFrame[]; onChoose: (choiceIndex: number) => void; statsVars?: any }) {
   if (!open) return null
+
+  const containerRef = useModalDismiss(onClose)
 
   return (
     <>
@@ -26,24 +29,27 @@ export default function InkModal({ open, onClose, frames, onChoose, statsVars }:
               zIndex: 60 + idx,
             }}
           >
-            <div style={{
-              background: ((): string => {
-                const outcome = (statsVars as any)?.outcome ?? null
-                if (outcome === "great_failure") return "#8b0000"
-                if (outcome === "failure") return "#ce5408ff"
-                if (outcome === "success") return "#0054a9ff"
-                if (outcome === "great_success") return "#ffd21eff"
-                return "#111"
-              })(),
-              color: ((): string => {
-                const outcome = (statsVars as any)?.outcome ?? null
-                if (outcome === "great_success") return "#000"
-                return "#fff"
-              })(),
-              padding: "1.25rem",
-              width: "520px",
-              borderRadius: 8
-            }}>
+            <div
+              ref={isTop ? (containerRef as any) : undefined}
+              style={{
+                background: ((): string => {
+                  const outcome = (statsVars as any)?.outcome ?? null
+                  if (outcome === "great_failure") return "#8b0000"
+                  if (outcome === "failure") return "#ce5408ff"
+                  if (outcome === "success") return "#0054a9ff"
+                  if (outcome === "great_success") return "#ffd21eff"
+                  return "#111"
+                })(),
+                color: ((): string => {
+                  const outcome = (statsVars as any)?.outcome ?? null
+                  if (outcome === "great_success") return "#000"
+                  return "#fff"
+                })(),
+                padding: "1.25rem",
+                width: "520px",
+                borderRadius: 8,
+              }}
+            >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}></h3>
               </div>

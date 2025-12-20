@@ -1,5 +1,6 @@
 // React import not required with new JSX runtime
 import { useGame } from "../game/GameContext"
+import { useModalDismiss } from "../utils/ui"
 import { listCareers, getJobById, getCareerForJobId } from "../game/content/careers"
 import { getAffiliationById } from "../game/content/affiliations"
 
@@ -7,6 +8,8 @@ export default function ChangeJobModal({ open, onClose }: { open: boolean; onClo
   const { state, dispatch } = useGame()
 
   if (!open) return null
+
+  const containerRef = useModalDismiss(onClose)
 
   const careers = listCareers()
 
@@ -41,11 +44,10 @@ export default function ChangeJobModal({ open, onClose }: { open: boolean; onClo
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80 }}>
-      <div style={{ background: "#111", color: "#fff", padding: "1rem", width: 640, borderRadius: 8 }}>
+      <div ref={containerRef as any} style={{ background: "#111", color: "#fff", padding: "1rem", width: 640, borderRadius: 8 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3 style={{ margin: 0 }}>Change Job</h3>
-            <button onClick={onClose}>Close</button>
           </div>
           <div>
             <strong>Current:</strong> {currentAssignments.length === 0 ? 'Unemployed' : currentAssignments.map(a => a.jobId).join(', ')}

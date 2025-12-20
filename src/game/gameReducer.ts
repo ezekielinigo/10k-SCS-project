@@ -1,6 +1,7 @@
 import type { GameState, TaskState } from "./types"
 import { getJobById, getCareerForJobId } from "./content/careers"
 import { getAffiliationById } from "./content/affiliations"
+import { chooseIndefiniteArticle } from "../utils/ui"
 import { generateMonthlyTasks } from "./taskGenerator"
 import { generateJobPostings } from "./generators/jobPostingGenerator"
 import { listCareers } from "./content/careers"
@@ -354,15 +355,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const job = getJobById(jobId)
       const jobTitle = job?.title ?? jobId
 
-      const article = (() => {
-        const t = (jobTitle ?? "").toLowerCase().trim()
-        if (!t) return "a"
-        // special cases that start with consonant letters but take 'an'
-        if (/^(honest|hour|honour|heir)/i.test(t)) return "an"
-        // special cases that start with vowel letters but take 'a' (sound is 'you' or 'one')
-        if (/^(uni|use|user|one|once|eu|euro)/i.test(t)) return "a"
-        return /^[aeiou]/i.test(t) ? "an" : "a"
-      })()
+      const article = chooseIndefiniteArticle(jobTitle)
 
       return {
         ...state,
