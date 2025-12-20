@@ -1,4 +1,4 @@
-import React from "react"
+// React import not required with new JSX runtime
 import iconMoney from "../assets/icon_money.png"
 import iconStress from "../assets/icon_stress.png"
 import iconHealth from "../assets/icon_health.png"
@@ -85,7 +85,7 @@ export default function InkModal({ open, onClose, frames, onChoose, statsVars }:
                                 <div key={it.key} style={{ flexDirection: "column", width: 90, height: 110, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff", borderRadius: 6, padding: 4, background: "#000" }}>
                                   <img src={it.icon} alt={it.key} style={{ minWidth: 70, minHeight: 70, imageRendering: 'pixelated' as any }} />
                                   <div style={{ color: "#fff", fontWeight: 600, marginTop: "0.5rem" , fontSize: "0.70rem" }}>
-                                    {it.key === "money" ? `${it.value > 0 ? '+ ' : '- '}¤${Math.abs(it.value)}` : `${it.value > 0 ? '+ ' : '- '}${Math.abs(it.value)} ${it.key}`}
+                                    {it.key === "money" ? `${it.value > 0 ? '+ ' : '- '}♦︎ ${Math.abs(it.value)}` : `${it.value > 0 ? '+ ' : '- '}${Math.abs(it.value)} ${it.key}`}
                                   </div>
                                 </div>
                               ))}

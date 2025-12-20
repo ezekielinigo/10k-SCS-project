@@ -1,4 +1,4 @@
-import React from "react"
+// React import not required with new JSX runtime
 import { useGame } from "../game/GameContext"
 import { listCareers, getJobById, getCareerForJobId } from "../game/content/careers"
 import { getAffiliationById } from "../game/content/affiliations"
@@ -14,10 +14,7 @@ export default function ChangeJobModal({ open, onClose }: { open: boolean; onClo
 
   const currentAssignments = Object.values(state.jobAssignments ?? {}).filter(a => a.memberId === state.player.id)
 
-  const handleChoose = (jobId: string | null) => {
-    dispatch({ type: "SET_PLAYER_JOB", jobId })
-    onClose()
-  }
+
 
   const handleTakePosting = (postingId: string) => {
     const posting = (state.jobPostings ?? {})[postingId]
@@ -61,7 +58,7 @@ export default function ChangeJobModal({ open, onClose }: { open: boolean; onClo
                 const career = job ? careers.find(c => c.levels.some(l => l.id === job.id)) : undefined
                 const affId = p.affiliationId ?? (career?.affiliationId?.[0] ?? null)
                 const employerName = getAffiliationById(affId ?? undefined)?.name ?? affId ?? "-"
-                const salaryText = p.salary != null ? `¤${p.salary}` : job?.salary != null ? `¤${job.salary}` : ""
+                const salaryText = p.salary != null ? `♦︎ ${p.salary}` : job?.salary != null ? `♦︎ ${job.salary}` : ""
                 const desc = p.description ?? (Array.isArray(job?.description) ? job?.description[0] : job?.description)
                 return (
                   <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0" }}>
@@ -83,9 +80,7 @@ export default function ChangeJobModal({ open, onClose }: { open: boolean; onClo
             <div style={{ padding: "0.5rem" }}>No job postings available.</div>
           )}
 
-          <div style={{ marginTop: 8 }}>
-            <button onClick={() => handleChoose(null)}>Unassign</button>
-          </div>
+          
         </div>
       </div>
     </div>

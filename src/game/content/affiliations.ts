@@ -1,4 +1,4 @@
-import type { Affiliation, Tag } from "../types"
+import type { Affiliation } from "../types"
 
 const AFFILIATIONS: Record<string, Affiliation> = {
   valkarna_auto: {

@@ -109,7 +109,7 @@ export const createInitialGameState = (): GameState => {
     itemInstances: {},
     inventoryEntries: {},
     affiliations: {},
-    memberships: {},
+    // memberships already set above (avoid duplicate key)
   }
 
   const starterTasks = generateMonthlyTasks(baseState)

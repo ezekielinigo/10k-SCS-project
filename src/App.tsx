@@ -1,13 +1,9 @@
-import { getAffiliationById } from "./game/content/affiliations.ts"
-import { getJobById, listCareers, getCareerForJobId } from "./game/content/careers.ts"
+import { getJobById, listCareers } from "./game/content/careers.ts"
 import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
 import { buildContentContext } from "./game/content/tagEngine"
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
-import iconMoney from "./assets/icon_money.png"
-import iconStress from "./assets/icon_stress.png"
-import iconHealth from "./assets/icon_health.png"
-import iconDefault from "./assets/icon_default.png"
+// asset icons removed (unused)
 import ProfileModal from "./components/ProfileModal"
 import ChangeJobModal from "./components/ChangeJobModal"
 const InkModal = lazy(() => import("./components/InkModal"))
@@ -102,17 +98,17 @@ const createInkStory = async (knot: string | undefined, player: PlayerState, ink
 
 function PlayerSummary() {
   const { state } = useGame()
-  const { player, jobs, membership } = getPlayerProfileData(state)
+  const { player, jobs } = getPlayerProfileData(state)
   const titles = jobs.map(j => j?.title).filter(Boolean) as string[]
   const titleText = titles.length === 0 ? "Unemployed" : titles.join(titles.length > 2 ? ", " : " & ")
-  const affId = membership?.affiliationId ?? (jobs[0] ? getCareerForJobId(jobs[0]?.id ?? undefined)?.affiliationId?.[0] : null)
+  // affiliation id resolution not used here
 
   return (
     <div style={{ padding: "0.75rem", borderBottom: "1px solid #333" }}>
       <div>
         <strong>{player.name}</strong> - {Math.floor((player.ageMonths + state.month) / 12)} yrs
       </div>
-      <div>Money: ¤{player.vitals.money}</div>
+      <div>Money: ♦︎ {player.vitals.money}</div>
       <div>Stress: {player.vitals.stress}</div>
       <div>Occupation: {titleText}</div>
       <div>
@@ -391,7 +387,7 @@ export default function App() {
       const dh = Number(vars.delta_health ?? 0)
       const dhu = Number(vars.delta_humanity ?? 0)
       const parts: string[] = []
-      if (dm !== 0) parts.push(`${dm > 0 ? '+' : '-'}¤${Math.abs(dm)}`)
+      if (dm !== 0) parts.push(`${dm > 0 ? '+' : '-'}♦︎ ${Math.abs(dm)}`)
       if (ds !== 0) parts.push(`${ds > 0 ? '+' : '-'}${Math.abs(ds)} stress`)
       if (dh !== 0) parts.push(`${dh > 0 ? '+' : '-'}${Math.abs(dh)} health`)
       if (dhu !== 0) parts.push(`${dhu > 0 ? '+' : '-'}${Math.abs(dhu)} humanity`)

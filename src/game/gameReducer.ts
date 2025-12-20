@@ -16,6 +16,7 @@ export type GameAction =
   | { type: "START_TASK_RUN"; taskId: string; taskGraphId: string }
   | { type: "MAKE_TASK_CHOICE"; choiceId: string }
   | { type: "SET_PLAYER_JOB"; jobId: string | null }
+  | { type: "REMOVE_JOB_ASSIGNMENT"; jobId: string }
   | { type: "TAKE_JOB_POSTING"; postingId: string; replaceCareer?: boolean }
 
 const randId = () => Math.random().toString(36).slice(2)
@@ -285,6 +286,32 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       }
     }
 
+    case "REMOVE_JOB_ASSIGNMENT": {
+      const jobId = action.jobId
+      const memberId = state.player.id
+
+      const nextAssignments: Record<string, any> = { ...(state.jobAssignments ?? {}) }
+      for (const k of Object.keys(nextAssignments)) {
+        const aj = nextAssignments[k]
+        if (aj?.memberId === memberId && aj.jobId === jobId) {
+          delete nextAssignments[k]
+        }
+      }
+
+      return {
+        ...state,
+        jobAssignments: nextAssignments,
+        log: [
+          ...state.log,
+          {
+            id: randId(),
+            month: state.month,
+            text: `Removed assignment for ${jobId}.`,
+          },
+        ],
+      }
+    }
+
     case "TAKE_JOB_POSTING": {
       const posting = state.jobPostings?.[action.postingId]
       if (!posting) return state
@@ -327,6 +354,16 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const job = getJobById(jobId)
       const jobTitle = job?.title ?? jobId
 
+      const article = (() => {
+        const t = (jobTitle ?? "").toLowerCase().trim()
+        if (!t) return "a"
+        // special cases that start with consonant letters but take 'an'
+        if (/^(honest|hour|honour|heir)/i.test(t)) return "an"
+        // special cases that start with vowel letters but take 'a' (sound is 'you' or 'one')
+        if (/^(uni|use|user|one|once|eu|euro)/i.test(t)) return "a"
+        return /^[aeiou]/i.test(t) ? "an" : "a"
+      })()
+
       return {
         ...state,
         jobAssignments: nextAssignments,
@@ -337,7 +374,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
           {
             id: randId(),
             month: state.month,
-            text: `I took a job as a ${jobTitle} for ${getAffiliationById(posting.affiliationId?.toString() ?? undefined)?.name ?? 'an unknown employer'}.`,
+            text: `I got a job as ${article} ${jobTitle} for ${getAffiliationById(posting.affiliationId?.toString() ?? undefined)?.name ?? 'an unknown employer'}.`,
           },
         ],
       }
