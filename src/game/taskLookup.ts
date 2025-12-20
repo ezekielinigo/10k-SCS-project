@@ -1,16 +1,16 @@
-import type { TaskState } from "./types"
-import { getJobTemplateById, type JobTemplate } from "./content/jobs"
+import type { TaskState, Job } from "./types"
+import { getJobById } from "./content/careers"
 import {
   getRandomEventTemplateById,
   type RandomEventTemplate,
 } from "./content/randomEvents"
 
-export type TaskTemplate = JobTemplate | RandomEventTemplate
+export type TaskTemplate = Job | RandomEventTemplate
 
 export const resolveTaskTemplate = (task: TaskState): TaskTemplate | undefined => {
   switch (task.kind) {
     case "job":
-      return getJobTemplateById(task.templateId)
+      return getJobById(task.templateId)
     case "randomEvent":
       return getRandomEventTemplateById(task.templateId)
     default:

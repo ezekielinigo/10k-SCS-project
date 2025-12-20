@@ -1,5 +1,5 @@
 import { getAffiliationById } from "./game/content/affiliations.ts"
-import { getJobTemplateById } from "./game/content/jobs.ts"
+import { getJobById } from "./game/content/careers.ts"
 import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
 import { buildContentContext } from "./game/content/tagEngine"
@@ -8,23 +8,96 @@ import iconMoney from "./assets/icon_money.png"
 import iconStress from "./assets/icon_stress.png"
 import iconHealth from "./assets/icon_health.png"
 import iconDefault from "./assets/icon_default.png"
+import type { GameState, PlayerState } from "./game/types"
+
+type InkFrame = { text: string; choices: any[] }
+
+const getPlayerProfileData = (state: GameState) => {
+  const player = state.player
+  const assignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === player.id)
+  const job = assignment ? getJobById(assignment.jobId) : undefined
+
+  return { player, assignment, job }
+}
+
+const bindInkExternals = (story: any, player: PlayerState) => {
+  const bind = (name: string, handler: (...args: any[]) => any) => {
+    if (typeof (story as any).BindExternalFunction === "function") {
+      ;(story as any).BindExternalFunction(name, handler)
+    } else if (typeof (story as any).bindExternalFunction === "function") {
+      ;(story as any).bindExternalFunction(name, handler)
+    }
+  }
+
+  try {
+    bind("hasStat", (statName: any, threshold: any) => {
+      try {
+        const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
+        const skills = player.skills as any
+        const value =
+          skills[key] ??
+          skills[key.slice(0, 3)] ??
+          skills.subSkills?.[key] ??
+          skills.subSkills?.[key.slice(0, 3)] ??
+          0
+        return Number(value) >= Number(threshold)
+      } catch (e) {
+        return false
+      }
+    })
+
+    bind("hasMoney", (amount: any) => {
+      try {
+        return Number(player.vitals.money) >= Number(amount)
+      } catch (e) {
+        return false
+      }
+    })
+  } catch (e) {
+    console.warn("Failed to bind ink externals:", e)
+  }
+}
+
+const resolveInkFrames = (story: any): InkFrame[] => {
+  let out = ""
+  while (story.canContinue) {
+    out += story.Continue()
+    if (story.canContinue) out += "\n"
+  }
+
+  return [{ text: out, choices: story.currentChoices ?? [] }]
+}
+
+const createInkStory = async (knot: string | undefined, player: PlayerState) => {
+  const InkModule = await import("inkjs")
+  const tasks = (await import("./ink/career_mechanic.json")) as any
+  const StoryCtor = (InkModule as any).Story ?? (InkModule as any).default ?? InkModule
+  if (!StoryCtor) throw new Error("inkjs Story constructor not found")
+
+  const story = new StoryCtor(tasks)
+  bindInkExternals(story, player)
+
+  if (knot && typeof story.ChoosePathString === "function") {
+    story.ChoosePathString(knot)
+  }
+
+  return story
+}
 
 function PlayerSummary() {
   const { state } = useGame()
-  const p = state.player
-  const assignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === p.id)
-  const job = assignment ? getJobTemplateById(assignment.jobId) : undefined
+  const { player, job } = getPlayerProfileData(state)
 
   return (
     <div style={{ padding: "0.75rem", borderBottom: "1px solid #333" }}>
       <div>
-        <strong>{p.name}</strong> - {Math.floor((p.ageMonths + state.month) / 12)} yrs
+        <strong>{player.name}</strong> - {Math.floor((player.ageMonths + state.month) / 12)} yrs
       </div>
-      <div>Money: ¤{p.vitals.money}</div>
-      <div>Stress: {p.vitals.stress}</div>
-      <div>Occupation: {job?.title ?? "Unemployed"} @ {getAffiliationById(job?.employerId ?? undefined)?.name ?? "-"}</div>
+      <div>Money: ¤{player.vitals.money}</div>
+      <div>Stress: {player.vitals.stress}</div>
+      <div>Occupation: {job?.title ?? "Unemployed"} @ {getAffiliationById(job?.careerId ?? undefined)?.name ?? "-"}</div>
       <div>
-        STR {p.skills.str} • INT {p.skills.int} • REF {p.skills.ref} • CHR {p.skills.chr}
+        STR {player.skills.str} • INT {player.skills.int} • REF {player.skills.ref} • CHR {player.skills.chr}
       </div>
     </div>
   )
@@ -146,7 +219,7 @@ function LogPanel() {
   )
 }
 
-function AdvanceMonthButton() {
+function AdvanceMonthButton({ onShowProfile }: { onShowProfile?: () => void }) {
   const { state, dispatch } = useGame()
 
   const handleDebugTags = () => {
@@ -163,17 +236,22 @@ function AdvanceMonthButton() {
     dispatch({ type: "ADD_LOG", text: `TAGS — ${parts.join(" | ")}` })
   }
 
+  const handleShowProfile = () => {
+    if (onShowProfile) onShowProfile()
+  }
+
   return (
     <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
       <button style={{ marginRight: "0.5rem" }} onClick={() => dispatch({ type: "ADVANCE_MONTH" })}>
         Advance 1 month
       </button>
-      <button onClick={handleDebugTags}>Debug Tags</button>
+      <button onClick={handleDebugTags}>DEBUG: Tags</button>
+      <button onClick={handleShowProfile}>DEBUG: Profile</button>
     </div>
   )
 }
 
-function InkModal({ open, onClose, frames, onChoose, statsVars }: { open: boolean; onClose: () => void; frames: { text: string; choices: any[] }[]; onChoose: (choiceIndex: number) => void; statsVars?: any }) {
+function InkModal({ open, onClose, frames, onChoose, statsVars }: { open: boolean; onClose: () => void; frames: InkFrame[]; onChoose: (choiceIndex: number) => void; statsVars?: any }) {
   if (!open) return null
 
   return (
@@ -285,166 +363,116 @@ function InkModal({ open, onClose, frames, onChoose, statsVars }: { open: boolea
   )
 }
 
+function ProfileModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { state } = useGame()
+  const { player, job } = getPlayerProfileData(state)
+  const subSkillEntries = Object.entries(player.skills.subSkills ?? {})
+  const tags = (player.tags ?? []).join(", ") || "-"
+
+  if (!open) return null
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80 }}>
+      <div style={{ background: "#111", color: "#fff", padding: "1rem", width: 640, borderRadius: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ margin: 0 }}>{player.name} — Profile</h3>
+          <button onClick={onClose}>Close</button>
+        </div>
+
+        <div style={{ marginTop: "0.75rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+          <div>
+            <strong>ID</strong>
+            <div>{player.id}</div>
+          </div>
+          <div>
+            <strong>Profile</strong>
+            <div>{player.profileId}</div>
+          </div>
+
+          <div>
+            <strong>Age (months)</strong>
+            <div>{player.ageMonths}</div>
+          </div>
+          <div>
+            <strong>Current District</strong>
+            <div>{player.currentDistrict}</div>
+          </div>
+
+          <div style={{ gridColumn: "1 / -1" }}>
+            <strong>Vitals</strong>
+            <div style={{ display: "flex", gap: "1rem", marginTop: "0.25rem" }}>
+              <div>Health: {player.vitals.health}</div>
+              <div>Humanity: {player.vitals.humanity}</div>
+              <div>Stress: {player.vitals.stress}</div>
+              <div>Looks: {player.vitals.looks}</div>
+              <div>Money: ¤{player.vitals.money}</div>
+            </div>
+          </div>
+
+          <div style={{ gridColumn: "1 / -1" }}>
+            <strong>Skills</strong>
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.25rem" }}>
+              <div>STR: {player.skills.str}</div>
+              <div>INT: {player.skills.int}</div>
+              <div>REF: {player.skills.ref}</div>
+              <div>CHR: {player.skills.chr}</div>
+            </div>
+            <div style={{ marginTop: "0.5rem" }}>
+              <em>Subskills:</em>
+              <div style={{ marginTop: "0.25rem" }}>{subSkillEntries.map(([k, v]) => (
+                <span key={k} style={{ marginRight: 8 }}>{k}: {v}</span>
+              ))}</div>
+            </div>
+          </div>
+
+          <div style={{ gridColumn: "1 / -1" }}>
+            <strong>Tags</strong>
+            <div style={{ marginTop: "0.25rem" }}>{tags}</div>
+          </div>
+
+          <div style={{ gridColumn: "1 / -1" }}>
+            <strong>Occupation</strong>
+            <div style={{ marginTop: "0.25rem" }}>{job?.title ?? "Unemployed"} — {getAffiliationById(job?.employerId ?? undefined)?.name ?? "-"}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [inkOpen, setInkOpen] = useState(false)
   const [inkStory, setInkStory] = useState<any | null>(null)
-  const [inkFrames, setInkFrames] = useState<{ text: string; choices: any[] }[]>([])
+  const [inkFrames, setInkFrames] = useState<InkFrame[]>([])
   const [inkTaskPendingResolve, setInkTaskPendingResolve] = useState<string | null>(null)
   const [inkTaskPendingGraphId, setInkTaskPendingGraphId] = useState<string | null>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
   const { state, dispatch } = useGame()
 
   const openInkDebug = async () => {
     try {
-      // Dynamically import inkjs and the compiled json to avoid module-level runtime errors
-      const InkModule = await import("inkjs")
-      const tasks = (await import("./ink/career_mechanic.json")) as any
-      const StoryCtor = (InkModule as any).Story ?? (InkModule as any).default ?? InkModule
-      if (!StoryCtor) throw new Error("inkjs Story constructor not found")
-
-      const s = new StoryCtor(tasks)
-      // bind external functions expected by the ink stories
-      try {
-        if (typeof (s as any).BindExternalFunction === "function") {
-          ;(s as any).BindExternalFunction("hasStat", (statName: any, threshold: any) => {
-            try {
-              const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
-              const skills = state.player.skills as any
-              const value = skills[key] ?? skills[key.slice(0, 3)] ?? skills.subSkills?.[key] ?? 0
-              return Number(value) >= Number(threshold)
-            } catch (e) {
-              return false
-            }
-          })
-
-          ;(s as any).BindExternalFunction("hasMoney", (amount: any) => {
-            try {
-              return Number(state.player.vitals.money) >= Number(amount)
-            } catch (e) {
-              return false
-            }
-          })
-        } else if (typeof (s as any).bindExternalFunction === "function") {
-          ;(s as any).bindExternalFunction("hasStat", (statName: any, threshold: any) => {
-            try {
-              const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
-              const skills = state.player.skills as any
-              const value = skills[key] ?? skills[key.slice(0, 3)] ?? skills.subSkills?.[key] ?? 0
-              return Number(value) >= Number(threshold)
-            } catch (e) {
-              return false
-            }
-          })
-
-          ;(s as any).bindExternalFunction("hasMoney", (amount: any) => {
-            try {
-              return Number(state.player.vitals.money) >= Number(amount)
-            } catch (e) {
-              return false
-            }
-          })
-        }
-      } catch (e) {
-        console.warn("Failed to bind ink externals:", e)
-      }
-      // jump to the named knot
-      try {
-        if (typeof s.ChoosePathString === "function") s.ChoosePathString("mechanic_apprentice_shift")
-      } catch (e) {
-        // ignore - path may already be at entry
-      }
-
-      let out = ""
-      while (s.canContinue) {
-        out += (s.Continue() as string)
-        if (s.canContinue) out += "\n"
-      }
-
-      setInkStory(s)
-      setInkFrames([{ text: out, choices: s.currentChoices ?? [] }])
+      const story = await createInkStory("mechanic_apprentice_shift", state.player)
+      setInkStory(story)
+      setInkFrames(resolveInkFrames(story))
       setInkOpen(true)
     } catch (err: any) {
       console.error("Ink debug open failed:", err)
       setInkStory(null)
-      setInkFrames([])
+      setInkFrames([{ text: "Ink debug open failed: " + (err?.message ?? String(err)), choices: [] }])
       setInkOpen(true)
     }
   }
 
   const openInkForTask = async (taskId: string, taskGraphId: string) => {
+    setInkTaskPendingResolve(taskId)
+    setInkTaskPendingGraphId(taskGraphId)
     try {
-      // mark this modal as associated with a task so we can resolve it when the player finishes
-      setInkTaskPendingResolve(taskId)
-      setInkTaskPendingGraphId(taskGraphId)
-      const InkModule = await import("inkjs")
-      // load the career json - user renamed compiled file to career_mechanic.json
-      const tasks = (await import("./ink/career_mechanic.json")) as any
-      const StoryCtor = (InkModule as any).Story ?? (InkModule as any).default ?? InkModule
-      if (!StoryCtor) throw new Error("inkjs Story constructor not found")
-
-      const s = new StoryCtor(tasks)
-
-      // bind externals similar to debug flow
-      try {
-        if (typeof (s as any).BindExternalFunction === "function") {
-          ;(s as any).BindExternalFunction("hasStat", (statName: any, threshold: any) => {
-            try {
-              const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
-              const skills = state.player.skills as any
-              const value = skills[key] ?? skills[key.slice(0, 3)] ?? skills.subSkills?.[key] ?? 0
-              return Number(value) >= Number(threshold)
-            } catch (e) {
-              return false
-            }
-          })
-
-          ;(s as any).BindExternalFunction("hasMoney", (amount: any) => {
-            try {
-              return Number(state.player.vitals.money) >= Number(amount)
-            } catch (e) {
-              return false
-            }
-          })
-        } else if (typeof (s as any).bindExternalFunction === "function") {
-          ;(s as any).bindExternalFunction("hasStat", (statName: any, threshold: any) => {
-            try {
-              const key = String(statName).replace(/[^a-zA-Z]/g, "").toLowerCase()
-              const skills = state.player.skills as any
-              const value = skills[key] ?? skills[key.slice(0, 3)] ?? skills.subSkills?.[key] ?? 0
-              return Number(value) >= Number(threshold)
-            } catch (e) {
-              return false
-            }
-          })
-
-          ;(s as any).bindExternalFunction("hasMoney", (amount: any) => {
-            try {
-              return Number(state.player.vitals.money) >= Number(amount)
-            } catch (e) {
-              return false
-            }
-          })
-        }
-      } catch (e) {
-        console.warn("Failed to bind ink externals:", e)
-      }
-
-      // try to jump to the taskGraphId knot
-      try {
-        if (typeof s.ChoosePathString === "function") s.ChoosePathString(taskGraphId)
-      } catch (e) {}
-
-      let out = ""
-      while (s.canContinue) {
-        out += (s.Continue() as string)
-        if (s.canContinue) out += "\n"
-      }
-
-      setInkStory(s)
-      setInkFrames([{ text: out, choices: s.currentChoices ?? [] }])
+      const story = await createInkStory(taskGraphId, state.player)
+      setInkStory(story)
+      setInkFrames(resolveInkFrames(story))
       setInkOpen(true)
     } catch (err: any) {
       console.error("openInkForTask failed:", err)
-      // if we fail to open, clear pending task resolve so we don't accidentally resolve later
       setInkTaskPendingResolve(null)
       setInkTaskPendingGraphId(null)
       setInkStory(null)
@@ -455,17 +483,80 @@ export default function App() {
 
   const handleChoose = (choiceIndex: number) => {
     if (!inkStory) return
-    // advance story and capture the new output as a fresh single frame (replace previous)
     inkStory.ChooseChoiceIndex(choiceIndex)
-    let out = ""
-    while (inkStory.canContinue) {
-      out += (inkStory.Continue() as string)
-      if (inkStory.canContinue) out += "\n"
+    setInkFrames(resolveInkFrames(inkStory))
+  }
+
+  const applyInkOutcome = (vars: any) => {
+    try {
+      const outcome = vars.outcome
+      if (outcome && inkTaskPendingGraphId) {
+        dispatch({ type: "APPLY_OUTCOME", outcome: String(outcome), taskGraphId: inkTaskPendingGraphId })
+      }
+    } catch (e) {
+      // swallow
+    }
+  }
+
+  const applyInkDeltas = (vars: any) => {
+    try {
+      const dm = Number(vars.delta_money ?? 0)
+      const ds = Number(vars.delta_stress ?? 0)
+      const dh = Number(vars.delta_health ?? 0)
+      const dhu = Number(vars.delta_humanity ?? 0)
+      const delta: any = {}
+      if (dm !== 0) delta.money = dm
+      if (ds !== 0) delta.stress = ds
+      if (dh !== 0) delta.health = dh
+      if (dhu !== 0) delta.humanity = dhu
+      if (Object.keys(delta).length > 0) {
+        dispatch({ type: "APPLY_STATS_DELTA", delta })
+      }
+    } catch (e) {
+      // swallow
+    }
+  }
+
+  const resolvePendingTaskAfterStory = (vars: any) => {
+    if (!inkTaskPendingResolve) return
+
+    const taskObj = state.tasks.find(t => t.id === inkTaskPendingResolve)
+    const taskTitle = taskObj ? describeTask(taskObj).title : String(inkTaskPendingResolve)
+
+    dispatch({ type: "RESOLVE_TASK", taskId: inkTaskPendingResolve })
+
+    try {
+      const dm = Number(vars.delta_money ?? 0)
+      const ds = Number(vars.delta_stress ?? 0)
+      const dh = Number(vars.delta_health ?? 0)
+      const dhu = Number(vars.delta_humanity ?? 0)
+      const parts: string[] = []
+      if (dm !== 0) parts.push(`${dm > 0 ? '+' : '-'}¤${Math.abs(dm)}`)
+      if (ds !== 0) parts.push(`${ds > 0 ? '+' : '-'}${Math.abs(ds)} stress`)
+      if (dh !== 0) parts.push(`${dh > 0 ? '+' : '-'}${Math.abs(dh)} health`)
+      if (dhu !== 0) parts.push(`${dhu > 0 ? '+' : '-'}${Math.abs(dhu)} humanity`)
+
+      const received = parts.length > 0 ? ` Received: ${parts.join(', ')}` : ''
+      dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.${received}` })
+    } catch (e) {
+      dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.` })
     }
 
-    const nextChoices = inkStory.currentChoices ?? []
-    // replace previous frame with the new one so only one modal is visible at a time
-    setInkFrames([{ text: out, choices: nextChoices }])
+    setInkTaskPendingResolve(null)
+    setInkTaskPendingGraphId(null)
+  }
+
+  const handleCloseInkModal = () => {
+    const vars = (inkStory as any)?.variablesState ?? {}
+    applyInkOutcome(vars)
+    applyInkDeltas(vars)
+    resolvePendingTaskAfterStory(vars)
+
+    setInkOpen(false)
+    setInkFrames([])
+    setInkStory(null)
+    setInkTaskPendingResolve(null)
+    setInkTaskPendingGraphId(null)
   }
 
   return (
@@ -476,83 +567,19 @@ export default function App() {
         <LogPanel />
       </div>
       <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
-        <AdvanceMonthButton />
+        <AdvanceMonthButton onShowProfile={() => setProfileOpen(true)} />
         <button style={{ marginLeft: "0.5rem" }} onClick={openInkDebug}>DEBUG: ink</button>
       </div>
 
-      {/* TaskModal removed — no active task-run modal. InkModal handles story choices. */}
-
       <InkModal
         open={inkOpen}
-        onClose={() => {
-          // If the ink story set an 'outcome' variable, apply outcome effects first
-          try {
-            const outcome = (inkStory as any)?.variablesState?.outcome
-            if (outcome && inkTaskPendingGraphId) {
-              dispatch({ type: "APPLY_OUTCOME", outcome: String(outcome), taskGraphId: inkTaskPendingGraphId })
-            }
-          } catch (e) {
-            // ignore
-          }
-
-            // Read accumulated delta_* variables from the ink story and apply them in one action
-            try {
-              const vars = (inkStory as any)?.variablesState ?? {}
-              const dm = Number(vars.delta_money ?? 0)
-              const ds = Number(vars.delta_stress ?? 0)
-              const dh = Number(vars.delta_health ?? 0)
-              const dhu = Number(vars.delta_humanity ?? 0)
-              const delta: any = {}
-              if (dm !== 0) delta.money = dm
-              if (ds !== 0) delta.stress = ds
-              if (dh !== 0) delta.health = dh
-              if (dhu !== 0) delta.humanity = dhu
-              if (Object.keys(delta).length > 0) {
-                dispatch({ type: "APPLY_STATS_DELTA", delta })
-              }
-            } catch (e) {
-              // ignore
-            }
-
-          // if this modal was opened for a task, resolve it now
-          if (inkTaskPendingResolve) {
-            // capture task title before resolving
-            const taskObj = state.tasks.find(t => t.id === inkTaskPendingResolve)
-            const taskTitle = taskObj ? describeTask(taskObj).title : String(inkTaskPendingResolve)
-
-            dispatch({ type: "RESOLVE_TASK", taskId: inkTaskPendingResolve })
-
-            // Build a received summary from the delta we applied (if any)
-            try {
-              const vars = (inkStory as any)?.variablesState ?? {}
-              const dm = Number(vars.delta_money ?? 0)
-              const ds = Number(vars.delta_stress ?? 0)
-              const dh = Number(vars.delta_health ?? 0)
-              const dhu = Number(vars.delta_humanity ?? 0)
-              const parts: string[] = []
-              if (dm !== 0) parts.push(`${dm > 0 ? '+' : '-'}¤${Math.abs(dm)}`)
-              if (ds !== 0) parts.push(`${ds > 0 ? '+' : '-'}${Math.abs(ds)} stress`)
-              if (dh !== 0) parts.push(`${dh > 0 ? '+' : '-'}${Math.abs(dh)} health`)
-              if (dhu !== 0) parts.push(`${dhu > 0 ? '+' : '-'}${Math.abs(dhu)} humanity`)
-
-              const received = parts.length > 0 ? ` Received: ${parts.join(', ')}` : ''
-              dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.${received}` })
-            } catch (e) {
-              dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.` })
-            }
-
-            setInkTaskPendingResolve(null)
-            setInkTaskPendingGraphId(null)
-          }
-
-          setInkOpen(false)
-          setInkFrames([])
-          setInkStory(null)
-        }}
+        onClose={handleCloseInkModal}
         frames={inkFrames}
         statsVars={(inkStory as any)?.variablesState ?? {}}
-        onChoose={(i) => handleChoose(i)}
+        onChoose={handleChoose}
       />
+
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   )
 }

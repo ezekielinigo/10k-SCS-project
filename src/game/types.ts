@@ -275,12 +275,14 @@ export type Career = {
   id: string
   title: string
   description?: string
-  // ordered list of job ids representing the career path (junior -> senior)
-  jobIds: string[]
   // optional context for the career
   affiliationId?: string
   districtId?: string
   tags?: Tag[]
+  // optional path to the compiled Ink file that contains job/task knots for this career
+  inkSource?: string
+  // each level stores the full job metadata for quick lookup
+  levels: Job[]
 }
 
 // canonical definition of a job/role
@@ -296,6 +298,10 @@ export type Job = {
   // baseline performance expectations for the role (metric -> target)
   performanceMetrics?: Record<string, number>
   tags?: Tag[]
+  // optional ink/task linkage: the knot / task graph id to open for job tasks
+  taskGraphId?: string
+  // optional compiled ink file path (if different from career-level `inkSource`)
+  inkSource?: string
 }
 
 // links members to jobs and tracks standing/performance

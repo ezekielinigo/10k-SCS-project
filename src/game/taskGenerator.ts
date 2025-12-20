@@ -1,11 +1,11 @@
 import type { GameState, TaskState } from "./types"
-import { createJobTaskForState } from "./content/jobs"
+import { createCareerTaskForState } from "./content/careers"
 import { createRandomEventTaskForState } from "./content/randomEvents"
 
 export const generateMonthlyTasks = (state: GameState): TaskState[] => {
   const tasks: TaskState[] = []
 
-  const jobTask = createJobTaskForState(state)
+  const jobTask = createCareerTaskForState(state)
   if (jobTask) tasks.push(jobTask)
 
   const randomEventTask = createRandomEventTaskForState(state)

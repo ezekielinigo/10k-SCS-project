@@ -1,5 +1,5 @@
 import type { EventScope, GameState, PlayerState, Tag } from "../types"
-import { getJobTemplateById } from "./jobs"
+import { getJobById } from "./careers"
 
 export type ContentContext = {
   jobTags: Tag[]
@@ -30,7 +30,7 @@ const deriveStatTags = (player: PlayerState): Tag[] => {
 export const buildContentContext = (state: GameState): ContentContext => {
   const player = state.player
   const assignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === player.id)
-  const jobTags = assignment ? getJobTemplateById(assignment.jobId)?.tags ?? [] : []
+  const jobTags = assignment ? getJobById(assignment.jobId)?.tags ?? [] : []
   const district = state.districts[player.currentDistrict]
   const districtTags = district?.tags ?? []
   const npcTags = Object.values(state.npcs).flatMap(npc => npc.tags)
