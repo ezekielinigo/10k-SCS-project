@@ -3,6 +3,7 @@ import { getProfileById, getRandomProfile } from "./content/playerProfiles"
 import DISTRICTS from "./districts"
 import { createNpc } from "./content/npcProfiles"
 import { generateMonthlyTasks } from "./taskGenerator"
+import { generateJobPostings } from "./generators/jobPostingGenerator"
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -26,6 +27,13 @@ export const createInitialGameState = (): GameState => {
       performance: 50,
     }
   }
+
+  // seed a couple of procedural job postings based on existing job templates
+  const jobPostingsArr = generateJobPostings(["apprentice_mechanic", "courier"], { salaryJitter: 0.15 })
+  const jobPostings = jobPostingsArr.reduce<Record<string, any>>((acc, p) => {
+    acc[p.id] = p
+    return acc
+  }, {})
 
   const baseState: GameState = {
     month: 0,
@@ -55,6 +63,7 @@ export const createInitialGameState = (): GameState => {
     relationships: {},
     jobs: {},
     jobAssignments,
+    jobPostings,
     itemTemplates: {},
     itemInstances: {},
     inventoryEntries: {},

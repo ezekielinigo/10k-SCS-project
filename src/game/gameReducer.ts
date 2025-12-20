@@ -1,5 +1,8 @@
 import type { GameState, TaskState } from "./types"
+import { getJobById } from "./content/careers"
 import { generateMonthlyTasks } from "./taskGenerator"
+import { generateJobPostings } from "./generators/jobPostingGenerator"
+import { listCareers } from "./content/careers"
 import { getTaskGraphById, OUTCOME_DEFINITIONS, TASK_OUTCOME_OVERRIDES } from "./content/tasks"
 
 export type GameAction =
@@ -12,6 +15,7 @@ export type GameAction =
   | { type: "START_TASK_RUN"; taskId: string; taskGraphId: string }
   | { type: "MAKE_TASK_CHOICE"; choiceId: string }
   | { type: "SET_PLAYER_JOB"; jobId: string | null }
+  | { type: "TAKE_JOB_POSTING"; postingId: string }
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -27,11 +31,26 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const newMonth = state.month + 1
       const interimState: GameState = { ...state, month: newMonth }
       const tasks = generateMonthlyTasks(interimState)
+      // generate fresh procedural job postings (replace previous)
+      try {
+        const maxListings = 5
+        const careers = listCareers()
+        const templates = careers.flatMap(c => c.levels.map(l => l.id))
+        const selected: string[] = []
+        for (let i = 0; i < Math.min(maxListings, Math.max(1, templates.length)); i++) {
+          selected.push(templates[Math.floor(Math.random() * templates.length)])
+        }
+        const postings = generateJobPostings(selected, { salaryJitter: 0.15 })
+        const jobPostings = postings.reduce<Record<string, any>>((m, p) => {
+          m[p.id] = p
+          return m
+        }, {})
 
-      return {
-        ...state,
-        month: newMonth,
-        tasks,
+        return {
+          ...state,
+          month: newMonth,
+          tasks,
+          jobPostings,
         log: [
           ...state.log,
           {
@@ -61,6 +80,26 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
             ]),
           },
         ],
+        }
+      } catch (e) {
+        // if posting generation fails, fall back to previous behavior without postings
+        return {
+          ...state,
+          month: newMonth,
+          tasks,
+          log: [
+            ...state.log,
+            {
+              id: randId(),
+              month: newMonth,
+              text: pick([
+                "Mayor Denies Allegations of Illegal Cyberware Donations from Corpo Syndicate",
+                "Mysterious EMP Pulse Blackouts District 7 for 3 Minutes, Authorities 'Investigating'",
+                "Netrunner Collective Claims Responsibility for Overnight Transit Shutdown",
+              ]),
+            },
+          ],
+        }
       }
     }
 
@@ -227,6 +266,42 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
             id: randId(),
             month: state.month,
             text: logText,
+          },
+        ],
+      }
+    }
+
+    case "TAKE_JOB_POSTING": {
+      const posting = state.jobPostings?.[action.postingId]
+      if (!posting) return state
+
+      const jobId = posting.templateId
+      const memberId = state.player.id
+
+      const nextAssignments: Record<string, any> = { ...(state.jobAssignments ?? {}) }
+      for (const k of Object.keys(nextAssignments)) {
+        if (nextAssignments[k]?.memberId === memberId) delete nextAssignments[k]
+      }
+
+      const id = `${jobId}__${memberId}`
+      nextAssignments[id] = { id, jobId, memberId, performance: 50 }
+
+      const nextPostings = { ...(state.jobPostings ?? {}) }
+      nextPostings[action.postingId] = { ...posting, filledBy: memberId }
+
+      const job = getJobById(jobId)
+      const jobTitle = job?.title ?? jobId
+
+      return {
+        ...state,
+        jobAssignments: nextAssignments,
+        jobPostings: nextPostings,
+        log: [
+          ...state.log,
+          {
+            id: randId(),
+            month: state.month,
+            text: `Accepted posting: ${jobTitle}`,
           },
         ],
       }

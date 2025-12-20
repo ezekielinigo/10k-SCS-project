@@ -1,5 +1,5 @@
 import { getAffiliationById } from "./game/content/affiliations.ts"
-import { getJobById, listCareers } from "./game/content/careers.ts"
+import { getJobById, listCareers, getCareerForJobId } from "./game/content/careers.ts"
 import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
 import { buildContentContext } from "./game/content/tagEngine"
@@ -98,6 +98,8 @@ const createInkStory = async (knot: string | undefined, player: PlayerState, ink
 function PlayerSummary() {
   const { state } = useGame()
   const { player, job } = getPlayerProfileData(state)
+  const careerForJob = job ? getCareerForJobId(job.id) : undefined
+  const primaryAffId = careerForJob?.affiliationId?.[0] ?? null
 
   return (
     <div style={{ padding: "0.75rem", borderBottom: "1px solid #333" }}>
@@ -106,7 +108,7 @@ function PlayerSummary() {
       </div>
       <div>Money: ¤{player.vitals.money}</div>
       <div>Stress: {player.vitals.stress}</div>
-      <div>Occupation: {job?.title ?? "Unemployed"} @ {getAffiliationById(job?.careerId ?? undefined)?.name ?? "-"}</div>
+      <div>Occupation: {job?.title ?? "Unemployed"} @ {getAffiliationById(primaryAffId ?? undefined)?.name ?? "-"}</div>
       <div>
         STR {player.skills.str} • INT {player.skills.int} • REF {player.skills.ref} • CHR {player.skills.chr}
       </div>
@@ -274,13 +276,17 @@ function ChangeJobModal({ open, onClose }: { open: boolean; onClose: () => void 
 
   const careers = listCareers()
 
-  // flattened job list
-  const jobs = careers.flatMap(c => c.levels.map(l => ({ ...l, careerId: c.id })))
+  const jobPostings = Object.values(state.jobPostings ?? {})
 
   const currentAssignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === state.player.id)
 
   const handleChoose = (jobId: string | null) => {
     dispatch({ type: "SET_PLAYER_JOB", jobId })
+    onClose()
+  }
+
+  const handleTakePosting = (postingId: string) => {
+    dispatch({ type: "TAKE_JOB_POSTING", postingId })
     onClose()
   }
 
@@ -297,18 +303,36 @@ function ChangeJobModal({ open, onClose }: { open: boolean; onClose: () => void 
             <strong>Current:</strong> {currentAssignment ? currentAssignment.jobId : 'Unemployed'}
           </div>
 
-          {jobs.map(job => (
-            <div key={job.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem", border: "1px solid #333", borderRadius: 6 }}>
-              <div>
-                <div style={{ fontWeight: 700 }}>{job.title}</div>
-                <div style={{ fontSize: "0.85rem", opacity: 0.9 }}>{Array.isArray(job.description) ? job.description[0] : job.description}</div>
-              </div>
-              <div>
-                <button onClick={() => handleChoose(job.id)} style={{ marginRight: 8 }}>Assign</button>
-                <small style={{ opacity: 0.8 }}>{job.careerId}</small>
-              </div>
+          {jobPostings.length > 0 && (
+            <div style={{ border: "1px solid #444", borderRadius: 6, padding: "0.5rem" }}>
+              <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>Available Postings (procedural)</div>
+              {jobPostings.map(p => {
+                const job = getJobById(p.templateId)
+                const career = job ? careers.find(c => c.levels.some(l => l.id === job.id)) : undefined
+                const affId = p.affiliationId ?? (career?.affiliationId?.[0] ?? null)
+                const employerName = getAffiliationById(affId ?? undefined)?.name ?? affId ?? "-"
+                const salaryText = p.salary != null ? `¤${p.salary}` : job?.salary != null ? `¤${job.salary}` : ""
+                const desc = p.description ?? (Array.isArray(job?.description) ? job?.description[0] : job?.description)
+                return (
+                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0" }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{job?.title ?? p.templateId}</div>
+                      <div style={{ fontSize: "0.85rem", opacity: 0.85 }}>{desc}</div>
+                      <div style={{ fontSize: "0.8rem", opacity: 0.75 }}>{employerName}{salaryText ? ` • ${salaryText}` : ""}</div>
+                    </div>
+                    <div>
+                      <button onClick={() => handleTakePosting(p.id)} style={{ marginRight: 8 }}>Take</button>
+                      <small style={{ opacity: 0.8 }}>{job?.careerId ?? ""}</small>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          ))}
+          )}
+
+          {jobPostings.length === 0 && (
+            <div style={{ opacity: 0.8 }}>No postings available.</div>
+          )}
 
           <div style={{ marginTop: 8 }}>
             <button onClick={() => handleChoose(null)}>Unassign</button>
@@ -500,7 +524,9 @@ function ProfileModal({ open, onClose }: { open: boolean; onClose: () => void })
 
           <div style={{ gridColumn: "1 / -1" }}>
             <strong>Occupation</strong>
-            <div style={{ marginTop: "0.25rem" }}>{job?.title ?? "Unemployed"} — {getAffiliationById(job?.employerId ?? undefined)?.name ?? "-"}</div>
+            <div style={{ marginTop: "0.25rem" }}>
+              {job?.title ?? "Unemployed"} — {getAffiliationById(getCareerForJobId(job?.id ?? undefined)?.affiliationId?.[0] ?? undefined)?.name ?? "-"}
+            </div>
           </div>
         </div>
       </div>

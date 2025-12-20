@@ -14,13 +14,26 @@ const CAREERS: Record<string, Career> = {
         id: "apprentice_mechanic",
         title: "Apprentice Mechanic",
         description: [
-          "Tune up battered groundcars at Valkarna Auto.",
+          "Tune up battered groundcars at the autoshop.",
           "Complete this week's diagnostics and repairs.",
         ],
+        salary: 1500,
         tags: ["mechanic", "tech", "blue_collar", "industrial"],
         taskGraphId: "mechanic_apprentice_shift",
 		requirements: { str: 4, int: 4, ref: 3, chr: 2 },
       },
+	  {
+		id: "senior_mechanic",
+		title: "Senior Mechanic",
+		description: [
+		  "Lead complex repairs and mentor junior staff.",
+		  "Ensure quality control and customer satisfaction.",
+		],
+        salary: 3000,
+    tags: ["mechanic", "tech", "blue_collar", "industrial", "leadership"],
+		taskGraphId: "mechanic_senior_shift",
+		requirements: { str: 6, int: 6, ref: 5, chr: 4 },
+	  }
     ],
   },
   courier: {
@@ -37,7 +50,8 @@ const CAREERS: Record<string, Career> = {
 		  "Deliver packages and messages across the city.",
 		  "Navigate through traffic and avoid hazards.",
 		],
-		tags: ["courier", "delivery", "street_smart"],
+        salary: 1200,
+    tags: ["courier", "delivery", "street_smart"],
 		taskGraphId: "courier_shift",
 		requirements: { str: 5, int: 5, ref: 6, chr: 3 },
 	  },
@@ -45,10 +59,12 @@ const CAREERS: Record<string, Career> = {
   }
 }
 
-const JOB_LOOKUP: Record<string, Job> = Object.values(CAREERS).flatMap(c => c.levels).reduce((map, job) => {
-  map[job.id] = job
-  return map
-}, {} as Record<string, Job>)
+const JOB_LOOKUP: Record<string, Job> = Object.values(CAREERS)
+  .flatMap((c) => c.levels.map((l) => ({ ...l, careerId: c.id })))
+  .reduce((map, job) => {
+    map[job.id] = job
+    return map
+  }, {} as Record<string, Job>)
 
 const JOB_TO_CAREER: Record<string, Career> = Object.values(CAREERS).reduce((map, career) => {
   for (const level of career.levels) {

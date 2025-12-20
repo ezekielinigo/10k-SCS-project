@@ -250,6 +250,7 @@ export type NpcState = {
 export type Affiliation = {
   id: string
   name: string
+  description: string
   type?: "company" | "faction" | "organization"
   tags?: Tag[]
 }
@@ -292,7 +293,6 @@ export type Job = {
   description?: string | string[]
   careerId?: string
   districtId?: string
-  employerId?: string
   salary?: number
   requirements?: Record<string, any> | null
   // baseline performance expectations for the role (metric -> target)
@@ -311,6 +311,19 @@ export type JobAssignment = {
   memberId: string
   // 0-100 %
   performance: number
+}
+
+// procedural job offer built from a Job template
+export type JobPosting = {
+  id: string
+  templateId: string
+  affiliationId?: string | null
+  salary?: number
+  tags?: Tag[]
+  description?: string
+  // who claimed it (player or npc id)
+  filledBy?: string | null
+  metadata?: Record<string, any>
 }
 
 // canonical definition of an item
@@ -428,6 +441,7 @@ export type GameState = {
   // centralized jobs + assignments (many-to-many)
   jobs?: Record<string, Job>
   jobAssignments?: Record<string, JobAssignment>
+  jobPostings?: Record<string, JobPosting>
 
   // items and inventories
   itemTemplates?: Record<string, ItemTemplate>

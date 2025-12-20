@@ -15,6 +15,7 @@ VAR delta_money = 0
 VAR delta_stress = 0
 VAR delta_health = 0
 VAR delta_humanity = 0
+VAR affiliationId = ""
 // External functions provided by the game engine
 EXTERNAL hasStat (name, min)
 EXTERNAL hasMoney (amount)
@@ -24,6 +25,16 @@ EXTERNAL hasMoney (amount)
 // =============================================================
 
 === courier_shift ===
+
+{ affilationId:
+	- "swift_runners":	
+		The swift runner client greets you with a grin.
+	- "night_owl_couriers":
+		The night owl client whispers the delivery instructions.
+	- else:
+		The client gives you a generic route and a standard tip.
+}
+
 You push through a crowded alley with a satchel bouncing against your hip. The city smells like rain and frying oil.
 
 { hasStat("ref", 6):

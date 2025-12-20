@@ -111,3 +111,71 @@ A Vulcamax engine misfires violently. Sparks scatter across the bay, and a clien
     ~ delta_stress = 20
     ~ delta_health = -10
     -> END
+
+
+// =============================================================
+//  MECHANIC SENIOR SHIFT
+// =============================================================
+
+=== mechanic_senior_shift ===
+The garage is buzzing with activity. Junior mechanics look to you for guidance.
++ Oversee engine repairs
+    -> engine_repairs
++ Manage customer relations
+    -> customer_relations
+
+=== engine_repairs ===
+A high-profile client's vehicle has a critical engine failure. Time is ticking.
+{ hasStat("int", 8):
+    + Diagnose the engine personally
+        You identify a rare fuel injector fault.
+    ~ outcome = "great_success"
+    ~ delta_money = 400
+    ~ delta_stress = -10
+    ~ delta_humanity = 5
+    -> END
+- else:
+    ~ outcome = "failure"
+    ~ delta_money = -100
+    ~ delta_stress = 15
+}
++ Delegate to a junior mechanic
+    The junior fumbles the repair under pressure.
+    ~ outcome = "failure"
+    ~ delta_money = -100
+    ~ delta_stress = 15
+    -> END
++ Rush the repair to meet the deadline
+    Mistakes are made in the haste.
+    ~ outcome = "great_failure"
+    ~ delta_money = -250
+    ~ delta_stress = 25
+    ~ delta_health = -5
+    -> END
+=== customer_relations ===
+A disgruntled customer storms in, furious about a previous repair.
+{ hasStat("chr", 7):
+    + Calm the customer with empathy
+        You listen and address their concerns sincerely.
+    ~ outcome = "great_success"
+    ~ delta_money = 300
+    ~ delta_stress = -10
+    ~ delta_humanity = 5
+    -> END
+- else:
+    ~ outcome = "failure"
+    ~ delta_money = -80
+    ~ delta_stress = 10
+}
++ Offer a discount on future services
+    The customer grudgingly accepts.
+    ~ outcome = "success"
+    ~ delta_money = -50
+    ~ delta_stress = -5
+    -> END
++ Stand your ground and refuse to budge
+    The customer leaves, vowing never to return.
+    ~ outcome = "great_failure"
+    ~ delta_money = -150
+    ~ delta_stress = 15
+    -> END 

@@ -1,24 +1,35 @@
-import type { Tag } from "../types"
+import type { Affiliation, Tag } from "../types"
 
-export type AffiliationTemplate = {
-  id: string
-  name: string
-  description: string
-  tags: Tag[]
-}
-
-const AFFILIATIONS: Record<string, AffiliationTemplate> = {
+const AFFILIATIONS: Record<string, Affiliation> = {
   valkarna_auto: {
     id: "valkarna_auto",
     name: "Valkarna Auto Collective",
     description: "Independent mechanics holding the industrial district together.",
     tags: ["mechanic", "industrial", "blue_collar", "union"],
   },
+  ironclad_garage: {
+    id: "ironclad_garage",
+    name: "Ironclad Garage",
+    description: "A hard-nosed crew specializing in armored transports and heavy rigs.",
+    tags: ["mechanic", "industrial", "heavy", "blue_collar"],
+  },
   instafood_collective: {
     id: "instafood_collective",
     name: "InstaFood Collective",
     description: "Franchise kitchen crew with quiet mutual aid roots.",
     tags: ["food_service", "midlands", "customer_facing"],
+  },
+  swift_runners: {
+    id: "swift_runners",
+    name: "Swift Runners",
+    description: "Fast-footed couriers known for cutting through traffic and bureaucracy alike.",
+    tags: ["courier", "street_smart", "speed"],
+  },
+  night_owl_couriers: {
+    id: "night_owl_couriers",
+    name: "Night Owl Couriers",
+    description: "Discreet night-shift messengers who take the risky routes when others sleep.",
+    tags: ["courier", "night", "discreet"],
   },
   no_affiliation: {
     id: "no_affiliation",
@@ -28,9 +39,9 @@ const AFFILIATIONS: Record<string, AffiliationTemplate> = {
   },
 }
 
-export const listAffiliations = (): AffiliationTemplate[] => Object.values(AFFILIATIONS)
+export const listAffiliations = (): Affiliation[] => Object.values(AFFILIATIONS)
 
-export const getAffiliationById = (id?: string | null): AffiliationTemplate | undefined =>
+export const getAffiliationById = (id?: string | null): Affiliation | undefined =>
   id ? AFFILIATIONS[id] : undefined
 
 export default AFFILIATIONS
