@@ -4,7 +4,7 @@ import { getProfileById, getRandomProfile } from "./content/playerProfiles"
 import DISTRICTS from "./districts"
 import { createNpc } from "./content/npcProfiles"
 import { generateMonthlyTasks } from "./taskGenerator"
-import { generateJobPostings } from "./generators/jobPostingGenerator"
+import { generateJobInstances } from "./generators/jobInstanceGenerator"
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -32,8 +32,8 @@ export const createInitialGameState = (): GameState => {
   const starterCareerId = profile.startingJobId ? getCareerForJobId(profile.startingJobId)?.id ?? null : null
   const starterAffiliationId = profile.startingAffiliationId ?? null
 
-  // seed a couple of procedural job postings based on existing job templates, skipping the player's starter job/affiliation
-  const jobPostingsArr = generateJobPostings([
+  // seed a couple of procedural job instances based on existing job templates, skipping the player's starter job/affiliation
+  const jobInstancesArr = generateJobInstances([
     "apprentice_mechanic",
     "courier",
   ], {
@@ -43,25 +43,25 @@ export const createInitialGameState = (): GameState => {
     playerAffiliationId: starterAffiliationId,
     playerCurrentJobId: profile.startingJobId ?? null,
   })
-  const jobPostings = jobPostingsArr.reduce<Record<string, any>>((acc, p) => {
-    acc[p.id] = p
+  const jobInstances = jobInstancesArr.reduce<Record<string, any>>((acc, instance) => {
+    acc[instance.id] = instance
     return acc
   }, {})
 
   // If the profile specifies a starting affiliation for the starting job, create a membership
-  // and a filled job posting that reflects the player's pre-existing employment.
+  // and a filled job instance that reflects the player's pre-existing employment.
   const memberships: Record<string, any> = {}
   if (profile.startingJobId && profile.startingAffiliationId) {
     const affId = profile.startingAffiliationId
     const membershipId = `${affId}__${playerId}`
     memberships[membershipId] = { id: membershipId, affiliationId: affId, memberId: playerId, reputation: 0 }
 
-    // create a filled posting representing the starter job at that affiliation
+    // create a filled instance representing the starter job at that affiliation
     try {
       const job = getJobById(profile.startingJobId)
-      const postingId = `posting_${profile.startingJobId}__${playerId}`
-      jobPostings[postingId] = {
-        id: postingId,
+      const jobInstanceId = `job_${profile.startingJobId}__${playerId}`
+      jobInstances[jobInstanceId] = {
+        id: jobInstanceId,
         templateId: profile.startingJobId,
         affiliationId: affId,
         salary: job?.salary ?? undefined,
@@ -103,7 +103,7 @@ export const createInitialGameState = (): GameState => {
     relationships: {},
     jobs: {},
     jobAssignments,
-    jobPostings,
+    jobInstances,
     memberships,
     itemTemplates: {},
     itemInstances: {},

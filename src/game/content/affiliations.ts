@@ -13,6 +13,12 @@ const AFFILIATIONS: Record<string, Affiliation> = {
     description: "A hard-nosed crew specializing in armored transports and heavy rigs.",
     tags: ["mechanic", "industrial", "heavy", "blue_collar"],
   },
+  speedy_repairs: {
+    id: "speedy_repairs",
+    name: "Speedy Repairs",
+    description: "Fast and efficient auto repair shop catering to the city's busy commuters.",
+    tags: ["mechanic", "industrial", "fast_service", "customer_focused"],
+  },
   instafood_collective: {
     id: "instafood_collective",
     name: "InstaFood Collective",

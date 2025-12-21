@@ -314,7 +314,7 @@ export type JobAssignment = {
 }
 
 // procedural job offer built from a Job template
-export type JobPosting = {
+export type JobInstance = {
   id: string
   templateId: string
   affiliationId?: string | null
@@ -441,7 +441,7 @@ export type GameState = {
   // centralized jobs + assignments (many-to-many)
   jobs?: Record<string, Job>
   jobAssignments?: Record<string, JobAssignment>
-  jobPostings?: Record<string, JobPosting>
+  jobInstances?: Record<string, JobInstance>
 
   // items and inventories
   itemTemplates?: Record<string, ItemTemplate>

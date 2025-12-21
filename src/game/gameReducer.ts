@@ -3,7 +3,7 @@ import { getJobById, getCareerForJobId } from "./content/careers"
 import { getAffiliationById } from "./content/affiliations"
 import { chooseIndefiniteArticle } from "../utils/ui"
 import { generateMonthlyTasks } from "./taskGenerator"
-import { generateJobPostings } from "./generators/jobPostingGenerator"
+import { generateJobInstances } from "./generators/jobInstanceGenerator"
 import { listCareers } from "./content/careers"
 import { getTaskGraphById, OUTCOME_DEFINITIONS, TASK_OUTCOME_OVERRIDES } from "./content/tasks"
 
@@ -18,7 +18,7 @@ export type GameAction =
   | { type: "MAKE_TASK_CHOICE"; choiceId: string }
   | { type: "SET_PLAYER_JOB"; jobId: string | null }
   | { type: "REMOVE_JOB_ASSIGNMENT"; jobId: string }
-  | { type: "TAKE_JOB_POSTING"; postingId: string; replaceCareer?: boolean }
+  | { type: "TAKE_JOB_INSTANCE"; instanceId: string; replaceCareer?: boolean }
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -28,13 +28,58 @@ function pick<T>(value: T | T[]): T {
     : value;
 }
 
+// Resolve affiliation ids for a given job assignment (posting-linked or career-linked)
+function getAffiliationIdsForJob(state: GameState, jobId: string, memberId: string, jobInstances?: Record<string, any>): string[] {
+  const instances = jobInstances ?? state.jobInstances ?? {}
+
+  // Prefer the affiliation from the posting the member filled, if any
+  const posting = Object.values(instances).find(p => p.templateId === jobId && p.filledBy === memberId && p.affiliationId)
+  if (posting?.affiliationId) return [posting.affiliationId]
+
+  // Fall back to a single career affiliation (first) if no posting link exists
+  const careerAffs = getCareerForJobId(jobId)?.affiliationId ?? []
+  return careerAffs.length ? [careerAffs[0]] : []
+}
+
+// Rebuild the player's membership map from their active assignments, preserving other members' entries and reputation where possible
+function rebuildPlayerMemberships(state: GameState, nextAssignments: Record<string, any>, jobInstances?: Record<string, any>): Record<string, any> {
+  const memberId = state.player.id
+
+  // keep memberships of other members unchanged
+  const nextMemberships: Record<string, any> = {}
+  for (const m of Object.values(state.memberships ?? {})) {
+    if (m.memberId !== memberId) nextMemberships[m.id] = m
+  }
+
+  const currentMemberships = state.memberships ?? {}
+  const relevantAssignments = Object.values(nextAssignments).filter((a: any) => a?.memberId === memberId)
+  const affSet = new Set<string>()
+  for (const a of relevantAssignments) {
+    for (const affId of getAffiliationIdsForJob(state, a.jobId, memberId, jobInstances)) {
+      if (affId) affSet.add(affId)
+    }
+  }
+
+  for (const affId of affSet) {
+    const membershipId = `${affId}__${memberId}`
+    nextMemberships[membershipId] = {
+      id: membershipId,
+      affiliationId: affId,
+      memberId,
+      reputation: currentMemberships[membershipId]?.reputation ?? 0,
+    }
+  }
+
+  return nextMemberships
+}
+
 export const gameReducer = (state: GameState, action: GameAction): GameState => {
   switch (action.type) {
     case "ADVANCE_MONTH": {
       const newMonth = state.month + 1
       const interimState: GameState = { ...state, month: newMonth }
       const tasks = generateMonthlyTasks(interimState)
-      // generate fresh procedural job postings (replace previous)
+      // generate fresh procedural job instances (replace previous)
       try {
         const careers = listCareers()
         const templates = careers.flatMap(c => c.levels.map(l => l.id))
@@ -43,21 +88,21 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         const assignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === state.player.id)
         const playerCareerId = assignment ? getCareerForJobId(assignment.jobId)?.id ?? null : null
 
-        // try to get affiliation from memberships first; fallback to filled job posting if present
+        // try to get affiliation from memberships first; fallback to filled job instance if present
         const membership = Object.values(state.memberships ?? {}).find((m: any) => m.memberId === state.player.id)
         const playerAffiliationId = membership ? membership.affiliationId ?? null : (() => {
-          const playerPosting = Object.values(state.jobPostings ?? {}).find((p: any) => p.filledBy === state.player.id)
+          const playerPosting = Object.values(state.jobInstances ?? {}).find((p: any) => p.filledBy === state.player.id)
           return playerPosting ? playerPosting.affiliationId ?? null : null
         })()
 
-        const postings = generateJobPostings(templates, {
+        const postings = generateJobInstances(templates, {
           salaryJitter: 0.15,
           maxListings: 5,
           playerCareerId,
           playerAffiliationId,
           playerCurrentJobId: assignment?.jobId ?? null,
         })
-        const jobPostings = postings.reduce<Record<string, any>>((m, p) => {
+        const jobInstances = postings.reduce<Record<string, any>>((m, p) => {
           m[p.id] = p
           return m
         }, {})
@@ -66,7 +111,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
           ...state,
           month: newMonth,
           tasks,
-          jobPostings,
+          jobInstances,
         log: [
           ...state.log,
           {
@@ -98,7 +143,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         ],
         }
       } catch (e) {
-        // if posting generation fails, fall back to previous behavior without postings
+        // if job instance generation fails, fall back to previous behavior without instances
         return {
           ...state,
           month: newMonth,
@@ -271,11 +316,14 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         nextAssignments[id] = { id, jobId, memberId, performance: 50 }
       }
 
-      const logText = jobId ? `Assigned player to job ${jobId}` : `Removed player's job assignment`
+      const nextMemberships = rebuildPlayerMemberships(state, nextAssignments)
+
+      const logText = jobId ? `Assigned player to job ${jobId}` : `Removed player's job assignment and cleared related affiliations`
 
       return {
         ...state,
         jobAssignments: nextAssignments,
+        memberships: nextMemberships,
         log: [
           ...state.log,
           {
@@ -299,9 +347,12 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         }
       }
 
+      const nextMemberships = rebuildPlayerMemberships(state, nextAssignments)
+
       return {
         ...state,
         jobAssignments: nextAssignments,
+        memberships: nextMemberships,
         log: [
           ...state.log,
           {
@@ -313,11 +364,11 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       }
     }
 
-    case "TAKE_JOB_POSTING": {
-      const posting = state.jobPostings?.[action.postingId]
-      if (!posting) return state
+    case "TAKE_JOB_INSTANCE": {
+      const instance = state.jobInstances?.[action.instanceId]
+      if (!instance) return state
 
-      const jobId = posting.templateId
+      const jobId = instance.templateId
       const memberId = state.player.id
 
       const nextAssignments: Record<string, any> = { ...(state.jobAssignments ?? {}) }
@@ -337,16 +388,24 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const id = `${jobId}__${memberId}`
       nextAssignments[id] = { id, jobId, memberId, performance: 50 }
 
-      const nextPostings = { ...(state.jobPostings ?? {}) }
-      nextPostings[action.postingId] = { ...posting, filledBy: memberId }
+      const nextInstances = { ...(state.jobInstances ?? {}) }
 
-      // ensure membership is recorded for the posting's affiliation if present
-      const nextMemberships = { ...(state.memberships ?? {}) }
-      if (posting.affiliationId) {
-        const membershipId = `${posting.affiliationId}__${memberId}`
+      // Clear any other filled listings for this member and template so we don't carry stale affiliations
+      for (const [instId, inst] of Object.entries(nextInstances)) {
+        if (instId !== action.instanceId && inst.templateId === jobId && inst.filledBy === memberId) {
+          nextInstances[instId] = { ...inst, filledBy: null }
+        }
+      }
+
+      nextInstances[action.instanceId] = { ...instance, filledBy: memberId }
+
+      // ensure membership includes the posting's affiliation (additive, no clearing of other affiliations)
+      const nextMemberships = rebuildPlayerMemberships(state, nextAssignments, nextInstances)
+      if (instance.affiliationId) {
+        const membershipId = `${instance.affiliationId}__${memberId}`
         nextMemberships[membershipId] = {
           id: membershipId,
-          affiliationId: posting.affiliationId,
+          affiliationId: instance.affiliationId,
           memberId,
           reputation: nextMemberships[membershipId]?.reputation ?? 0,
         }
@@ -360,14 +419,14 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return {
         ...state,
         jobAssignments: nextAssignments,
-        jobPostings: nextPostings,
+        jobInstances: nextInstances,
         memberships: nextMemberships,
         log: [
           ...state.log,
           {
             id: randId(),
             month: state.month,
-            text: `I got a job as ${article} ${jobTitle} for ${getAffiliationById(posting.affiliationId?.toString() ?? undefined)?.name ?? 'an unknown employer'}.`,
+            text: `I got a job as ${article} ${jobTitle} for ${getAffiliationById(instance.affiliationId?.toString() ?? undefined)?.name ?? 'an unknown employer'}.`,
           },
         ],
       }

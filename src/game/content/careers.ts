@@ -8,7 +8,8 @@ const CAREERS: Record<string, Career> = {
     title: "Mechanic Career",
 	description: "Work your way up in the world of vehicle maintenance and repair.",
     inkSource: "./ink/career_mechanic.json",
-	affiliationId: ["valkarna_auto", "ironclad_garage"],
+  // randomly choose 1 from these affiliations when generating job instances
+	affiliationId: ["valkarna_auto", "ironclad_garage", "speedy_repairs"],
     levels: [
       {
         id: "apprentice_mechanic",

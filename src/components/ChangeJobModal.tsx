@@ -13,15 +13,15 @@ export default function ChangeJobModal({ open, onClose }: { open: boolean; onClo
 
   const careers = listCareers()
 
-  const jobPostings = Object.values(state.jobPostings ?? {}).filter(p => !p.filledBy)
+  const jobInstances = Object.values(state.jobInstances ?? {}).filter(p => !p.filledBy)
 
   const currentAssignments = Object.values(state.jobAssignments ?? {}).filter(a => a.memberId === state.player.id)
 
 
 
-  const handleTakePosting = (postingId: string) => {
-    const posting = (state.jobPostings ?? {})[postingId]
-    const newJob = posting ? getJobById(posting.templateId) : undefined
+  const handleTakeInstance = (instanceId: string) => {
+    const instance = (state.jobInstances ?? {})[instanceId]
+    const newJob = instance ? getJobById(instance.templateId) : undefined
     const newCareerId = newJob ? getCareerForJobId(newJob.id)?.id ?? null : null
 
     // detect if player already has a job in this career
@@ -35,9 +35,9 @@ export default function ChangeJobModal({ open, onClose }: { open: boolean; onClo
     if (hasSameCareer) {
       const ok = window.confirm("You already have a job in this career. Taking this will replace that job. Continue?")
       if (!ok) return
-      dispatch({ type: "TAKE_JOB_POSTING", postingId, replaceCareer: true })
+      dispatch({ type: "TAKE_JOB_INSTANCE", instanceId, replaceCareer: true })
     } else {
-      dispatch({ type: "TAKE_JOB_POSTING", postingId, replaceCareer: false })
+      dispatch({ type: "TAKE_JOB_INSTANCE", instanceId, replaceCareer: false })
     }
     onClose()
   }
@@ -53,24 +53,24 @@ export default function ChangeJobModal({ open, onClose }: { open: boolean; onClo
             <strong>Current:</strong> {currentAssignments.length === 0 ? 'Unemployed' : currentAssignments.map(a => a.jobId).join(', ')}
           </div>
 
-          {jobPostings.length > 0 && (
+          {jobInstances.length > 0 && (
             <div style={{ border: "1px solid #444", borderRadius: 6, padding: "0.5rem" }}>
-              {jobPostings.map(p => {
-                const job = getJobById(p.templateId)
+              {jobInstances.map(inst => {
+                const job = getJobById(inst.templateId)
                 const career = job ? careers.find(c => c.levels.some(l => l.id === job.id)) : undefined
-                const affId = p.affiliationId ?? (career?.affiliationId?.[0] ?? null)
+                const affId = inst.affiliationId ?? (career?.affiliationId?.[0] ?? null)
                 const employerName = getAffiliationById(affId ?? undefined)?.name ?? affId ?? "-"
-                const salaryText = p.salary != null ? `♦︎ ${p.salary}` : job?.salary != null ? `♦︎ ${job.salary}` : ""
-                const desc = p.description ?? (Array.isArray(job?.description) ? job?.description[0] : job?.description)
+                const salaryText = inst.salary != null ? `♦︎ ${inst.salary}` : job?.salary != null ? `♦︎ ${job.salary}` : ""
+                const desc = inst.description ?? (Array.isArray(job?.description) ? job?.description[0] : job?.description)
                 return (
-                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0" }}>
+                  <div key={inst.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0" }}>
                     <div>
-                      <div style={{ fontWeight: 700 }}>{job?.title ?? p.templateId}</div>
+                      <div style={{ fontWeight: 700 }}>{job?.title ?? inst.templateId}</div>
                       <div style={{ fontSize: "0.85rem", opacity: 0.85 }}>{desc}</div>
                       <div style={{ fontSize: "0.8rem", opacity: 0.75 }}>{employerName}{salaryText ? ` • ${salaryText}` : ""}</div>
                     </div>
                     <div>
-                      <button onClick={() => handleTakePosting(p.id)} style={{ marginRight: 8 }}>Take</button>
+                      <button onClick={() => handleTakeInstance(inst.id)} style={{ marginRight: 8 }}>Take</button>
                     </div>
                   </div>
                 )
@@ -78,8 +78,8 @@ export default function ChangeJobModal({ open, onClose }: { open: boolean; onClo
             </div>
           )}
 
-          {jobPostings.length === 0 && (
-            <div style={{ padding: "0.5rem" }}>No job postings available.</div>
+          {jobInstances.length === 0 && (
+            <div style={{ padding: "0.5rem" }}>No job instances available.</div>
           )}
 
           

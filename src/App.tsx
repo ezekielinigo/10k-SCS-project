@@ -6,6 +6,8 @@ import { useState, useEffect, useRef, lazy, Suspense } from "react"
 // asset icons removed (unused)
 import ProfileModal from "./components/ProfileModal"
 import ChangeJobModal from "./components/ChangeJobModal"
+import AffiliationMapModal from "./components/AffiliationMapModal"
+import RelationshipsModal from "./components/RelationshipsModal"
 const InkModal = lazy(() => import("./components/InkModal"))
 
 import type { GameState, PlayerState } from "./game/types"
@@ -234,7 +236,7 @@ function LogPanel() {
   )
 }
 
-function AdvanceMonthButton({ onShowProfile, onChangeJob }: { onShowProfile?: () => void; onChangeJob?: () => void }) {
+function AdvanceMonthButton({ onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships }: { onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void }) {
   const { state, dispatch } = useGame()
 
   const handleDebugTags = () => {
@@ -259,6 +261,14 @@ function AdvanceMonthButton({ onShowProfile, onChangeJob }: { onShowProfile?: ()
     if (onChangeJob) onChangeJob()
   }
 
+  const handleAffiliationMap = () => {
+    if (onShowAffiliationMap) onShowAffiliationMap()
+  }
+
+  const handleRelationships = () => {
+    if (onShowRelationships) onShowRelationships()
+  }
+
   return (
     <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
       <button style={{ marginRight: "0.5rem" }} onClick={() => dispatch({ type: "ADVANCE_MONTH" })}>
@@ -267,6 +277,8 @@ function AdvanceMonthButton({ onShowProfile, onChangeJob }: { onShowProfile?: ()
       <button onClick={handleDebugTags}>DEBUG: Tags</button>
       <button onClick={handleShowProfile}>DEBUG: Profile</button>
       <button onClick={handleChangeJob}>DEBUG: Change Job</button>
+      <button onClick={handleAffiliationMap}>DEBUG: Affiliation Map</button>
+      <button onClick={handleRelationships}>DEBUG: Relationships</button>
     </div>
   )
 }
@@ -281,6 +293,8 @@ export default function App() {
   const [inkTaskPendingGraphId, setInkTaskPendingGraphId] = useState<string | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [jobModalOpen, setJobModalOpen] = useState(false)
+  const [affiliationOpen, setAffiliationOpen] = useState(false)
+  const [relationshipsOpen, setRelationshipsOpen] = useState(false)
   const { state, dispatch } = useGame()
 
   const openInkDebug = async () => {
@@ -423,7 +437,12 @@ export default function App() {
         <LogPanel />
       </div>
       <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
-        <AdvanceMonthButton onShowProfile={() => setProfileOpen(true)} onChangeJob={() => setJobModalOpen(true)} />
+        <AdvanceMonthButton
+          onShowProfile={() => setProfileOpen(true)}
+          onChangeJob={() => setJobModalOpen(true)}
+          onShowAffiliationMap={() => setAffiliationOpen(true)}
+          onShowRelationships={() => setRelationshipsOpen(true)}
+        />
         <button style={{ marginLeft: "0.5rem" }} onClick={openInkDebug}>DEBUG: ink</button>
       </div>
 
@@ -439,6 +458,8 @@ export default function App() {
 
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
       <ChangeJobModal open={jobModalOpen} onClose={() => setJobModalOpen(false)} />
+      <AffiliationMapModal open={affiliationOpen} onClose={() => setAffiliationOpen(false)} />
+      <RelationshipsModal open={relationshipsOpen} onClose={() => setRelationshipsOpen(false)} />
     </div>
   )
 }
