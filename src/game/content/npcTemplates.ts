@@ -10,7 +10,8 @@ export type NpcTemplate = {
   // legacy single-pool affiliations (kept for compatibility; set to [] now)
   affiliationIds?: string[]
   // occupations allow picking career-linked jobs and their affiliation pools
-  occupations?: { careerId: string; affiliationIds?: string[] }[]
+  // `chance` is 0..1 probability that this occupation produces a job for the NPC
+  occupations?: { careerId: string; affiliationIds?: string[]; chance?: number }[]
   vitals: {
     // range from 0% to 100%
     health: [number, number]
@@ -49,7 +50,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     age: [18, 38],
     affiliationIds: [],
     occupations: [
-      { careerId: "courier", affiliationIds: ["swift_runners", "night_owl_couriers"] },
+      { careerId: "courier", affiliationIds: ["swift_runners", "night_owl_couriers"], chance: 0.9 },
     ],
     vitals: { health: [75, 95], humanity: [70, 95], stress: [5, 35], money: [150, 500], looks: [5, 80], bounty: [0, 1000] },
     skills: {
@@ -73,7 +74,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     age: [20, 45],
     affiliationIds: [],
     occupations: [
-      { careerId: "mechanic", affiliationIds: ["valkarna_auto", "ironclad_garage", "speedy_repairs"] },
+      { careerId: "mechanic", affiliationIds: ["valkarna_auto", "ironclad_garage", "speedy_repairs"], chance: 0.9 },
     ],
     vitals: { health: [70, 95], humanity: [60, 90], stress: [10, 40], money: [200, 800], looks: [4, 70], bounty: [0, 500] },
     skills: {
@@ -99,7 +100,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     age: [24, 44],
     affiliationIds: [],
     occupations: [
-      { careerId: "fixer", affiliationIds: ["fixer_collective", "swift_runners"] },
+      { careerId: "fixer", affiliationIds: ["fixer_collective", "swift_runners"], chance: 0.9 },
     ],
     vitals: { health: [70, 90], humanity: [65, 90], stress: [10, 45], money: [400, 1600], looks: [6, 90], bounty: [0, 150] },
     skills: {
@@ -123,7 +124,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     age: [19, 40],
     affiliationIds: [],
     occupations: [
-      { careerId: "enforcer", affiliationIds: ["street_gangs", "no_affiliation"] },
+      { careerId: "enforcer", affiliationIds: ["street_gangs", "no_affiliation"], chance: 0.9 },
     ],
     vitals: { health: [80, 100], humanity: [40, 75], stress: [15, 55], money: [80, 400], looks: [4, 70], bounty: [0, 300] },
     skills: {
@@ -147,7 +148,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     age: [23, 50],
     affiliationIds: [],
     occupations: [
-      { careerId: "medic", affiliationIds: ["clinic_collective", "instafood_collective"] },
+      { careerId: "medic", affiliationIds: ["clinic_collective", "instafood_collective"], chance: 0.9 },
     ],
     vitals: { health: [75, 95], humanity: [70, 100], stress: [5, 40], money: [300, 1200], looks: [5, 80], bounty: [0, 50] },
     skills: {

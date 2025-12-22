@@ -81,6 +81,8 @@ const SUBSKILL_PARENT: Record<keyof SkillBlock["subSkills"], keyof SkillBlock> =
 const clampToParent = (value: number, parentPercent: number): number => Math.max(0, Math.min(parentPercent, value))
 
 const STAT_POOL = 12
+// default probability to create a job for an occupation when `chance` is not set
+const DEFAULT_OCCUPATION_CHANCE = 0.5
 
 const buildSkills = (rng: () => number, skills: {
   str: [number, number]
@@ -230,15 +232,21 @@ export function generateNpcFromTemplate(templateId: string, opts?: GenerateNpcOp
     }
   }
 
-  // occupations: pick up to 2 distinct careers and create job attachments
+  // occupations: iterate occupations (shuffled) and create jobs based on per-occupation chance
   const jobs: { jobId: string; affiliationId: string | null }[] = []
   if (template.occupations?.length) {
     const occChoices = [...template.occupations]
-    const maxPick = Math.min(2, occChoices.length)
-    const pickCount = roll([0, maxPick], rng)
-    for (let i = 0; i < pickCount; i++) {
-      const idx = Math.floor(rng() * occChoices.length)
-      const occ = occChoices.splice(idx, 1)[0]
+    // shuffle using seeded rng
+    for (let i = occChoices.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1))
+      const t = occChoices[i]
+      occChoices[i] = occChoices[j]
+      occChoices[j] = t
+    }
+    for (const occ of occChoices) {
+      if (jobs.length >= 2) break
+      const chance = typeof occ.chance === "number" ? occ.chance : DEFAULT_OCCUPATION_CHANCE
+      if (rng() >= chance) continue
       const career = getCareerById(occ.careerId)
       if (!career || !career.levels?.length) continue
       const level = pick(career.levels, rng)
