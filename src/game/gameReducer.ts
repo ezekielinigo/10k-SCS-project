@@ -61,6 +61,11 @@ function rebuildPlayerMemberships(state: GameState, nextAssignments: Record<stri
     }
   }
 
+  // If the player has no affiliations from assignments, default to 'no_affiliation'
+  if (affSet.size === 0) {
+    affSet.add("no_affiliation")
+  }
+
   for (const affId of affSet) {
     const membershipId = `${affId}__${memberId}`
     nextMemberships[membershipId] = {
@@ -435,7 +440,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
 
     case "CONNECT_NPC": {
       const npc = action.npc
-      const affiliations = action.affiliations ?? npc.affiliationIds ?? []
+      const affiliations = (action.affiliations ?? npc.affiliationIds ?? [])
+        .length > 0
+        ? (action.affiliations ?? npc.affiliationIds ?? [])
+        : ["no_affiliation"]
       const playerId = state.player.id
 
       const nextNpcs = { ...(state.npcs ?? {}) }

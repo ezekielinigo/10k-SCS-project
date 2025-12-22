@@ -1,6 +1,12 @@
 import type { Affiliation } from "../types"
 
 const AFFILIATIONS: Record<string, Affiliation> = {
+  no_affiliation: {
+    id: "no_affiliation",
+    name: "Unaffiliated",
+    description: "Freelancers and solos without a formal backer.",
+    tags: ["independent", "street"],
+  },
   valkarna_auto: {
     id: "valkarna_auto",
     name: "Valkarna Auto Collective",
@@ -25,6 +31,24 @@ const AFFILIATIONS: Record<string, Affiliation> = {
     description: "Franchise kitchen crew with quiet mutual aid roots.",
     tags: ["food_service", "midlands", "customer_facing"],
   },
+  fixer_collective: {
+    id: "fixer_collective",
+    name: "Fixer Collective",
+    description: "A loose network of middlemen, negotiators and connectors who arrange favors and deals.",
+    tags: ["fixer", "charismatic", "midlands"],
+  },
+  clinic_collective: {
+    id: "clinic_collective",
+    name: "Clinic Collective",
+    description: "A cooperative of medics and first-responders operating community clinics across the city.",
+    tags: ["medic", "support", "midlands"],
+  },
+  street_gangs: {
+    id: "street_gangs",
+    name: "Street Gangs",
+    description: "Loose confederations of enforcers and muscle controlling turf and local trade.",
+    tags: ["muscle", "street", "gang"],
+  },
   swift_runners: {
     id: "swift_runners",
     name: "Swift Runners",
@@ -36,12 +60,6 @@ const AFFILIATIONS: Record<string, Affiliation> = {
     name: "Night Owl Couriers",
     description: "Discreet night-shift messengers who take the risky routes when others sleep.",
     tags: ["courier", "night", "discreet"],
-  },
-  no_affiliation: {
-    id: "no_affiliation",
-    name: "Unaffiliated",
-    description: "Freelancers and solos without a formal backer.",
-    tags: ["independent", "street"],
   },
 }
 

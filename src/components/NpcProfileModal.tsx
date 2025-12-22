@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { useGame } from "../game/GameContext"
 import { useModalDismiss } from "../utils/ui"
 import { getAffiliationById } from "../game/content/affiliations"
+import { getJobById } from "../game/content/careers"
 import NpcAvatar from "./NpcAvatar"
 
 function Progress({ value, max = 100 }: { value: number; max?: number }) {
@@ -41,6 +42,7 @@ export default function NpcProfileModal({ open, onClose, npcId, npc }: { open: b
 
   const subSkillsMap = resolvedNpc.skills?.subSkills ?? {}
   const gender = resolvedNpc.gender ?? "male"
+  const jobs = resolvedNpc.jobs ?? []
   const SUBSKILL_GROUPS: Record<string, string[]> = {
     STR: ["athletics", "closeCombat", "heavyHandling"],
     INT: ["hacking", "medical", "engineering"],
@@ -160,6 +162,27 @@ export default function NpcProfileModal({ open, onClose, npcId, npc }: { open: b
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div style={{ gridColumn: "1 / -1" }}>
+            <strong>Occupations</strong>
+            <div style={{ marginTop: 8 }}>
+              {jobs.length === 0 && <div>Unemployed</div>}
+              {jobs.map((j, idx) => {
+                const job = getJobById(j.jobId)
+                const title = job?.title ?? j.jobId
+                const affName = getAffiliationById(j.affiliationId ?? undefined)?.name ?? (j.affiliationId ?? "no_affiliation")
+                return (
+                  <div key={`${j.jobId}__${idx}`} style={{ padding: "0.5rem 0", borderBottom: "1px solid #222" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <div style={{ fontWeight: 700 }}>{title}</div>
+                      <div style={{ color: "#aaa" }}>{affName}</div>
+                    </div>
+                    <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>{Array.isArray(job?.description) ? job?.description[0] : job?.description}</div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>

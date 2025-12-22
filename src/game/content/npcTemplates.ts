@@ -7,7 +7,10 @@ export type NpcTemplate = {
   namePattern: { first: string[]; last: string[] } | string[]
   avatarPool: string[]
   age: [number, number]
+  // legacy single-pool affiliations (kept for compatibility; set to [] now)
   affiliationIds?: string[]
+  // occupations allow picking career-linked jobs and their affiliation pools
+  occupations?: { careerId: string; affiliationIds?: string[] }[]
   vitals: {
     // range from 0% to 100%
     health: [number, number]
@@ -44,7 +47,10 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     namePattern: ["male", "female"],
     avatarPool: ["avatar-1", "avatar-2", "avatar-3"],
     age: [18, 38],
-    affiliationIds: ["swift_runners", "night_owl_couriers"],
+    affiliationIds: [],
+    occupations: [
+      { careerId: "courier", affiliationIds: ["swift_runners", "night_owl_couriers"] },
+    ],
     vitals: { health: [75, 95], humanity: [70, 95], stress: [5, 35], money: [150, 500], looks: [5, 80], bounty: [0, 1000] },
     skills: {
       str: [4, 6],
@@ -65,7 +71,10 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     namePattern: ["male", "female"],
     avatarPool: ["avatar-4", "avatar-5", "avatar-6"],
     age: [20, 45],
-    affiliationIds: ["valkarna_auto", "ironclad_garage"],
+    affiliationIds: [],
+    occupations: [
+      { careerId: "mechanic", affiliationIds: ["valkarna_auto", "ironclad_garage", "speedy_repairs"] },
+    ],
     vitals: { health: [70, 95], humanity: [60, 90], stress: [10, 40], money: [200, 800], looks: [4, 70], bounty: [0, 500] },
     skills: {
       str: [5, 8],
@@ -88,7 +97,10 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     namePattern: ["male", "female"],
     avatarPool: ["avatar-7", "avatar-8", "avatar-9"],
     age: [24, 44],
-    affiliationIds: ["instafood_collective", "swift_runners", "night_owl_couriers"],
+    affiliationIds: [],
+    occupations: [
+      { careerId: "fixer", affiliationIds: ["fixer_collective", "swift_runners"] },
+    ],
     vitals: { health: [70, 90], humanity: [65, 90], stress: [10, 45], money: [400, 1600], looks: [6, 90], bounty: [0, 150] },
     skills: {
       str: [3, 5],
@@ -109,7 +121,10 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     namePattern: ["male", "female"],
     avatarPool: ["avatar-10", "avatar-11"],
     age: [19, 40],
-    affiliationIds: ["no_affiliation"],
+    affiliationIds: [],
+    occupations: [
+      { careerId: "enforcer", affiliationIds: ["street_gangs", "no_affiliation"] },
+    ],
     vitals: { health: [80, 100], humanity: [40, 75], stress: [15, 55], money: [80, 400], looks: [4, 70], bounty: [0, 300] },
     skills: {
       str: [7, 10],
@@ -130,7 +145,10 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     namePattern: ["male", "female"],
     avatarPool: ["avatar-12", "avatar-13"],
     age: [23, 50],
-    affiliationIds: ["instafood_collective"],
+    affiliationIds: [],
+    occupations: [
+      { careerId: "medic", affiliationIds: ["clinic_collective", "instafood_collective"] },
+    ],
     vitals: { health: [75, 95], humanity: [70, 100], stress: [5, 40], money: [300, 1200], looks: [5, 80], bounty: [0, 50] },
     skills: {
       str: [3, 5],

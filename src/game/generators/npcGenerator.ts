@@ -1,6 +1,7 @@
 import { getNpcTemplateById, listNpcTemplates } from "../content/npcTemplates"
 import { createNpc } from "../content/npcProfiles"
 import { pickName, resolveNameGroupFirst } from "../content/names"
+import { getCareerById } from "../content/careers"
 import type { Gender, NpcState, SkillBlock, VitalBlock } from "../types"
 
 const randId = () => Math.random().toString(36).slice(2)
@@ -215,8 +216,10 @@ export function generateNpcFromTemplate(templateId: string, opts?: GenerateNpcOp
   const currentDistrict = opts?.forceDistrict ?? pick(template.districts ?? ["downtown"], rng)
   const tags = [...template.tags, ...(opts?.extraTags ?? [])]
 
-  // choose 0-N affiliations from template (cap at 2 for variety)
+  // choose 0-N affiliations from template (legacy) and occupations (new)
   const affiliations: string[] = []
+
+  // legacy affiliation pool
   if (template.affiliationIds?.length) {
     const choices = [...template.affiliationIds]
     const maxPick = Math.min(2, choices.length)
@@ -227,6 +230,28 @@ export function generateNpcFromTemplate(templateId: string, opts?: GenerateNpcOp
     }
   }
 
+  // occupations: pick up to 2 distinct careers and create job attachments
+  const jobs: { jobId: string; affiliationId: string | null }[] = []
+  if (template.occupations?.length) {
+    const occChoices = [...template.occupations]
+    const maxPick = Math.min(2, occChoices.length)
+    const pickCount = roll([0, maxPick], rng)
+    for (let i = 0; i < pickCount; i++) {
+      const idx = Math.floor(rng() * occChoices.length)
+      const occ = occChoices.splice(idx, 1)[0]
+      const career = getCareerById(occ.careerId)
+      if (!career || !career.levels?.length) continue
+      const level = pick(career.levels, rng)
+      const affPool = occ.affiliationIds ?? []
+      const affId = affPool.length ? pick(affPool, rng) : "no_affiliation"
+      if (affId) affiliations.push(affId)
+      jobs.push({ jobId: level.id, affiliationId: affId ?? "no_affiliation" })
+    }
+  }
+
+  // ensure at least one affiliation exists (default to unaffiliated)
+  if (affiliations.length === 0) affiliations.push("no_affiliation")
+
   return {
     id: randId(),
     name,
@@ -235,6 +260,7 @@ export function generateNpcFromTemplate(templateId: string, opts?: GenerateNpcOp
     avatarId,
     vitals,
     skills,
+    jobs: jobs.length ? jobs : undefined,
     currentDistrict,
     tags,
     affiliationIds: affiliations,

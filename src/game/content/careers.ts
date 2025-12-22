@@ -58,6 +58,69 @@ const CAREERS: Record<string, Career> = {
 	  },
 	],
   }
+  ,
+  fixer: {
+    id: "fixer",
+    title: "Fixer Career",
+    description: "Broker deals, arrange contacts and move goods through informal networks.",
+    // optional: no ink source for now
+    affiliationId: ["fixer_collective", "swift_runners"],
+    levels: [
+      {
+        id: "fixer",
+        title: "Fixer",
+        description: [
+          "Arrange favors and broker introductions.",
+          "Keep your clients happy and your contacts reliable.",
+        ],
+        salary: 1400,
+        tags: ["fixer", "charismatic", "midlands"],
+        taskGraphId: "fixer_shift",
+        requirements: { str: 3, int: 5, ref: 4, chr: 6 },
+      },
+    ],
+  },
+  enforcer: {
+    id: "enforcer",
+    title: "Enforcer Career",
+    description: "Work as hired muscle — protect shipments, enforce rules, and control territory.",
+    affiliationId: ["street_gangs", "no_affiliation"],
+    levels: [
+      {
+        id: "street_tough",
+        title: "Street Tough",
+        description: [
+          "Control turf and back up your crew when things go sideways.",
+          "Show up strong and keep fights short.",
+        ],
+        salary: 1100,
+        tags: ["muscle", "street", "combat"],
+        taskGraphId: "enforcer_shift",
+        requirements: { str: 6, int: 3, ref: 5, chr: 2 },
+      },
+    ],
+  },
+  medic: {
+    id: "medic",
+    title: "Medic Career",
+    description: "Provide medical care, triage emergencies, and keep neighborhoods healthy.",
+    inkSource: "./ink/career_medic.json",
+    affiliationId: ["clinic_collective", "instafood_collective"],
+    levels: [
+      {
+        id: "clinic_medic",
+        title: "Clinic Medic",
+        description: [
+          "Treat common injuries and manage clinic shifts.",
+          "Assist with triage and referrals for complex cases.",
+        ],
+        salary: 2000,
+        tags: ["medic", "support", "lawful"],
+        taskGraphId: "clinic_medic_shift",
+        requirements: { str: 3, int: 7, ref: 5, chr: 4 },
+      },
+    ],
+  }
 }
 
 const JOB_LOOKUP: Record<string, Job> = Object.values(CAREERS)

@@ -35,6 +35,20 @@ export default function AffiliationMapModal({ open, onClose }: { open: boolean; 
       }
     }
 
+    // Include procedurally attached jobs stored on NPCs (generated but saved)
+    for (const [npcId, npc] of Object.entries(state.npcs ?? {})) {
+      const npcJobs = (npc as any).jobs ?? []
+      for (const j of npcJobs) {
+        const job = getJobById(j.jobId)
+        const affId = j.affiliationId ?? null
+        if (!job) continue
+        if (!jobTitlesByMemberAff[npcId]) jobTitlesByMemberAff[npcId] = {}
+        const key = affId ?? "no_affiliation"
+        if (!jobTitlesByMemberAff[npcId][key]) jobTitlesByMemberAff[npcId][key] = []
+        jobTitlesByMemberAff[npcId][key].push(job.title)
+      }
+    }
+
     const knownAffIds = new Set<string>()
     memberships.forEach(m => knownAffIds.add(m.affiliationId))
     listAffiliations().forEach(a => knownAffIds.add(a.id))

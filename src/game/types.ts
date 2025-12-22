@@ -249,6 +249,9 @@ export type NpcState = {
   currentDistrict: string
   tags: Tag[]
 
+  // optional job history derived at generation time
+  jobs?: { jobId: string; affiliationId: string | null }[]
+
   // optional affiliations for generated NPCs (used to seed memberships when connecting)
   affiliationIds?: string[]
 
