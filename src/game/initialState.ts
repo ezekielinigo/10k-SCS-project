@@ -2,7 +2,7 @@ import type { GameState, JobAssignment } from "./types"
 import { getJobById, getCareerForJobId } from "./content/careers"
 import { getProfileById, getRandomProfile } from "./content/playerProfiles"
 import DISTRICTS from "./districts"
-import { createNpc } from "./content/npcProfiles"
+import { generateRandomNpc } from "./generators/npcGenerator"
 import { generateMonthlyTasks } from "./taskGenerator"
 import { generateJobInstances } from "./generators/jobInstanceGenerator"
 
@@ -15,8 +15,8 @@ export const createInitialGameState = (): GameState => {
 
   const playerId = randId()
 
-  const npcA = createNpc()
-  const npcB = createNpc()
+  const npcA = generateRandomNpc({ allowUnique: true, uniqueChance: 0.35 })
+  const npcB = generateRandomNpc()
 
   const jobAssignments: Record<string, JobAssignment> = {}
   if (profile.startingJobId) {
@@ -83,6 +83,7 @@ export const createInitialGameState = (): GameState => {
       avatarId: profile.avatarId,
       name: profile.name,
       ageMonths: profile.ageMonths,
+      gender: profile.gender,
       vitals: profile.vitals,
       skills: profile.skills,
       currentDistrict: profile.currentDistrict ?? homeDistrictId,

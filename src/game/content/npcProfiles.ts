@@ -1,11 +1,21 @@
-import type { Tag, SkillBlock, VitalBlock, NpcState } from "../types"
+import type { Tag, SkillBlock, VitalBlock, NpcState, Gender } from "../types"
 
 const randId = () => Math.random().toString(36).slice(2)
+
+const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
+
+const cloneVitals = (vitals: VitalBlock): VitalBlock => ({ ...vitals })
+
+const cloneSkills = (skills: SkillBlock): SkillBlock => ({
+  ...skills,
+  subSkills: { ...skills.subSkills },
+})
 
 export type NpcProfile = {
   id: string
   name: string
   age: number
+  gender: Gender
   avatarId: string
   vitals: VitalBlock
   skills: SkillBlock
@@ -32,6 +42,7 @@ const NPC_PROFILES: Record<string, NpcProfile> = {
     id: "kea_face",
     name: "Kea",
     age: 28,
+    gender: "female",
     avatarId: "avatar-1",
     vitals: {
       health: 90,
@@ -48,6 +59,7 @@ const NPC_PROFILES: Record<string, NpcProfile> = {
     id: "vik_hardline",
     name: "Vik",
     age: 35,
+    gender: "male",
     avatarId: "avatar-2",
     vitals: {
       health: 80,
@@ -69,23 +81,22 @@ export const getNpcProfileById = (id: string): NpcProfile | undefined =>
 
 export const createNpc = (profileId?: string): NpcState => {
   const profiles = listNpcProfiles()
-  const base = profileId
-    ? NPC_PROFILES[profileId]
-    : profiles[Math.floor(Math.random() * profiles.length)]
+  const base = profileId ? NPC_PROFILES[profileId] : pick(profiles)
 
-  if (!base) {
-    throw new Error("Requested NPC profile not found")
-  }
+  if (!base) throw new Error("Requested NPC profile not found")
 
   return {
     id: randId(),
     name: base.name,
     age: base.age,
+    gender: base.gender,
     avatarId: base.avatarId,
-    vitals: base.vitals,
-    skills: base.skills,
+    vitals: cloneVitals(base.vitals),
+    skills: cloneSkills(base.skills),
     currentDistrict: "downtown",
-    tags: base.tags,
+    tags: [...base.tags],
+    origin: "unique",
+    profileId: base.id,
   }
 }
 

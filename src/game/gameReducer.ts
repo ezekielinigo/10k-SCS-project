@@ -19,6 +19,7 @@ export type GameAction =
   | { type: "SET_PLAYER_JOB"; jobId: string | null }
   | { type: "REMOVE_JOB_ASSIGNMENT"; jobId: string }
   | { type: "TAKE_JOB_INSTANCE"; instanceId: string; replaceCareer?: boolean }
+  | { type: "CONNECT_NPC"; npc: any; affiliations?: string[]; relationshipStrength?: number }
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -427,6 +428,51 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
             id: randId(),
             month: state.month,
             text: `I got a job as ${article} ${jobTitle} for ${getAffiliationById(instance.affiliationId?.toString() ?? undefined)?.name ?? 'an unknown employer'}.`,
+          },
+        ],
+      }
+    }
+
+    case "CONNECT_NPC": {
+      const npc = action.npc
+      const affiliations = action.affiliations ?? npc.affiliationIds ?? []
+      const playerId = state.player.id
+
+      const nextNpcs = { ...(state.npcs ?? {}) }
+      nextNpcs[npc.id] = { ...npc }
+
+      const relationshipId = `${playerId}__${npc.id}`
+      const nextRelationships = { ...(state.relationships ?? {}) }
+      nextRelationships[relationshipId] = {
+        id: relationshipId,
+        aId: playerId,
+        bId: npc.id,
+        strength: action.relationshipStrength ?? 30,
+        tags: ["connected"],
+      }
+
+      const nextMemberships = { ...(state.memberships ?? {}) }
+      for (const affId of affiliations) {
+        const membershipId = `${affId}__${npc.id}`
+        nextMemberships[membershipId] = {
+          id: membershipId,
+          affiliationId: affId,
+          memberId: npc.id,
+          reputation: nextMemberships[membershipId]?.reputation ?? 0,
+        }
+      }
+
+      return {
+        ...state,
+        npcs: nextNpcs,
+        relationships: nextRelationships,
+        memberships: nextMemberships,
+        log: [
+          ...state.log,
+          {
+            id: randId(),
+            month: state.month,
+            text: `Connected with ${npc.name}.`,
           },
         ],
       }

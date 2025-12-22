@@ -8,6 +8,7 @@ import ProfileModal from "./components/ProfileModal"
 import ChangeJobModal from "./components/ChangeJobModal"
 import AffiliationMapModal from "./components/AffiliationMapModal"
 import RelationshipsModal from "./components/RelationshipsModal"
+import DebugNpcModal from "./components/DebugNpcModal"
 const InkModal = lazy(() => import("./components/InkModal"))
 
 import type { GameState, PlayerState } from "./game/types"
@@ -236,7 +237,7 @@ function LogPanel() {
   )
 }
 
-function AdvanceMonthButton({ onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships }: { onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void }) {
+function AdvanceMonthButton({ onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs }: { onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void }) {
   const { state, dispatch } = useGame()
 
   const handleDebugTags = () => {
@@ -269,6 +270,10 @@ function AdvanceMonthButton({ onShowProfile, onChangeJob, onShowAffiliationMap, 
     if (onShowRelationships) onShowRelationships()
   }
 
+  const handleDebugNpcs = () => {
+    if (onShowDebugNpcs) onShowDebugNpcs()
+  }
+
   return (
     <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
       <button style={{ marginRight: "0.5rem" }} onClick={() => dispatch({ type: "ADVANCE_MONTH" })}>
@@ -279,6 +284,7 @@ function AdvanceMonthButton({ onShowProfile, onChangeJob, onShowAffiliationMap, 
       <button onClick={handleChangeJob}>DEBUG: Change Job</button>
       <button onClick={handleAffiliationMap}>DEBUG: Affiliation Map</button>
       <button onClick={handleRelationships}>DEBUG: Relationships</button>
+      <button onClick={handleDebugNpcs}>DEBUG: Generate NPCs</button>
     </div>
   )
 }
@@ -295,6 +301,7 @@ export default function App() {
   const [jobModalOpen, setJobModalOpen] = useState(false)
   const [affiliationOpen, setAffiliationOpen] = useState(false)
   const [relationshipsOpen, setRelationshipsOpen] = useState(false)
+  const [debugNpcsOpen, setDebugNpcsOpen] = useState(false)
   const { state, dispatch } = useGame()
 
   const openInkDebug = async () => {
@@ -442,6 +449,7 @@ export default function App() {
           onChangeJob={() => setJobModalOpen(true)}
           onShowAffiliationMap={() => setAffiliationOpen(true)}
           onShowRelationships={() => setRelationshipsOpen(true)}
+          onShowDebugNpcs={() => setDebugNpcsOpen(true)}
         />
         <button style={{ marginLeft: "0.5rem" }} onClick={openInkDebug}>DEBUG: ink</button>
       </div>
@@ -460,6 +468,7 @@ export default function App() {
       <ChangeJobModal open={jobModalOpen} onClose={() => setJobModalOpen(false)} />
       <AffiliationMapModal open={affiliationOpen} onClose={() => setAffiliationOpen(false)} />
       <RelationshipsModal open={relationshipsOpen} onClose={() => setRelationshipsOpen(false)} />
+      <DebugNpcModal open={debugNpcsOpen} onClose={() => setDebugNpcsOpen(false)} />
     </div>
   )
 }

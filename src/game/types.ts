@@ -18,6 +18,8 @@ export type OutcomeTier =
   | "failure"
   | "great_failure"
 
+export type Gender = "male" | "female"
+
 export type StatBlock = { // stat block is mainly the numeric data
   health: number
   humanity: number
@@ -178,6 +180,7 @@ export type PlayerState = {
   avatarId: string
   name: string
   ageMonths: number
+  gender: Gender
 
   // stats
   vitals: VitalBlock
@@ -238,12 +241,22 @@ export type NpcState = {
   avatarId: string
   name: string
   age: number
+  gender: Gender
 
   // stats
   vitals: VitalBlock
   skills: SkillBlock
   currentDistrict: string
   tags: Tag[]
+
+  // optional affiliations for generated NPCs (used to seed memberships when connecting)
+  affiliationIds?: string[]
+
+  // provenance for procedurally generated NPCs
+  origin?: "unique" | "template" | "random"
+  templateId?: string
+  profileId?: string
+  seed?: string
 }
 
 // canonical definition of an affiliation/faction/company/org

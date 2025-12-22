@@ -37,6 +37,7 @@ export default function ProfileModal({ open, onClose }: { open: boolean; onClose
   const tags = (player.tags ?? [])
 
   const ageYears = Math.floor((player.ageMonths ?? 0) / 12)
+  const gender = player.gender ?? "male"
 
   const jobAffiliationName = (job: any) => {
     // prefer membership matching career's affiliation, otherwise any membership
@@ -61,7 +62,11 @@ export default function ProfileModal({ open, onClose }: { open: boolean; onClose
       <div ref={containerRef as any} style={{ background: "#111", color: "#fff", padding: "1rem", width: 700, borderRadius: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <h3 style={{ margin: 0 }}>{player.name}</h3>
-          <div style={{ color: "#aaa" }}>{ageYears} yr{ageYears !== 1 ? "s" : ""}</div>
+          <div style={{ color: "#aaa", display: "flex", alignItems: "center", gap: 8 }}>
+            <span>{gender}</span>
+            <span>·</span>
+            <span>{ageYears} yr{ageYears !== 1 ? "s" : ""}</span>
+          </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>

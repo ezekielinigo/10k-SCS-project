@@ -1,4 +1,4 @@
-import type { SkillBlock, VitalBlock } from "../types"
+import type { Gender, SkillBlock, VitalBlock } from "../types"
 
 // Seed data for creating a PlayerState plus some optional starting hooks
 export type PlayerProfile = {
@@ -6,6 +6,7 @@ export type PlayerProfile = {
   avatarId: string
   name: string
   ageMonths: number
+  gender: Gender
   currentDistrict: string
   vitals: VitalBlock
   skills: SkillBlock
@@ -33,8 +34,9 @@ const profiles: PlayerProfile[] = [
   {
     profileId: "rook_grease",
     avatarId: "avatar-hero",
-    name: "Rook",
+    name: "Rook Grease",
     ageMonths: 20 * 12,
+    gender: "male",
     currentDistrict: "downtown",
     vitals: {
       health: 95,
@@ -69,6 +71,7 @@ const profiles: PlayerProfile[] = [
     avatarId: "avatar-maya",
     name: "Maya",
     ageMonths: 18 * 12,
+    gender: "female",
     currentDistrict: "midlands",
     vitals: {
       health: 100,
@@ -88,6 +91,7 @@ const profiles: PlayerProfile[] = [
     avatarId: "avatar-anton",
     name: "Anton",
     ageMonths: 25 * 12,
+    gender: "male",
     currentDistrict: "industrial",
     vitals: {
       health: 85,

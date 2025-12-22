@@ -1,6 +1,8 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { useGame } from "../game/GameContext"
 import { useModalDismiss } from "../utils/ui"
+import NpcAvatar from "./NpcAvatar"
+import NpcProfileModal from "./NpcProfileModal"
 
 export default function RelationshipsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { state } = useGame()
@@ -11,6 +13,7 @@ export default function RelationshipsModal({ open, onClose }: { open: boolean; o
     const relationships = Object.values(state.relationships ?? {}) as any[]
     const playerId = state.player.id
     const nameFor = (id: string) => (id === playerId ? state.player.name : state.npcs?.[id]?.name ?? id)
+    const avatarFor = (id: string) => (id === playerId ? state.player.avatarId : state.npcs?.[id]?.avatarId)
 
     return relationships
       .map(r => {
@@ -23,6 +26,8 @@ export default function RelationshipsModal({ open, onClose }: { open: boolean; o
           tags: r.tags ?? [],
           aName: nameFor(r.aId),
           bName: nameFor(r.bId),
+          aAvatarId: avatarFor(r.aId),
+          bAvatarId: avatarFor(r.bId),
           involvesPlayer,
         }
       })
@@ -31,6 +36,8 @@ export default function RelationshipsModal({ open, onClose }: { open: boolean; o
         return (b.strength ?? 0) - (a.strength ?? 0)
       })
   }, [state.relationships, state.npcs, state.player])
+
+  const [openNpcId, setOpenNpcId] = useState<string | null>(null)
 
   if (!open) return null
 
@@ -47,16 +54,28 @@ export default function RelationshipsModal({ open, onClose }: { open: boolean; o
         {rows.map(r => (
           <div key={r.id} style={{ padding: "0.5rem 0", borderBottom: "1px solid #222" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-              <div style={{ fontWeight: 700 }}>{r.aName}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <NpcAvatar avatarId={r.aAvatarId} alt={`${r.aName} avatar`} size={40} />
+                <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.aName}</div>
+              </div>
               <div style={{ opacity: 0.7 }}>↔</div>
-              <div style={{ fontWeight: 700 }}>{r.bName}</div>
-              <div style={{ color: r.involvesPlayer ? "#ffd21e" : "#ccc", minWidth: 80, textAlign: "right" }}>Strength {r.strength ?? 0}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <NpcAvatar avatarId={r.bAvatarId} alt={`${r.bName} avatar`} size={40} />
+                <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.bName}</div>
+              </div>
+              <div style={{ color: r.involvesPlayer ? "#ffd21e" : "#ccc", minWidth: 90, textAlign: "right" }}>Strength {r.strength ?? 0}</div>
+            </div>
+            <div style={{ marginTop: 6, display: "flex", gap: 8 }}>
+              {r.aId !== state.player.id && state.npcs?.[r.aId] ? <button onClick={() => setOpenNpcId(r.aId)}>Profile</button> : null}
+              {r.bId !== state.player.id && state.npcs?.[r.bId] ? <button onClick={() => setOpenNpcId(r.bId)}>Profile</button> : null}
             </div>
             {r.tags?.length ? (
               <div style={{ fontSize: "0.85rem", opacity: 0.7, marginTop: 4 }}>{r.tags.join(", ")}</div>
             ) : null}
           </div>
         ))}
+
+        <NpcProfileModal open={!!openNpcId} onClose={() => setOpenNpcId(null)} npcId={openNpcId ?? undefined} />
 
       </div>
     </div>
