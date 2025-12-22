@@ -149,7 +149,7 @@ function TaskList({ onOpenInk }: { onOpenInk?: (taskId: string, taskGraphId: str
   }
 
   return (
-    <div style={{ padding: "0.75rem", borderRight: "1px solid #333", width: "40%" }}>
+    <div className="task-panel" style={{ padding: "0.75rem" }}>
       <h2>Tasks this month</h2>
       {state.tasks.length === 0 && <p>No tasks yet. Advance month.</p>}
       {state.tasks.map(task => {
@@ -205,7 +205,7 @@ function LogPanel() {
   }, [state.log.length])
 
   return (
-    <div style={{ padding: "0.75rem", flex: 1, display: "flex", flexDirection: "column", maxHeight: "70vh" }}>
+    <div className="log-panel" style={{ padding: "0.75rem", display: "flex", flexDirection: "column", maxHeight: "70vh" }}>
       <h2>Log</h2>
       <div ref={scrollRef} className="hide-scrollbar" style={{ overflowY: "auto", fontSize: "0.85rem", flex: 1, minHeight: 0 }}>
         {
@@ -439,7 +439,7 @@ export default function App() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <PlayerSummary />
-      <div style={{ display: "flex", flex: 1 }}>
+      <div className="two-panel" style={{ flex: 1 }}>
         <TaskList onOpenInk={openInkForTask} />
         <LogPanel />
       </div>

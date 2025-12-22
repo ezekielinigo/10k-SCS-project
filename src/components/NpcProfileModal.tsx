@@ -53,8 +53,8 @@ export default function NpcProfileModal({ open, onClose, npcId, npc }: { open: b
   const pretty = (s: string) => s.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase())
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 120 }}>
-      <div ref={containerRef as any} style={{ background: "#111", color: "#fff", padding: "1rem", width: 680, borderRadius: 8 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 120, padding: "12px" }}>
+      <div ref={containerRef as any} className="modal-card" style={{ background: "#111", color: "#fff" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <h3 style={{ margin: 0 }}>{resolvedNpc.name}</h3>

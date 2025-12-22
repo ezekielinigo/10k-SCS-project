@@ -58,8 +58,8 @@ export default function ProfileModal({ open, onClose }: { open: boolean; onClose
   const pretty = (s: string) => s.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase())
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80 }}>
-      <div ref={containerRef as any} style={{ background: "#111", color: "#fff", padding: "1rem", width: 700, borderRadius: 8 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 80, padding: "12px" }}>
+      <div ref={containerRef as any} className="modal-card" style={{ background: "#111", color: "#fff" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <h3 style={{ margin: 0 }}>{player.name}</h3>
           <div style={{ color: "#aaa", display: "flex", alignItems: "center", gap: 8 }}>
