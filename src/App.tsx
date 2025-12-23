@@ -1,7 +1,6 @@
 import { getJobById, listCareers } from "./game/content/careers.ts"
 import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
-import { buildContentContext } from "./game/content/tagEngine"
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
 // asset icons removed (unused)
 import ProfileModal from "./components/ProfileModal"
@@ -9,6 +8,9 @@ import ChangeJobModal from "./components/ChangeJobModal"
 import AffiliationMapModal from "./components/AffiliationMapModal"
 import RelationshipsModal from "./components/RelationshipsModal"
 import DebugNpcModal from "./components/DebugNpcModal"
+import DebugControlsModal from "./components/DebugControlsModal"
+import { FiMenu, FiPlus, FiCheck } from "react-icons/fi"
+
 const InkModal = lazy(() => import("./components/InkModal"))
 
 import type { GameState, PlayerState } from "./game/types"
@@ -99,23 +101,88 @@ const createInkStory = async (knot: string | undefined, player: PlayerState, ink
   return story
 }
 
-function PlayerSummary() {
+function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
   const { state } = useGame()
   const { player, jobs } = getPlayerProfileData(state)
   const titles = jobs.map(j => j?.title).filter(Boolean) as string[]
   const titleText = titles.length === 0 ? "Unemployed" : titles.join(titles.length > 2 ? ", " : " & ")
   // affiliation id resolution not used here
+  // affiliation id resolution not used here
+
+  function SmallVerticalBar({ value, max = 10, segments = 10, height = 48, width = 18, color = "#4f82ff" }: { value: number; max?: number; segments?: number; height?: number; width?: number; color?: string }) {
+    const segs = Math.max(1, Math.floor(segments))
+    const clampedValue = Math.max(0, Math.min(max, Number(value) || 0))
+    const filledCount = Math.round((clampedValue / max) * segs)
+    const gap = 2
+    const totalGap = gap * Math.max(0, segs - 1)
+    const segmentHeight = Math.max(4, Math.floor((height - totalGap) / segs))
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column-reverse", gap: `${gap}px`, height, width }}>
+          {Array.from({ length: segs }).map((_, i) => {
+            const filled = i < filledCount
+            return (
+              <div
+                key={i}
+                style={{
+                  height: `${segmentHeight}px`,
+                  width: "100%",
+                  background: filled ? color : "#111",
+                  borderRadius: 4,
+                  boxSizing: "border-box",
+                }}
+              />
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div style={{ padding: "0.75rem", borderBottom: "1px solid #333" }}>
-      <div>
-        <strong>{player.name}</strong> - {Math.floor((player.ageMonths + state.month) / 12)} yrs
+    <div
+      style={{ display: "flex", flexDirection: "row", padding: "0.75rem", borderBottom: "1px solid #333", alignItems: "center", cursor: onOpenProfile ? "pointer" : "default" }}
+      role={onOpenProfile ? "button" : undefined}
+      tabIndex={onOpenProfile ? 0 : undefined}
+      onClick={() => onOpenProfile?.()}
+      onKeyDown={(e) => {
+        if (!onOpenProfile) return
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onOpenProfile()
+        }
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div>
+          <strong>{player.name}</strong> - {Math.floor((player.ageMonths + state.month) / 12)} yrs
+        </div>
+        <div>Money: ♦︎ {player.vitals.money}</div>
+        <div>Stress: {player.vitals.stress}</div>
+        <div>Occupation: {titleText}</div>
       </div>
-      <div>Money: ♦︎ {player.vitals.money}</div>
-      <div>Stress: {player.vitals.stress}</div>
-      <div>Occupation: {titleText}</div>
-      <div>
-        STR {player.skills.str} • INT {player.skills.int} • REF {player.skills.ref} • CHR {player.skills.chr}
+
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+        <div style={{ textAlign: "center" }}>
+          <SmallVerticalBar value={player.skills.str} color="#ff1053" />
+          <div style={{ fontSize: "0.8rem", marginTop: 6 }}>STR {player.skills.str}</div>
+        </div>
+
+        <div style={{ textAlign: "center" }}>
+          <SmallVerticalBar value={player.skills.int} color="#47A8BD" />
+          <div style={{ fontSize: "0.8rem", marginTop: 6 }}>INT {player.skills.int}</div>
+        </div>
+
+        <div style={{ textAlign: "center" }}>
+          <SmallVerticalBar value={player.skills.ref} color="#2C6E49" />
+          <div style={{ fontSize: "0.8rem", marginTop: 6 }}>REF {player.skills.ref}</div>
+        </div>
+
+        <div style={{ textAlign: "center" }}>
+          <SmallVerticalBar value={player.skills.chr} color="#F5E663" />
+          <div style={{ fontSize: "0.8rem", marginTop: 6 }}>CHR {player.skills.chr}</div>
+        </div>
       </div>
     </div>
   )
@@ -123,6 +190,7 @@ function PlayerSummary() {
 
 function TaskList({ onOpenInk }: { onOpenInk?: (taskId: string, taskGraphId: string) => void }) {
   const { state, dispatch } = useGame()
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const handleResolve = (taskId: string) => {
     const task = state.tasks.find(t => t.id === taskId)
@@ -149,31 +217,77 @@ function TaskList({ onOpenInk }: { onOpenInk?: (taskId: string, taskGraphId: str
   }
 
   return (
-    <div className="task-panel" style={{ padding: "0.75rem" }}>
-      <h2>Tasks this month</h2>
-      {state.tasks.length === 0 && <p>No tasks yet. Advance month.</p>}
-      {state.tasks.map(task => {
-        const presentation = describeTask(task)
-        return (
-          <div
-            key={task.id}
-            style={{
-              marginBottom: "0.5rem",
-              padding: "0.5rem",
-              border: "1px solid #444",
-              opacity: task.resolved ? 0.6 : 1,
-            }}
-          >
-            <div>
-              <strong>{presentation.title}</strong> <small>({task.kind})</small>
+    <div className="task-panel" style={{ padding: "0.5rem", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+      <h2 style={{ margin: 0, marginBottom: 8 }}>Tasks this month</h2>
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+        {state.tasks.length === 0 && <p style={{ margin: 0 }}>No tasks yet. Advance month.</p>}
+        {state.tasks.map(task => {
+          const presentation = describeTask(task)
+          const isExpanded = expandedId === task.id
+          return (
+            <div
+              key={task.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setExpandedId(isExpanded ? null : task.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  setExpandedId(isExpanded ? null : task.id)
+                }
+              }}
+              style={{
+                marginBottom: "0.4rem",
+                padding: "0.25rem 0.5rem",
+                border: "1px solid #444",
+                borderRadius: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                opacity: task.resolved ? 0.6 : 1,
+                background: isExpanded ? "#0d0f14" : "transparent",
+                cursor: "pointer",
+                outline: "none",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{presentation.title}</div>
+                {isExpanded && <p style={{ fontSize: "0.85rem", margin: "6px 0 0" }}>{presentation.description}</p>}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center" }}>
+                {isExpanded && !task.resolved && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleResolve(task.id) }}
+                    aria-label="Resolve task"
+                    style={{
+                      width: 36,
+                      height: 36,
+                      minWidth: 36,
+                      minHeight: 36,
+                      padding: 0,
+                      boxSizing: "border-box",
+                      lineHeight: 0,
+                      fontSize: 16,
+                      borderRadius: 6,
+                      border: "1px solid #333",
+                      background: "#1c1f2a",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    < FiCheck size={20} />
+                  </button>
+                )}
+              </div>
             </div>
-            <p style={{ fontSize: "0.85rem" }}>{presentation.description}</p>
-            {!task.resolved && (
-              <button onClick={() => handleResolve(task.id)}>Resolve</button>
-            )}
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -205,7 +319,7 @@ function LogPanel() {
   }, [state.log.length])
 
   return (
-    <div className="log-panel" style={{ padding: "0.75rem", display: "flex", flexDirection: "column", maxHeight: "70vh" }}>
+    <div className="log-panel" style={{ padding: "0.75rem", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       <h2>Log</h2>
       <div ref={scrollRef} className="hide-scrollbar" style={{ overflowY: "auto", fontSize: "0.85rem", flex: 1, minHeight: 0 }}>
         {
@@ -237,58 +351,6 @@ function LogPanel() {
   )
 }
 
-function AdvanceMonthButton({ onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs }: { onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void }) {
-  const { state, dispatch } = useGame()
-
-  const handleDebugTags = () => {
-    const ctx = buildContentContext(state)
-    const parts = [
-      `jobTags: ${ctx.jobTags.join(", ") || "-"}`,
-      `districtTags: ${ctx.districtTags.join(", ") || "-"}`,
-      `npcTags: ${ctx.npcTags.join(", ") || "-"}`,
-      `statTags: ${ctx.statTags.join(", ") || "-"}`,
-      `playerTags: ${ctx.playerTags.join(", ") || "-"}`,
-      `worldTags: ${ctx.worldTags.join(", ") || "-"}`,
-    ]
-
-    dispatch({ type: "ADD_LOG", text: `TAGS — ${parts.join(" | ")}` })
-  }
-
-  const handleShowProfile = () => {
-    if (onShowProfile) onShowProfile()
-  }
-
-  const handleChangeJob = () => {
-    if (onChangeJob) onChangeJob()
-  }
-
-  const handleAffiliationMap = () => {
-    if (onShowAffiliationMap) onShowAffiliationMap()
-  }
-
-  const handleRelationships = () => {
-    if (onShowRelationships) onShowRelationships()
-  }
-
-  const handleDebugNpcs = () => {
-    if (onShowDebugNpcs) onShowDebugNpcs()
-  }
-
-  return (
-    <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
-      <button style={{ marginRight: "0.5rem" }} onClick={() => dispatch({ type: "ADVANCE_MONTH" })}>
-        Advance 1 month
-      </button>
-      <button onClick={handleDebugTags}>DEBUG: Tags</button>
-      <button onClick={handleShowProfile}>DEBUG: Profile</button>
-      <button onClick={handleChangeJob}>DEBUG: Change Job</button>
-      <button onClick={handleAffiliationMap}>DEBUG: Affiliation Map</button>
-      <button onClick={handleRelationships}>DEBUG: Relationships</button>
-      <button onClick={handleDebugNpcs}>DEBUG: Generate NPCs</button>
-    </div>
-  )
-}
-
 
 
 export default function App() {
@@ -302,6 +364,7 @@ export default function App() {
   const [affiliationOpen, setAffiliationOpen] = useState(false)
   const [relationshipsOpen, setRelationshipsOpen] = useState(false)
   const [debugNpcsOpen, setDebugNpcsOpen] = useState(false)
+  const [debugControlsOpen, setDebugControlsOpen] = useState(false)
   const { state, dispatch } = useGame()
 
   const openInkDebug = async () => {
@@ -437,22 +500,66 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <PlayerSummary />
-      <div className="two-panel" style={{ flex: 1 }}>
-        <TaskList onOpenInk={openInkForTask} />
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <PlayerSummary onOpenProfile={() => setProfileOpen(true)} />
+      <div className="two-panel" style={{ flex: 1, minHeight: 0 }}>
         <LogPanel />
+        <TaskList onOpenInk={openInkForTask} />
       </div>
-      <div style={{ padding: "0.75rem", borderTop: "1px solid #333" }}>
-        <AdvanceMonthButton
-          onShowProfile={() => setProfileOpen(true)}
-          onChangeJob={() => setJobModalOpen(true)}
-          onShowAffiliationMap={() => setAffiliationOpen(true)}
-          onShowRelationships={() => setRelationshipsOpen(true)}
-          onShowDebugNpcs={() => setDebugNpcsOpen(true)}
-        />
-        <button style={{ marginLeft: "0.5rem" }} onClick={openInkDebug}>DEBUG: ink</button>
-      </div>
+      
+
+      {/* Fixed-position controls: hamburger (open debug modal) and plus (advance month) */}
+      <button
+        aria-label="Open debug controls"
+        onClick={() => setDebugControlsOpen(true)}
+        style={{
+          position: "fixed",
+          left: "1rem",
+          bottom: "1rem",
+          width: "56px",
+          height: "56px",
+          borderRadius: "8px",
+          background: "#222",
+          color: "#fff",
+          border: "1px solid #444",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 0,
+          boxSizing: "border-box",
+          fontSize: "24px",
+          lineHeight: 1,
+        }}
+      >
+        < FiMenu size={20} />
+      </button>
+
+      <button
+        aria-label="Advance 1 month"
+        onClick={() => dispatch({ type: "ADVANCE_MONTH" })}
+        style={{
+          position: "fixed",
+          right: "1rem",
+          bottom: "1rem",
+          width: "56px",
+          height: "56px",
+          borderRadius: "28px",
+          background: "#222",
+          color: "#fff",
+          border: "1px solid #444",
+          fontSize: "28px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          padding: 0,
+          boxSizing: "border-box",
+          lineHeight: 1,
+        }}
+      >
+        < FiPlus size={20} />
+      </button>
 
       <Suspense fallback={<div style={{position:'fixed', inset:0, display:'flex',alignItems:'center',justifyContent:'center'}}>Loading...</div>}>
         <InkModal
@@ -463,6 +570,16 @@ export default function App() {
           onChoose={handleChoose}
         />
       </Suspense>
+      <DebugControlsModal
+        open={debugControlsOpen}
+        onClose={() => setDebugControlsOpen(false)}
+        onShowProfile={() => { setProfileOpen(true); setDebugControlsOpen(false) }}
+        onChangeJob={() => { setJobModalOpen(true); setDebugControlsOpen(false) }}
+        onShowAffiliationMap={() => { setAffiliationOpen(true); setDebugControlsOpen(false) }}
+        onShowRelationships={() => { setRelationshipsOpen(true); setDebugControlsOpen(false) }}
+        onShowDebugNpcs={() => { setDebugNpcsOpen(true); setDebugControlsOpen(false) }}
+        onOpenInk={() => { openInkDebug(); setDebugControlsOpen(false) }}
+      />
 
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
       <ChangeJobModal open={jobModalOpen} onClose={() => setJobModalOpen(false)} />
