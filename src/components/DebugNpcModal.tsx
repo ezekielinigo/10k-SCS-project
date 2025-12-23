@@ -4,7 +4,7 @@ import { generateNpcBatch } from "../game/generators/npcGenerator"
 import { getAffiliationById } from "../game/content/affiliations"
 import ModalShell from "./ModalShell"
 import NpcAvatar from "./NpcAvatar"
-import NpcProfileModal from "./NpcProfileModal"
+import ProfileViewHandler from "./ProfileViewHandler"
 import { FiBookmark, FiUser} from "react-icons/fi"
 
 export default function DebugNpcModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -70,7 +70,7 @@ export default function DebugNpcModal({ open, onClose }: { open: boolean; onClos
               </div>
             )
           })}
-          <NpcProfileModal open={!!openNpc} onClose={() => setOpenNpc(null)} npc={openNpc ?? undefined} />
+          <ProfileViewHandler open={!!openNpc} onClose={() => setOpenNpc(null)} target={{ mode: "npc", npc: openNpc ?? undefined }} />
         </>
       )}
     </ModalShell>

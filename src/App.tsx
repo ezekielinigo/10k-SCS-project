@@ -1,9 +1,9 @@
 import { getJobById, listCareers } from "./game/content/careers.ts"
 import { useGame } from "./game/GameContext.tsx"
 import { describeTask } from "./game/taskLookup.ts"
-import { useState, useEffect, useRef, lazy, Suspense } from "react"
+import { useState, useEffect, useRef, lazy, Suspense, type KeyboardEvent } from "react"
 // asset icons removed (unused)
-import ProfileModal from "./components/ProfileModal"
+import ProfileViewHandler from "./components/ProfileViewHandler"
 import ChangeJobModal from "./components/ChangeJobModal"
 import AffiliationMapModal from "./components/AffiliationMapModal"
 import RelationshipsModal from "./components/RelationshipsModal"
@@ -101,13 +101,109 @@ const createInkStory = async (knot: string | undefined, player: PlayerState, ink
   return story
 }
 
+type SubSkillKey = keyof PlayerState["skills"]["subSkills"]
+type MainSkillKey = "str" | "int" | "ref" | "chr"
+
+const SUBBAR_WIDTH = 4
+const SUBBAR_GAP = 3
+const SUBBAR_HEIGHT = 48
+const SUBBAR_CONTAINER_WIDTH = SUBBAR_WIDTH * 3 + SUBBAR_GAP * 2
+
+type SkillGroupDefinition = {
+  key: MainSkillKey
+  label: string
+  color: string
+  subskills: { key: SubSkillKey; label: string }[]
+}
+
+const MAIN_SKILL_DEFINITIONS: SkillGroupDefinition[] = [
+  {
+    key: "str",
+    label: "STR",
+    color: "#ff1053",
+    subskills: [
+      { key: "athletics", label: "ATH" },
+      { key: "closeCombat", label: "CLS" },
+      { key: "heavyHandling", label: "HVY" },
+    ],
+  },
+  {
+    key: "int",
+    label: "INT",
+    color: "#47A8BD",
+    subskills: [
+      { key: "hacking", label: "HCK" },
+      { key: "medical", label: "MED" },
+      { key: "engineering", label: "ENG" },
+    ],
+  },
+  {
+    key: "ref",
+    label: "REF",
+    color: "#2C6E49",
+    subskills: [
+      { key: "marksmanship", label: "MRK" },
+      { key: "stealth", label: "STL" },
+      { key: "mobility", label: "MOB" },
+    ],
+  },
+  {
+    key: "chr",
+    label: "CHR",
+    color: "#F5E663",
+    subskills: [
+      { key: "persuasion", label: "PRS" },
+      { key: "deception", label: "DCP" },
+      { key: "streetwise", label: "STW" },
+    ],
+  },
+]
+
 function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
   const { state } = useGame()
   const { player, jobs } = getPlayerProfileData(state)
   const titles = jobs.map(j => j?.title).filter(Boolean) as string[]
   const titleText = titles.length === 0 ? "Unemployed" : titles.join(titles.length > 2 ? ", " : " & ")
-  // affiliation id resolution not used here
-  // affiliation id resolution not used here
+  const [showSubskills, setShowSubskills] = useState(false)
+  const toggleSkillView = () => setShowSubskills(prev => !prev)
+  const handleSkillKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault()
+      toggleSkillView()
+    }
+  }
+
+  const subSkills = player.skills.subSkills
+
+  function VerticalBar({ value, max = 100, height = 48, width = 18, color = "#4f82ff" }: { value: number; max?: number; height?: number; width?: number; color?: string }) {
+    const clampedValue = Math.max(0, Math.min(max, Number(value) || 0))
+    const fillPercent = (clampedValue / max) * 100
+    return (
+      <div
+        style={{
+          width,
+          height,
+          background: "#111",
+          borderRadius: "999px",
+          border: "1px solid #111",
+          overflow: "hidden",
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: `${fillPercent}%`,
+            background: color,
+            transition: "height 0.25s ease",
+          }}
+        />
+      </div>
+    )
+  }
 
   function SmallVerticalBar({ value, max = 10, segments = 10, height = 48, width = 18, color = "#4f82ff" }: { value: number; max?: number; segments?: number; height?: number; width?: number; color?: string }) {
     const segs = Math.max(1, Math.floor(segments))
@@ -142,7 +238,9 @@ function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
 
   return (
     <div
-      style={{ display: "flex", flexDirection: "row", padding: "0.75rem", borderBottom: "1px solid #333", alignItems: "center", cursor: onOpenProfile ? "pointer" : "default" }}
+      style={{ display: "flex", flexDirection: "row", padding: "0.75rem", borderBottom: "1px solid #333", alignItems: "center" }}
+    >
+      <div style={{ flex: 1, minWidth: 0, cursor: onOpenProfile ? "pointer" : "default" }}
       role={onOpenProfile ? "button" : undefined}
       tabIndex={onOpenProfile ? 0 : undefined}
       onClick={() => onOpenProfile?.()}
@@ -152,9 +250,7 @@ function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
           e.preventDefault()
           onOpenProfile()
         }
-      }}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      }}>
         <div>
           <strong>{player.name}</strong> - {Math.floor((player.ageMonths + state.month) / 12)} yrs
         </div>
@@ -163,26 +259,39 @@ function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
         <div>Occupation: {titleText}</div>
       </div>
 
-      <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-        <div style={{ textAlign: "center" }}>
-          <SmallVerticalBar value={player.skills.str} color="#ff1053" />
-          <div style={{ fontSize: "0.8rem", marginTop: 6 }}>STR {player.skills.str}</div>
-        </div>
-
-        <div style={{ textAlign: "center" }}>
-          <SmallVerticalBar value={player.skills.int} color="#47A8BD" />
-          <div style={{ fontSize: "0.8rem", marginTop: 6 }}>INT {player.skills.int}</div>
-        </div>
-
-        <div style={{ textAlign: "center" }}>
-          <SmallVerticalBar value={player.skills.ref} color="#2C6E49" />
-          <div style={{ fontSize: "0.8rem", marginTop: 6 }}>REF {player.skills.ref}</div>
-        </div>
-
-        <div style={{ textAlign: "center" }}>
-          <SmallVerticalBar value={player.skills.chr} color="#F5E663" />
-          <div style={{ fontSize: "0.8rem", marginTop: 6 }}>CHR {player.skills.chr}</div>
-        </div>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-pressed={showSubskills}
+        aria-label={showSubskills ? "Show main skill bars" : "Show subskill breakdown"}
+        onClick={toggleSkillView}
+        onKeyDown={handleSkillKeyDown}
+        style={{ display: "flex", gap: 12, alignItems: "flex-end", cursor: "pointer" }}
+      >
+        {MAIN_SKILL_DEFINITIONS.map(def => {
+          const mainValue = player.skills[def.key]
+          return (
+            <div key={def.key} style={{ textAlign: "center" }}>
+              {showSubskills ? (
+                <div style={{ width: `${SUBBAR_CONTAINER_WIDTH}px`, margin: "0 auto" }}>
+                  <div style={{ display: "flex", gap: `${SUBBAR_GAP}px`, alignItems: "flex-end", justifyContent: "center" }}>
+                    {def.subskills.map(sub => {
+                      const rawValue = subSkills[sub.key]
+                      return (
+                        <div key={sub.key}>
+                          <VerticalBar value={rawValue ?? 0} max={100} height={SUBBAR_HEIGHT} width={SUBBAR_WIDTH} color={def.color} />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <SmallVerticalBar value={mainValue} color={def.color} />
+              )}
+              <div style={{ fontSize: "0.8rem", marginTop: 6 }}>{def.label} {mainValue}</div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -581,7 +690,7 @@ export default function App() {
         onOpenInk={() => { openInkDebug(); setDebugControlsOpen(false) }}
       />
 
-      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <ProfileViewHandler open={profileOpen} onClose={() => setProfileOpen(false)} target={{ mode: "player" }} />
       <ChangeJobModal open={jobModalOpen} onClose={() => setJobModalOpen(false)} />
       <AffiliationMapModal open={affiliationOpen} onClose={() => setAffiliationOpen(false)} />
       <RelationshipsModal open={relationshipsOpen} onClose={() => setRelationshipsOpen(false)} />

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 import { useGame } from "../game/GameContext"
 import ModalShell from "./ModalShell"
 import NpcAvatar from "./NpcAvatar"
-import NpcProfileModal from "./NpcProfileModal"
+import ProfileViewHandler from "./ProfileViewHandler"
 
 function SmallStrengthBar({ value, max = 100 }: { value: number; max?: number }) {
   const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)))
@@ -69,7 +69,7 @@ export default function RelationshipsModal({ open, onClose }: { open: boolean; o
             </div>
           ))}
 
-          <NpcProfileModal open={!!openNpcId} onClose={() => setOpenNpcId(null)} npcId={openNpcId ?? undefined} />
+          <ProfileViewHandler open={!!openNpcId} onClose={() => setOpenNpcId(null)} target={{ mode: "npc", npcId: openNpcId ?? undefined }} />
         </>
       )}
     </ModalShell>

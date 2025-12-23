@@ -1,15 +1,80 @@
-import { useGame } from "../game/GameContext"
+import { FiX, FiPlusSquare, FiCloudLightning, FiInstagram, FiCpu } from "react-icons/fi"
 import ModalShell from "./ModalShell"
-import { getAffiliationById } from "../game/content/affiliations"
-import { getCareerForJobId, getJobById } from "../game/content/careers"
-import { FiX } from "react-icons/fi"
 
+// FiPLusSquare: health
+// FiCloudLightning: stress
+// FiInstagram: looks
+// FiCpu: humanity
 
-function Progress({ value, max = 100 }: { value: number; max?: number }) {
+const SKILL_COLORS: Record<string, string> = {
+  DEF_: "#888888",
+  STR: "#ff1053",
+  INT: "#47A8BD",
+  REF: "#2C6E49",
+  CHR: "#F5E663",
+}
+
+export type ProfileOccupation = {
+  id: string
+  jobId?: string
+  title: string
+  affiliation: string
+  description?: string
+  removable?: boolean
+}
+
+export type ProfileData = {
+  name: string
+  ageLabel: string
+  gender: string
+  districtLabel: string
+  tags: string[]
+  affiliations: string[]
+  vitals: { health: number; humanity: number; stress: number; looks: number; money: number }
+  skills: { str: number; int: number; ref: number; chr: number; subSkills?: Record<string, number> }
+  occupations: ProfileOccupation[]
+  showAffiliations?: boolean
+  canEditAssignments?: boolean
+}
+
+function Progress({ value, max = 100, color = SKILL_COLORS.DEF_ }: { value: number; max?: number; color?: string }) {
   const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)))
   return (
     <div style={{ background: "#222", borderRadius: 6, height: 10, width: "100%" }}>
-      <div style={{ width: `${pct}%`, height: "100%", background: "#4caf50", borderRadius: 6 }} />
+      <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 6 }} />
+    </div>
+  )
+}
+
+function SegmentedBar({ value, max = 10, segments = 10, height = 48, width = 18, color = SKILL_COLORS.DEF_ }: { value: number; max?: number; segments?: number; height?: number; width?: number; color?: string }) {
+  const segs = Math.max(1, Math.floor(segments))
+  const clampedValue = Math.max(0, Math.min(max, Number(value) || 0))
+  const filledCount = Math.round((clampedValue / max) * segs)
+  const gap = 2
+  const totalGap = gap * Math.max(0, segs - 1)
+  const segmentHeight = Math.max(4, Math.floor((height - totalGap) / segs))
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column-reverse", gap: `${gap}px`, height, width }}>
+        {Array.from({ length: segs }).map((_, i) => {
+          const filled = i < filledCount
+          const emptyBg = "#1c1f2a"
+          return (
+            <div
+              key={i}
+              style={{
+                height: `${segmentHeight}px`,
+                width: "100%",
+                background: filled ? color : emptyBg,
+                borderRadius: 4,
+                boxSizing: "border-box",
+                border: `1px solid ${filled ? 'transparent' : '#111'}`,
+              }}
+            />
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -23,132 +88,145 @@ function SmallProgress({ value, max = 100, height = 10, color = "#1d6d1fff", bg 
     </div>
   )
 }
-export default function ProfileModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state, dispatch } = useGame()
-  const player = state.player
 
-  const assignments = Object.values(state.jobAssignments ?? {}).filter(a => a.memberId === player.id)
-  const jobsRaw = assignments.map(a => getJobById(a.jobId))
-  const jobs = jobsRaw.filter((j): j is NonNullable<typeof j> => !!j)
-  const memberships = Object.values(state.memberships ?? {}).filter((m: any) => m.memberId === player.id)
-  const subSkillsMap = player.skills.subSkills as Record<string, number>
-  const tags = (player.tags ?? [])
+const SUBSKILL_GROUPS: Record<string, string[]> = {
+  STR: ["athletics", "closeCombat", "heavyHandling"],
+  INT: ["hacking", "medical", "engineering"],
+  REF: ["marksmanship", "stealth", "mobility"],
+  CHR: ["persuasion", "deception", "streetwise"],
+}
 
-  const ageYears = Math.floor((player.ageMonths ?? 0) / 12)
-  const gender = player.gender ?? "male"
+const pretty = (s: string) => s.replace(/([A-Z])/g, " $1").replace(/^./, c => c.toUpperCase())
 
-  const jobAffiliationName = (job: any) => {
-    // prefer membership matching career's affiliation, otherwise any membership
-    const career = getCareerForJobId(job?.id)
-    const candidateAffIds: string[] = career?.affiliationId ?? []
-    let affId = memberships.find(m => candidateAffIds.includes(m.affiliationId))?.affiliationId
-    if (!affId && memberships.length > 0) affId = memberships[0].affiliationId
-    return affId ? getAffiliationById(affId)?.name ?? affId : "-"
-  }
+export default function ProfileModal({ open, onClose, profile, onRemoveAssignment }: { open: boolean; onClose: () => void; profile?: ProfileData | null; onRemoveAssignment?: (jobId: string) => void }) {
+  if (!profile) return null
 
-  const SUBSKILL_GROUPS: Record<string, string[]> = {
-    STR: ["athletics", "closeCombat", "heavyHandling"],
-    INT: ["hacking", "medical", "engineering"],
-    REF: ["marksmanship", "stealth", "mobility"],
-    CHR: ["persuasion", "deception", "streetwise"],
-  }
-
-  const pretty = (s: string) => s.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase())
+  const subSkillsMap = profile.skills.subSkills ?? {}
 
   return (
     <ModalShell open={open} onClose={onClose} durationMs={200} style={{ padding: "12px", borderRadius: 8, maxWidth: 900 }}>
-      {({ containerRef, closing, requestClose, durationMs }) => (
+      {() => (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <h3 style={{ margin: 0 }}>{player.name}</h3>
+            <h3 style={{ margin: 0 }}>{profile.name}</h3>
             <div style={{ color: "#aaa", display: "flex", alignItems: "center", gap: 8 }}>
-              <span>{gender}</span>
+              <span>{profile.gender}</span>
               <span>·</span>
-              <span>{ageYears} yr{ageYears !== 1 ? "s" : ""}</span>
+              <span>{profile.ageLabel}</span>
             </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
             <div>
-              <strong>Home / Current District</strong>
-              <div style={{ marginTop: 6 }}>{player.currentDistrict ?? "-"}</div>
+              <strong>District</strong>
+              <div style={{ marginTop: 6 }}>{profile.districtLabel || "-"}</div>
             </div>
-
             <div>
               <strong>Tags</strong>
-              <div style={{ marginTop: 6 }}>{tags.length ? tags.join(", ") : "-"}</div>
+              <div style={{ marginTop: 6 }}>{profile.tags.length ? profile.tags.join(", ") : "-"}</div>
             </div>
+
+            {(profile.showAffiliations || (profile.affiliations?.length ?? 0) > 0) && (
+              <div style={{ gridColumn: "1 / -1" }}>
+                <strong>Affiliations</strong>
+                <div style={{ marginTop: 6 }}>{profile.affiliations.length ? profile.affiliations.join(", ") : "None"}</div>
+              </div>
+            )}
 
             <div style={{ gridColumn: "1 / -1" }}>
               <strong>Vitals</strong>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Health</span><span>{player.vitals.health}</span></div>
-                  <Progress value={player.vitals.health} max={100} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FiPlusSquare /> <span>Health</span></span>
+                    <span>{profile.vitals.health}</span>
+                  </div>
+                  <Progress value={profile.vitals.health} max={100} />
                 </div>
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Humanity</span><span>{player.vitals.humanity}</span></div>
-                  <Progress value={player.vitals.humanity} max={100} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FiCpu /> <span>Humanity</span></span>
+                    <span>{profile.vitals.humanity}</span>
+                  </div>
+                  <Progress value={profile.vitals.humanity} max={100} />
                 </div>
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Stress</span><span>{player.vitals.stress}</span></div>
-                  <Progress value={player.vitals.stress} max={100} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FiCloudLightning /> <span>Stress</span></span>
+                    <span>{profile.vitals.stress}</span>
+                  </div>
+                  <Progress value={profile.vitals.stress} max={100} />
                 </div>
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Looks</span><span>{player.vitals.looks}</span></div>
-                  <Progress value={player.vitals.looks} max={100} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FiInstagram /> <span>Looks</span></span>
+                    <span>{profile.vitals.looks}</span>
+                  </div>
+                  <Progress value={profile.vitals.looks} max={100} />
                 </div>
               </div>
-              <div style={{ marginTop: 8 }}><strong>Money</strong> <div>♦︎ {player.vitals.money}</div></div>
+              <div style={{ marginTop: 8 }}><strong>Money</strong> <div>♦︎ {profile.vitals.money}</div></div>
             </div>
 
             <div style={{ gridColumn: "1 / -1" }}>
               <strong>Skills</strong>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>STR</span><span>{player.skills.str}</span></div>
-                  <Progress value={player.skills.str} max={10} />
-                  <div style={{ marginTop: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 8 }}>
+                {/** Skill block helper layout: left fixed column for bar, right flexible column for subskills */}
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ width: 64, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <SegmentedBar value={profile.skills.str} max={10} segments={10} color={SKILL_COLORS.STR} />
+                    <div style={{ marginTop: 8, fontWeight: 700 }}>STR {profile.skills.str}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
                     {SUBSKILL_GROUPS.STR.map(k => (
                       <div key={k} style={{ marginTop: 6 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{pretty(k)}</span><span>{(subSkillsMap?.[k] ?? 0)}</span></div>
-                        <SmallProgress value={subSkillsMap?.[k] ?? 0} max={100} />
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{pretty(k)}</span><span>{subSkillsMap?.[k] ?? 0}</span></div>
+                        <SmallProgress value={subSkillsMap?.[k] ?? 0} max={100} color={SKILL_COLORS.STR} />
                       </div>
                     ))}
                   </div>
                 </div>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>INT</span><span>{player.skills.int}</span></div>
-                  <Progress value={player.skills.int} max={10} />
-                  <div style={{ marginTop: 8 }}>
+
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ width: 64, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <SegmentedBar value={profile.skills.int} max={10} segments={10} color={SKILL_COLORS.INT} />
+                    <div style={{ marginTop: 8, fontWeight: 700 }}>INT {profile.skills.int}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
                     {SUBSKILL_GROUPS.INT.map(k => (
                       <div key={k} style={{ marginTop: 6 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{pretty(k)}</span><span>{(subSkillsMap?.[k] ?? 0)}</span></div>
-                        <SmallProgress value={subSkillsMap?.[k] ?? 0} max={100} />
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{pretty(k)}</span><span>{subSkillsMap?.[k] ?? 0}</span></div>
+                        <SmallProgress value={subSkillsMap?.[k] ?? 0} max={100} color={SKILL_COLORS.INT} />
                       </div>
                     ))}
                   </div>
                 </div>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>REF</span><span>{player.skills.ref}</span></div>
-                  <Progress value={player.skills.ref} max={10} />
-                  <div style={{ marginTop: 8 }}>
+
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ width: 64, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <SegmentedBar value={profile.skills.ref} max={10} segments={10} color={SKILL_COLORS.REF} />
+                    <div style={{ marginTop: 8, fontWeight: 700 }}>REF {profile.skills.ref}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
                     {SUBSKILL_GROUPS.REF.map(k => (
                       <div key={k} style={{ marginTop: 6 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{pretty(k)}</span><span>{(subSkillsMap?.[k] ?? 0)}</span></div>
-                        <SmallProgress value={subSkillsMap?.[k] ?? 0} max={100} />
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{pretty(k)}</span><span>{subSkillsMap?.[k] ?? 0}</span></div>
+                        <SmallProgress value={subSkillsMap?.[k] ?? 0} max={100} color={SKILL_COLORS.REF} />
                       </div>
                     ))}
                   </div>
                 </div>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>CHR</span><span>{player.skills.chr}</span></div>
-                  <Progress value={player.skills.chr} max={10} />
-                  <div style={{ marginTop: 8 }}>
+
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ width: 64, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <SegmentedBar value={profile.skills.chr} max={10} segments={10} color={SKILL_COLORS.CHR} />
+                    <div style={{ marginTop: 8, fontWeight: 700 }}>CHR {profile.skills.chr}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
                     {SUBSKILL_GROUPS.CHR.map(k => (
                       <div key={k} style={{ marginTop: 6 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{pretty(k)}</span><span>{(subSkillsMap?.[k] ?? 0)}</span></div>
-                        <SmallProgress value={subSkillsMap?.[k] ?? 0} max={100} />
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{pretty(k)}</span><span>{subSkillsMap?.[k] ?? 0}</span></div>
+                        <SmallProgress value={subSkillsMap?.[k] ?? 0} max={100} color={SKILL_COLORS.CHR} />
                       </div>
                     ))}
                   </div>
@@ -159,31 +237,29 @@ export default function ProfileModal({ open, onClose }: { open: boolean; onClose
             <div style={{ gridColumn: "1 / -1" }}>
               <strong>Occupations</strong>
               <div style={{ marginTop: 8 }}>
-                {jobs.length === 0 && <div>Unemployed</div>}
-                {assignments.map(a => {
-                  const job = getJobById(a.jobId)
-                  if (!job) return null
-                  return (
-                    <div key={a.id} style={{ padding: "0.5rem 0", borderBottom: "1px solid #222", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                          <div style={{ fontWeight: 700 }}>{job.title}</div>
-                          <div style={{ color: "#aaa" }}>{jobAffiliationName(job)}</div>
-                        </div>
-                        <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>{Array.isArray(job.description) ? job.description[0] : job.description}</div>
+                {profile.occupations.length === 0 && <div>Unemployed</div>}
+                {profile.occupations.map(o => (
+                  <div key={o.id} style={{ padding: "0.5rem 0", borderBottom: "1px solid #222", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <div style={{ fontWeight: 700 }}>{o.title}</div>
+                        <div style={{ color: "#aaa" }}>{o.affiliation}</div>
                       </div>
+                      <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>{o.description ?? ""}</div>
+                    </div>
+                    {o.removable && onRemoveAssignment && (
                       <div style={{ marginLeft: 12 }}>
                         <button onClick={() => {
-                          const ok = window.confirm(`Remove assignment for ${job.title}?`)
+                          const ok = window.confirm(`Remove assignment for ${o.title}?`)
                           if (!ok) return
-                          dispatch({ type: "REMOVE_JOB_ASSIGNMENT", jobId: job.id })
+                          onRemoveAssignment(o.jobId ?? o.id)
                         }}>
                           <FiX size={20} />
                         </button>
                       </div>
-                    </div>
-                  )
-                })}
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
