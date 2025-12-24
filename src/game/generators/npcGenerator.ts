@@ -50,6 +50,7 @@ const buildVitals = (rng: () => number, vitals: {
   money: [number, number]
   looks: [number, number]
   bounty: [number, number]
+  popularity: [number, number]
 }): VitalBlock => ({
   health: roll(vitals.health, rng),
   stress: roll(vitals.stress, rng),
@@ -57,6 +58,7 @@ const buildVitals = (rng: () => number, vitals: {
   money: roll(vitals.money, rng),
   looks: roll(vitals.looks, rng),
   bounty: roll(vitals.bounty, rng),
+  popularity: roll(vitals.popularity, rng),
 })
 
 // default jitter expressed as percent offsets (e.g. -25..25 means -25%..+25%)

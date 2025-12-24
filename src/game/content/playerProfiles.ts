@@ -45,6 +45,7 @@ const profiles: PlayerProfile[] = [
       money: 350,
       looks: 6,
       bounty: 0,
+      popularity: 58,
     },
     skills: { str: 6, int: 8, ref: 7, chr: 4, 
       subSkills: {
@@ -80,6 +81,7 @@ const profiles: PlayerProfile[] = [
       money: 500,
       looks: 7,
       bounty: 0,
+      popularity: 66,
     },
     skills: { str: 4, int: 8, ref: 5, chr: 6, subSkills: { ...zeroSubSkills } },
     startingJobId: "line_cook",
@@ -100,6 +102,7 @@ const profiles: PlayerProfile[] = [
       money: 1200,
       looks: 4,
       bounty: 0,
+      popularity: 42,
     },
     skills: { str: 8, int: 4, ref: 6, chr: 3, subSkills: { ...zeroSubSkills } },
     startingJobId: "courier",

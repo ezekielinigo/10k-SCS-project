@@ -73,6 +73,8 @@ function getPlayerProfile(state: any): ProfileData {
       stress: player.vitals.stress,
       looks: player.vitals.looks,
       money: player.vitals.money,
+      bounty: player.vitals.bounty,
+      popularity: player.vitals.popularity,
     },
     skills: {
       str: clampSkill(player.skills.str),
@@ -123,6 +125,8 @@ function getNpcProfile(state: any, npcId?: string, npc?: any): ProfileData | nul
       stress: resolvedNpc.vitals?.stress ?? 0,
       looks: resolvedNpc.vitals?.looks ?? 0,
       money: resolvedNpc.vitals?.money ?? 0,
+      bounty: resolvedNpc.vitals?.bounty ?? 0,
+      popularity: resolvedNpc.vitals?.popularity ?? 0,
     },
     skills: {
       str: clampSkill(resolvedNpc.skills?.str),

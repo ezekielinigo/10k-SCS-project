@@ -206,6 +206,7 @@ export type VitalBlock = {
   // scalar
   money: number
   bounty: number
+  popularity: number
 }
 
 // primary skills and subskills 
@@ -241,7 +242,7 @@ export type NpcState = {
   avatarId: string
   name: string
   age: number
-  gender: Gender
+  gender: "male" | "female"
 
   // stats
   vitals: VitalBlock

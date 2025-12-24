@@ -22,6 +22,7 @@ export type NpcTemplate = {
     // scalar
     money: [number, number]
     bounty: [number, number]
+    popularity: [number, number]
   }
   skills: {
     // range from 1 to 10
@@ -52,7 +53,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     occupations: [
       { careerId: "courier", affiliationIds: ["swift_runners", "night_owl_couriers"], chance: 0.9 },
     ],
-    vitals: { health: [75, 95], humanity: [70, 95], stress: [5, 35], money: [150, 500], looks: [5, 80], bounty: [0, 1000] },
+    vitals: { health: [75, 95], humanity: [70, 95], stress: [5, 35], money: [150, 500], looks: [5, 80], bounty: [0, 1000], popularity: [30, 60] },
     skills: {
       str: [4, 6],
       int: [5, 7],
@@ -76,7 +77,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     occupations: [
       { careerId: "mechanic", affiliationIds: ["valkarna_auto", "ironclad_garage", "speedy_repairs"], chance: 0.9 },
     ],
-    vitals: { health: [70, 95], humanity: [60, 90], stress: [10, 40], money: [200, 800], looks: [4, 70], bounty: [0, 500] },
+    vitals: { health: [70, 95], humanity: [60, 90], stress: [10, 40], money: [200, 800], looks: [4, 70], bounty: [0, 500], popularity: [25, 50] },
     skills: {
       str: [5, 8],
       int: [5, 8],
@@ -102,7 +103,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     occupations: [
       { careerId: "fixer", affiliationIds: ["fixer_collective", "swift_runners"], chance: 0.9 },
     ],
-    vitals: { health: [70, 90], humanity: [65, 90], stress: [10, 45], money: [400, 1600], looks: [6, 90], bounty: [0, 150] },
+    vitals: { health: [70, 90], humanity: [65, 90], stress: [10, 45], money: [400, 1600], looks: [6, 90], bounty: [0, 150], popularity: [55, 90] },
     skills: {
       str: [3, 5],
       int: [6, 8],
@@ -126,7 +127,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     occupations: [
       { careerId: "enforcer", affiliationIds: ["street_gangs", "no_affiliation"], chance: 0.9 },
     ],
-    vitals: { health: [80, 100], humanity: [40, 75], stress: [15, 55], money: [80, 400], looks: [4, 70], bounty: [0, 300] },
+    vitals: { health: [80, 100], humanity: [40, 75], stress: [15, 55], money: [80, 400], looks: [4, 70], bounty: [0, 300], popularity: [25, 45] },
     skills: {
       str: [7, 10],
       int: [3, 5],
@@ -150,7 +151,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
     occupations: [
       { careerId: "medic", affiliationIds: ["clinic_collective", "instafood_collective"], chance: 0.9 },
     ],
-    vitals: { health: [75, 95], humanity: [70, 100], stress: [5, 40], money: [300, 1200], looks: [5, 80], bounty: [0, 50] },
+    vitals: { health: [75, 95], humanity: [70, 100], stress: [5, 40], money: [300, 1200], looks: [5, 80], bounty: [0, 50], popularity: [35, 70] },
     skills: {
       str: [3, 5],
       int: [8, 10],

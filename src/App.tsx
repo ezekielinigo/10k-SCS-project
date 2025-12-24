@@ -9,7 +9,7 @@ import AffiliationMapModal from "./components/AffiliationMapModal"
 import RelationshipsModal from "./components/RelationshipsModal"
 import DebugNpcModal from "./components/DebugNpcModal"
 import DebugControlsModal from "./components/DebugControlsModal"
-import { FiMenu, FiPlus, FiCheck } from "react-icons/fi"
+import { FiMenu, FiPlus, FiCheck, FiPlusSquare, FiZap, FiDollarSign } from "react-icons/fi"
 
 const InkModal = lazy(() => import("./components/InkModal"))
 
@@ -104,8 +104,8 @@ const createInkStory = async (knot: string | undefined, player: PlayerState, ink
 type SubSkillKey = keyof PlayerState["skills"]["subSkills"]
 type MainSkillKey = "str" | "int" | "ref" | "chr"
 
-const SUBBAR_WIDTH = 4
-const SUBBAR_GAP = 3
+const SUBBAR_WIDTH = 10
+const SUBBAR_GAP = 5
 const SUBBAR_HEIGHT = 48
 const SUBBAR_CONTAINER_WIDTH = SUBBAR_WIDTH * 3 + SUBBAR_GAP * 2
 
@@ -175,6 +175,12 @@ function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
 
   const subSkills = player.skills.subSkills
 
+  const vitalsToShow = [
+    { key: "health", Icon: FiPlusSquare, max: 100 },
+    { key: "stress", Icon: FiZap, max: 100 },
+    { key: "money", Icon: FiDollarSign},
+  ] as const
+
   function VerticalBar({ value, max = 100, height = 48, width = 18, color = "#4f82ff" }: { value: number; max?: number; height?: number; width?: number; color?: string }) {
     const clampedValue = Math.max(0, Math.min(max, Number(value) || 0))
     const fillPercent = (clampedValue / max) * 100
@@ -183,9 +189,8 @@ function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
         style={{
           width,
           height,
-          background: "#111",
+          background: "#222",
           borderRadius: "999px",
-          border: "1px solid #111",
           overflow: "hidden",
           position: "relative",
         }}
@@ -205,7 +210,16 @@ function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
     )
   }
 
-  function SmallVerticalBar({ value, max = 10, segments = 10, height = 48, width = 18, color = "#4f82ff" }: { value: number; max?: number; segments?: number; height?: number; width?: number; color?: string }) {
+  function InlineSmallProgress({ value, max = 100, height = 6, color = "#666" }: { value: number; max?: number; height?: number; color?: string }) {
+    const pct = Math.max(0, Math.min(100, Math.round((Number(value) || 0) / (max || 1) * 100)))
+    return (
+      <div style={{ background: "#222", borderRadius: 6, height, width: "100%" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 6 }} />
+      </div>
+    )
+  }
+
+  function SmallVerticalBar({ value, max = 10, segments = 10, height = 48, width = 40, color = "#4f82ff" }: { value: number; max?: number; segments?: number; height?: number; width?: number; color?: string }) {
     const segs = Math.max(1, Math.floor(segments))
     const clampedValue = Math.max(0, Math.min(max, Number(value) || 0))
     const filledCount = Math.round((clampedValue / max) * segs)
@@ -224,7 +238,7 @@ function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
                 style={{
                   height: `${segmentHeight}px`,
                   width: "100%",
-                  background: filled ? color : "#111",
+                  background: filled ? color : "#222",
                   borderRadius: 4,
                   boxSizing: "border-box",
                 }}
@@ -252,11 +266,34 @@ function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
         }
       }}>
         <div>
-          <strong>{player.name}</strong> - {Math.floor((player.ageMonths + state.month) / 12)} yrs
+          <div>
+            <strong>{player.name}</strong> - {Math.floor((player.ageMonths + state.month) / 12)} yrs
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 6, marginRight: 12}}>
+            {vitalsToShow.map(v => {
+              const val = (player.vitals as any)[v.key]
+              const Icon = v.Icon
+              const showBar = typeof (v as any).max !== "undefined"
+              return (
+                <div key={String(v.key)} style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <Icon size={12} />
+                      <div style={{ fontSize: "0.78rem", color: "#ddd" }}>{val ?? 0}</div>
+                    </div>
+                    {showBar ? (
+                      <div style={{ marginBottom: 3, flex: 1, marginLeft: 8 }}>
+                        <InlineSmallProgress value={val ?? 0} max={(v as any).max} height={6} color="#666" />
+                      </div>
+                    ) : null}
+                  </div>
+
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ marginTop: 6 }}>{titleText}</div>
         </div>
-        <div>Money: ♦︎ {player.vitals.money}</div>
-        <div>Stress: {player.vitals.stress}</div>
-        <div>Occupation: {titleText}</div>
       </div>
 
       <div
