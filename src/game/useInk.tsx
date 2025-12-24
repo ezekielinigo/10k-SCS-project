@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { listCareers } from "./content/careers"
+import { getRandomEventTemplateById } from "./content/randomEvents"
 import { describeTask } from "./taskLookup"
 import type { GameState } from "./types"
 import type { GameAction } from "./gameReducer"
@@ -57,12 +58,20 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
     try {
       const careers = listCareers()
       let inkSource: string | undefined
+      const task = state.tasks.find(t => t.id === taskId)
+
+      // Prefer a career ink source if this is a job task; otherwise fall back to
+      // the random event ink source (event_world.json) when available.
       for (const c of careers) {
         const level = c.levels.find(l => l.taskGraphId === taskGraphId)
         if (level) {
           inkSource = level.inkSource ?? c.inkSource
           break
         }
+      }
+
+      if (!inkSource && task?.kind === "randomEvent") {
+        inkSource = getRandomEventTemplateById(task.templateId)?.inkSource
       }
 
       const story = await createInkStory(taskGraphId, state.player, inkSource)
@@ -110,6 +119,41 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
       if (Object.keys(delta).length > 0) {
         dispatch({ type: "APPLY_STATS_DELTA", delta })
       }
+      // parse skill and subskill deltas (keys like delta_hacking or delta_closeCombat)
+      const skillKeys = ["str", "int", "ref", "chr"]
+      const subSkillKeys = [
+        "athletics",
+        "closeCombat",
+        "heavyHandling",
+        "hacking",
+        "medical",
+        "engineering",
+        "marksmanship",
+        "stealth",
+        "mobility",
+        "persuasion",
+        "deception",
+        "streetwise",
+      ]
+
+      const skillDeltas: Record<string, number> = {}
+      const subSkillDeltas: Record<string, number> = {}
+
+      for (const k of Object.keys(vars)) {
+        if (!k.startsWith("delta_")) continue
+        const name = k.slice(6) // after 'delta_'
+        const val = Number(vars[k] ?? 0)
+        if (isNaN(val) || val === 0) continue
+        if (skillKeys.includes(name)) {
+          skillDeltas[name] = val
+        } else if (subSkillKeys.includes(name)) {
+          subSkillDeltas[name] = val
+        }
+      }
+
+      if (Object.keys(skillDeltas).length > 0 || Object.keys(subSkillDeltas).length > 0) {
+        dispatch({ type: "APPLY_SKILL_DELTAS", skillDeltas: Object.keys(skillDeltas).length ? skillDeltas : undefined, subSkillDeltas: Object.keys(subSkillDeltas).length ? subSkillDeltas : undefined })
+      }
     } catch (e) {
       // swallow
     }
@@ -123,7 +167,7 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
 
     dispatch({ type: "RESOLVE_TASK", taskId: inkTaskPendingResolve })
 
-    try {
+      try {
       const dm = Number(vars.delta_money ?? 0)
       const ds = Number(vars.delta_stress ?? 0)
       const dh = Number(vars.delta_health ?? 0)
@@ -133,6 +177,18 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
       if (ds !== 0) deltas.stress = ds
       if (dh !== 0) deltas.health = dh
       if (dhu !== 0) deltas.humanity = dhu
+
+      // include skill/subskill deltas in the log if present
+      for (const k of Object.keys(vars)) {
+        if (!k.startsWith("delta_")) continue
+        const name = k.slice(6)
+        const val = Number(vars[k] ?? 0)
+        if (isNaN(val) || val === 0) continue
+        // already covered vitals above
+        if (!["money", "stress", "health", "humanity"].includes(name)) {
+          deltas[name] = val
+        }
+      }
 
       dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.`, deltas: Object.keys(deltas).length ? deltas : undefined })
     } catch (e) {

@@ -26,7 +26,7 @@ EXTERNAL hasMoney (amount)
 
 === courier_shift ===
 
-{ affilationId:
+{ affiliationId:
 	- "swift_runners":	
 		The swift runner client greets you with a grin.
 	- "night_owl_couriers":

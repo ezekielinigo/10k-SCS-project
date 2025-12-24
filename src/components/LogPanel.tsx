@@ -21,9 +21,17 @@ export default function LogPanel() {
           const Icon = def.Icon
           const signed = value > 0 ? `+${value}` : `${value}`
           const positive = value > 0
-          const fg = positive ? "#34d399" : "#f87171"
-          const bg = positive ? "#34d3991a" : "#f871711a"
-          const border = positive ? "#34d39940" : "#f8717140"
+          const isStress = key === "stress"
+          // For stress, positive (increase) should be red, decrease green.
+          let fg = positive ? "#34d399" : "#f87171"
+          let bg = positive ? "#34d3991a" : "#f871711a"
+          let border = positive ? "#34d39940" : "#f8717140"
+          if (isStress) {
+            // invert colors for stress: positive => red, negative => green
+            fg = positive ? "#f87171" : "#34d399"
+            bg = positive ? "#f871711a" : "#34d3991a"
+            border = positive ? "#f8717140" : "#34d39940"
+          }
           return (
             <span
               key={`${key}-${signed}`}

@@ -7,6 +7,10 @@ import {
   templateMatchesScope,
 } from "./tagEngine"
 
+// NOTE: we no longer auto-register knots from the compiled Ink JSON.
+// Add new random event templates manually below when adding knots to
+// `src/ink/event_world.ink`.
+
 const randId = () => Math.random().toString(36).slice(2)
 
 export type RandomEventTemplate = {
@@ -18,6 +22,7 @@ export type RandomEventTemplate = {
   tags: Tag[]
   baseWeight?: number
   taskGraphId: string
+  inkSource?: string
 }
 
 const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
@@ -26,9 +31,60 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     kind: "randomEvent",
     title: "Chrome Spike Overload",
     description: "Your neural implant spikes, forcing you to reroute biofeedback.",
-    scope: "health",
+    scope: "world",
     tags: ["cyberware", "health", "tech"],
     taskGraphId: "chrome_spike_overload",
+    inkSource: "/src/ink/event_world.json",
+  },
+  street_brawl: {
+    id: "street_brawl",
+    kind: "randomEvent",
+    title: "Street Brawl",
+    description: "You stumble into a quarrel in a dark alley — someone shoves you and a fist flies.",
+    scope: "world",
+    tags: ["combat", "street"],
+    taskGraphId: "street_brawl",
+    inkSource: "/src/ink/event_world.json",
+  },
+  pickpocket_encounter: {
+    id: "pickpocket_encounter",
+    kind: "randomEvent",
+    title: "Pickpocket Encounter",
+    description: "Someone brushes your pocket — you might catch them or lose some coins.",
+    scope: "world",
+    tags: ["theft", "street"],
+    taskGraphId: "pickpocket_encounter",
+    inkSource: "/src/ink/event_world.json",
+  },
+  street_tutoring: {
+    id: "street_tutoring",
+    kind: "randomEvent",
+    title: "Street Tutoring",
+    description: "A tired mechanic offers to show you a trick if you help with a bolt.",
+    scope: "world",
+    tags: ["mechanic", "engineering"],
+    taskGraphId: "street_tutoring",
+    inkSource: "/src/ink/event_world.json",
+  },
+  meditation_session: {
+    id: "meditation_session",
+    kind: "randomEvent",
+    title: "Meditation Session",
+    description: "You find a quiet courtyard; a monk offers breathing guidance.",
+    scope: "world",
+    tags: ["meditation", "calm"],
+    taskGraphId: "meditation_session",
+    inkSource: "/src/ink/event_world.json",
+  },
+  risky_hack: {
+    id: "risky_hack",
+    kind: "randomEvent",
+    title: "Risky Hack",
+    description: "An opportunity to hack a small kiosk presents itself — payoffs vary.",
+    scope: "world",
+    tags: ["hacking", "tech"],
+    taskGraphId: "risky_hack",
+    inkSource: "/src/ink/event_world.json",
   },
 }
 
@@ -43,7 +99,8 @@ export const selectRandomEventTemplateForState = (
   state: GameState,
 ): RandomEventTemplate | undefined => {
   const ctx = buildContentContext(state)
-  const weighted = listRandomEventTemplates()
+  // list all templates (no debug output)
+  const filtered = listRandomEventTemplates()
     .filter(template => templateMatchesScope(template.scope, template.tags, ctx))
     .map(template => ({
       ...template,
@@ -54,7 +111,17 @@ export const selectRandomEventTemplateForState = (
       ),
     }))
 
-  return pickWeightedTemplate(weighted)
+  if (filtered.length > 0) {
+    return pickWeightedTemplate(filtered)
+  }
+
+  // Fallback: if nothing matched scope/tags, pick from all templates with base weight
+  const unfiltered = listRandomEventTemplates().map(template => ({
+    ...template,
+    weight: template.baseWeight ?? 1,
+  }))
+
+  return pickWeightedTemplate(unfiltered)
 }
 
 export const createRandomEventTaskForState = (state: GameState): TaskState | null => {

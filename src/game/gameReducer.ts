@@ -13,6 +13,7 @@ export type GameAction =
   | { type: "SET_TASKS"; tasks: TaskState[] }
   | { type: "RESOLVE_TASK"; taskId: string }
   | { type: "APPLY_STATS_DELTA"; delta: Partial<{ health: number; humanity: number; stress: number; money: number }> }
+  | { type: "APPLY_SKILL_DELTAS"; skillDeltas?: Record<string, number>; subSkillDeltas?: Record<string, number> }
   | { type: "APPLY_OUTCOME"; outcome: string; taskGraphId?: string }
   | { type: "START_TASK_RUN"; taskId: string; taskGraphId: string }
   | { type: "MAKE_TASK_CHOICE"; choiceId: string }
@@ -99,6 +100,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         const playerAffiliationId = membership ? membership.affiliationId ?? null : (() => {
           const playerPosting = Object.values(state.jobInstances ?? {}).find((p: any) => p.filledBy === state.player.id)
           return playerPosting ? playerPosting.affiliationId ?? null : null
+
+    
         })()
 
         const postings = generateJobInstances(templates, {
@@ -300,6 +303,42 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         player: {
           ...state.player,
           vitals: nextVitals,
+        },
+      }
+    }
+
+    case "APPLY_SKILL_DELTAS": {
+      const skillDeltas = action.skillDeltas ?? {}
+      const subSkillDeltas = action.subSkillDeltas ?? {}
+
+      const nextSkills = { ...state.player.skills }
+      // apply top-level skill deltas (str,int,ref,chr)
+      for (const k of Object.keys(skillDeltas)) {
+        const v = Number((skillDeltas as any)[k] ?? 0)
+        if (isNaN(v)) continue
+        const key = k as keyof typeof nextSkills
+        if (typeof (nextSkills as any)[key] === "number") {
+          ;(nextSkills as any)[key] = Math.max(0, (nextSkills as any)[key] + v)
+        }
+      }
+
+      // apply subskill deltas
+      const nextSub = { ...(nextSkills.subSkills ?? {}) }
+      for (const k of Object.keys(subSkillDeltas)) {
+        const v = Number((subSkillDeltas as any)[k] ?? 0)
+        if (isNaN(v)) continue
+        if (k in nextSub) {
+          nextSub[k as keyof typeof nextSub] = Math.max(0, (nextSub as any)[k] + v)
+        }
+      }
+
+      nextSkills.subSkills = nextSub
+
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          skills: nextSkills,
         },
       }
     }

@@ -55,11 +55,20 @@ export const createInkStory = async (knot: string | undefined, player: PlayerSta
   const StoryCtor = (InkModule as any).Story ?? (InkModule as any).default ?? InkModule
   if (!StoryCtor) throw new Error("inkjs Story constructor not found")
 
-  const fallbackSource = "../ink/career_mechanic.json"
+  const fallbackSource = "/src/ink/career_mechanic.json"
   let tasks: any
   try {
+    const normalize = (src: string) => {
+      // If already absolute, use as-is. Otherwise prefer Vite-friendly /src/ path.
+      if (src.startsWith("/") || src.startsWith("http")) return src
+      // strip leading ./ or ../
+      const cleaned = src.replace(/^\.\/?/, "").replace(/^\.\.\//, "")
+      return `/src/${cleaned}`
+    }
+
     if (inkSource) {
-      tasks = (await import(/* @vite-ignore */ inkSource)) as any
+      const spec = normalize(inkSource)
+      tasks = (await import(/* @vite-ignore */ spec)) as any
     } else {
       tasks = (await import(fallbackSource)) as any
     }
