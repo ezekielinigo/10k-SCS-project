@@ -39,7 +39,7 @@ const profiles: PlayerProfile[] = [
     gender: "male",
     currentDistrict: "downtown",
     vitals: {
-      health: 95,
+      health: 100,
       humanity: 85,
       stress: 10,
       money: 350,

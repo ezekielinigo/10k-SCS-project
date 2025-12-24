@@ -1,13 +1,6 @@
-import { FiX, FiPlusSquare, FiZap, FiInstagram, FiSmile, FiDollarSign, FiEye } from "react-icons/fi"
+import { FiX } from "react-icons/fi"
 import ModalShell from "./ModalShell"
-
-const SKILL_COLORS: Record<string, string> = {
-  DEF_: "#888888",
-  STR: "#ff1053",
-  INT: "#47A8BD",
-  REF: "#2C6E49",
-  CHR: "#F5E663",
-}
+import { VITAL_DEFINITIONS, SKILL_COLORS } from "../utils/ui"
 
 export type ProfileOccupation = {
   id: string
@@ -32,14 +25,7 @@ export type ProfileData = {
   canEditAssignments?: boolean
 }
 
-function Progress({ value, max = 100, color = SKILL_COLORS.DEF_ }: { value: number; max?: number; color?: string }) {
-  const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)))
-  return (
-    <div style={{ background: "#222", borderRadius: 6, height: 10, width: "100%" }}>
-      <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 6 }} />
-    </div>
-  )
-}
+
 
 function SmallProgress({ value, max = 100, height = 10, color = SKILL_COLORS.DEF_, bg = "#222" }: { value: number; max?: number; height?: number; color?: string; bg?: string }) {
   const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)))
@@ -103,7 +89,7 @@ export default function ProfileModal({ open, onClose, profile, onRemoveAssignmen
 
             { /************************************* Basic Info Section *******************************************/ }
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 3, borderBottom: "1px solid #333" }}>
             <h3 style={{ margin: 0 }}>{profile.name}</h3>
             <div style={{ color: "#aaa", display: "flex", alignItems: "center", gap: 8 }}>
               <span>{profile.gender}</span>
@@ -112,7 +98,7 @@ export default function ProfileModal({ open, onClose, profile, onRemoveAssignmen
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 3, borderBottom: "1px solid #333"  }}>
             <div>
               <strong>District</strong>
               <div style={{ marginBottom: 6 }}>{profile.districtLabel || "-"}</div>
@@ -123,7 +109,7 @@ export default function ProfileModal({ open, onClose, profile, onRemoveAssignmen
             </div>
 
             {(profile.showAffiliations || (profile.affiliations?.length ?? 0) > 0) && (
-              <div style={{ gridColumn: "1 / -1" }}>
+              <div style={{ gridColumn: "1 / -1", marginBottom: 3, borderBottom: "1px solid #333" }}>
                 <strong>Affiliations</strong>
                 <div style={{ marginBottom: 6 }}>{profile.affiliations.length ? profile.affiliations.join(", ") : "None"}</div>
               </div>
@@ -131,33 +117,57 @@ export default function ProfileModal({ open, onClose, profile, onRemoveAssignmen
 
             { /************************************* Vitals Section *******************************************/ }
 
-            <div style={{ gridColumn: "1 / -1" }}>
+            <div style={{ gridColumn: "1 / -1", marginBottom: 3, borderBottom: "1px solid #333"}}>
               <strong>Vitals</strong>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FiPlusSquare /> <span>Health</span></span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {(() => {
+                        const def = VITAL_DEFINITIONS.health as any
+                        const Icon = def.Icon
+                        return <Icon />
+                      })()} <span>{VITAL_DEFINITIONS.health.label}</span>
+                    </span>
                     <span>{profile.vitals.health}</span>
                   </div>
                   <SmallProgress value={profile.vitals.health} max={100} />
                 </div>
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FiZap /> <span>Stress</span></span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {(() => {
+                        const def = VITAL_DEFINITIONS.stress as any
+                        const Icon = def.Icon
+                        return <Icon />
+                      })()} <span>{VITAL_DEFINITIONS.stress.label}</span>
+                    </span>
                     <span>{profile.vitals.stress}</span>
                   </div>
                   <SmallProgress value={profile.vitals.stress} max={100} />
                 </div>
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FiDollarSign /> <span>Bounty</span></span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {(() => {
+                        const def = VITAL_DEFINITIONS.money as any
+                        const Icon = def.Icon
+                        return <Icon />
+                      })()} <span>Bounty</span>
+                    </span>
                     <span>{profile.vitals.bounty}</span>
                   </div>
                   <SmallProgress value={profile.vitals.bounty} max={2000} />
                 </div>
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FiSmile /> <span>Humanity</span></span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {(() => {
+                        const def = VITAL_DEFINITIONS.humanity as any
+                        const Icon = def.Icon
+                        return <Icon />
+                      })()} <span>{VITAL_DEFINITIONS.humanity.label}</span>
+                    </span>
                     <span>{profile.vitals.humanity}</span>
                   </div>
                   <SmallProgress value={profile.vitals.humanity} max={100} />
@@ -165,14 +175,26 @@ export default function ProfileModal({ open, onClose, profile, onRemoveAssignmen
                 
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FiEye /> <span>Looks</span></span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {(() => {
+                        const def = VITAL_DEFINITIONS.looks as any
+                        const Icon = def.Icon
+                        return <Icon />
+                      })()} <span>{VITAL_DEFINITIONS.looks.label}</span>
+                    </span>
                     <span>{profile.vitals.looks}</span>
                   </div>
                   <SmallProgress value={profile.vitals.looks} max={100} />
                 </div>
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><FiInstagram /> <span>Popularity</span></span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {(() => {
+                        const def = VITAL_DEFINITIONS.popularity as any
+                        const Icon = def.Icon
+                        return <Icon />
+                      })()} <span>{VITAL_DEFINITIONS.popularity.label}</span>
+                    </span>
                     <span>{profile.vitals.popularity}</span>
                   </div>
                   <SmallProgress value={profile.vitals.popularity} max={100} />
@@ -182,7 +204,7 @@ export default function ProfileModal({ open, onClose, profile, onRemoveAssignmen
 
             { /************************************* Skills Section *******************************************/ }
 
-            <div style={{ gridColumn: "1 / -1" }}>
+            <div style={{ gridColumn: "1 / -1", marginBottom: 3, borderBottom: "1px solid #333" }}>
               <strong>Skills</strong>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
                 <div style={{ display: "flex", gap: 12 }}>
@@ -249,7 +271,7 @@ export default function ProfileModal({ open, onClose, profile, onRemoveAssignmen
 
             { /************************************* Occupation Section *******************************************/ }
 
-            <div style={{ gridColumn: "1 / -1" }}>
+            <div style={{ gridColumn: "1 / -1", marginBottom: 3, borderBottom: "1px solid #333" }}>
               <strong>Occupations</strong>
               <div style={{ marginBottom: 8 }}>
                 {profile.occupations.length === 0 && <div>Unemployed</div>}

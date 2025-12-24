@@ -9,7 +9,7 @@ import { getTaskGraphById, OUTCOME_DEFINITIONS, TASK_OUTCOME_OVERRIDES } from ".
 
 export type GameAction =
   | { type: "ADVANCE_MONTH" }
-  | { type: "ADD_LOG"; text: string }
+  | { type: "ADD_LOG"; text: string; deltas?: Record<string, number> }
   | { type: "SET_TASKS"; tasks: TaskState[] }
   | { type: "RESOLVE_TASK"; taskId: string }
   | { type: "APPLY_STATS_DELTA"; delta: Partial<{ health: number; humanity: number; stress: number; money: number }> }
@@ -179,6 +179,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
             id: randId(),
             month: state.month,
             text: action.text,
+            deltas: action.deltas,
           },
         ],
       }

@@ -1,4 +1,40 @@
 import { useEffect, useRef, useState } from "react"
+import type { IconType } from "react-icons"
+import { FiHeart, FiZap, FiInstagram, FiCpu, FiEye } from "react-icons/fi"
+import { LuDiamond } from "react-icons/lu"
+
+export type VitalKey = "health" | "stress" | "humanity" | "looks" | "popularity" | "money"
+
+type VitalDefinition = {
+  key: VitalKey
+  label: string
+  Icon: IconType
+  /** Optional text symbol (e.g. diamond) to reuse where icons are not available. */
+  symbol?: string
+  max?: number
+}
+
+export const VITAL_DEFINITIONS: Record<VitalKey, VitalDefinition> = {
+  health: { key: "health", label: "Health", Icon: FiHeart, max: 100 },
+  stress: { key: "stress", label: "Stress", Icon: FiZap, max: 100 },
+  humanity: { key: "humanity", label: "Humanity", Icon: FiCpu, max: 100 },
+  looks: { key: "looks", label: "Looks", Icon: FiEye, max: 100 },
+  popularity: { key: "popularity", label: "Popularity", Icon: FiInstagram, max: 100 },
+  money: { key: "money", label: "Money", Icon: LuDiamond, symbol: "♦" },
+}
+
+// Primary vitals we surface in the player header.
+export const PLAYER_VITAL_KEYS: VitalKey[] = ["health", "stress", "humanity", "looks", "popularity", "money"]
+
+type SkillColorKey = "DEF_" | "STR" | "INT" | "REF" | "CHR"
+
+export const SKILL_COLORS: Record<SkillColorKey, string> = {
+  DEF_: "#888888",
+  STR: "#ff1053",
+  INT: "#47A8BD",
+  REF: "#2C6E49",
+  CHR: "#F5E663",
+}
 
 export const chooseIndefiniteArticle = (title?: string | null): string => {
   const jobTitle = (title ?? "").toLowerCase().trim()

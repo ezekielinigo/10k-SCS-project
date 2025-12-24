@@ -132,6 +132,7 @@ export type LogEntry = {
   id: string
   month: number
   text: string
+  deltas?: Record<string, number>
 }
 
 export type GameState = {

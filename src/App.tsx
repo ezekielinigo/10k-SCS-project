@@ -9,7 +9,8 @@ import AffiliationMapModal from "./components/AffiliationMapModal"
 import RelationshipsModal from "./components/RelationshipsModal"
 import DebugNpcModal from "./components/DebugNpcModal"
 import DebugControlsModal from "./components/DebugControlsModal"
-import { FiMenu, FiPlus, FiCheck, FiPlusSquare, FiZap, FiDollarSign } from "react-icons/fi"
+import { FiMenu, FiPlus, FiCheck } from "react-icons/fi"
+import { PLAYER_VITAL_KEYS, VITAL_DEFINITIONS, SKILL_COLORS, type VitalKey } from "./utils/ui"
 
 const InkModal = lazy(() => import("./components/InkModal"))
 
@@ -120,7 +121,7 @@ const MAIN_SKILL_DEFINITIONS: SkillGroupDefinition[] = [
   {
     key: "str",
     label: "STR",
-    color: "#ff1053",
+    color: SKILL_COLORS.STR,
     subskills: [
       { key: "athletics", label: "ATH" },
       { key: "closeCombat", label: "CLS" },
@@ -130,7 +131,7 @@ const MAIN_SKILL_DEFINITIONS: SkillGroupDefinition[] = [
   {
     key: "int",
     label: "INT",
-    color: "#47A8BD",
+    color: SKILL_COLORS.INT,
     subskills: [
       { key: "hacking", label: "HCK" },
       { key: "medical", label: "MED" },
@@ -140,7 +141,7 @@ const MAIN_SKILL_DEFINITIONS: SkillGroupDefinition[] = [
   {
     key: "ref",
     label: "REF",
-    color: "#2C6E49",
+    color: SKILL_COLORS.REF,
     subskills: [
       { key: "marksmanship", label: "MRK" },
       { key: "stealth", label: "STL" },
@@ -150,7 +151,7 @@ const MAIN_SKILL_DEFINITIONS: SkillGroupDefinition[] = [
   {
     key: "chr",
     label: "CHR",
-    color: "#F5E663",
+    color: SKILL_COLORS.CHR,
     subskills: [
       { key: "persuasion", label: "PRS" },
       { key: "deception", label: "DCP" },
@@ -175,11 +176,7 @@ function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
 
   const subSkills = player.skills.subSkills
 
-  const vitalsToShow = [
-    { key: "health", Icon: FiPlusSquare, max: 100 },
-    { key: "stress", Icon: FiZap, max: 100 },
-    { key: "money", Icon: FiDollarSign},
-  ] as const
+  const vitalsToShow = PLAYER_VITAL_KEYS.map(key => VITAL_DEFINITIONS[key])
 
   function VerticalBar({ value, max = 100, height = 48, width = 18, color = "#4f82ff" }: { value: number; max?: number; height?: number; width?: number; color?: string }) {
     const clampedValue = Math.max(0, Math.min(max, Number(value) || 0))
@@ -273,21 +270,20 @@ function PlayerSummary({ onOpenProfile }: { onOpenProfile?: () => void }) {
             {vitalsToShow.map(v => {
               const val = (player.vitals as any)[v.key]
               const Icon = v.Icon
-              const showBar = typeof (v as any).max !== "undefined"
+              const showBar = typeof v.max !== "undefined"
               return (
                 <div key={String(v.key)} style={{ minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#ddd" }}>
                       <Icon size={12} />
                       <div style={{ fontSize: "0.78rem", color: "#ddd" }}>{val ?? 0}</div>
                     </div>
                     {showBar ? (
-                      <div style={{ marginBottom: 3, flex: 1, marginLeft: 8 }}>
-                        <InlineSmallProgress value={val ?? 0} max={(v as any).max} height={6} color="#666" />
+                      <div style={{ marginLeft: "auto", width: 130 }}>
+                        <InlineSmallProgress value={val ?? 0} max={v.max} height={6} color="#666" />
                       </div>
                     ) : null}
                   </div>
-
                 </div>
               )
             })}
@@ -442,6 +438,49 @@ function LogPanel() {
   const { state } = useGame()
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
+  const renderDeltaPills = (deltas?: Record<string, number>) => {
+    if (!deltas) return null
+    const entries = Object.entries(deltas).filter(([, v]) => Number(v) !== 0)
+    if (entries.length === 0) return null
+
+    return (
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+        {entries.map(([key, rawValue]) => {
+          const def = VITAL_DEFINITIONS[key as VitalKey]
+          if (!def) return null
+
+          const value = Number(rawValue) || 0
+          const Icon = def.Icon
+          const signed = value > 0 ? `+${value}` : `${value}`
+          const positive = value > 0
+          const fg = positive ? "#34d399" : "#f87171"
+          const bg = positive ? "#34d3991a" : "#f871711a"
+          const border = positive ? "#34d39940" : "#f8717140"
+          return (
+            <span
+              key={`${key}-${signed}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "2px 8px",
+                borderRadius: 999,
+                background: bg,
+                color: fg,
+                border: `1px solid ${border}`,
+                fontSize: "0.8rem",
+                lineHeight: 1.2,
+              }}
+            >
+              <Icon size={12} />
+              <span>{signed}</span>
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+
   // compute grouped months once per render
   const groups: Record<number, any[]> = {}
   for (const entry of state.log) {
@@ -486,6 +525,7 @@ function LogPanel() {
                 {groups[month].map(entry => (
                   <div key={entry.id} style={{ marginBottom: "0.5rem" }}>
                     <div>{entry.text}</div>
+                    {renderDeltaPills(entry.deltas)}
                   </div>
                 ))}
               </div>
@@ -616,14 +656,13 @@ export default function App() {
       const ds = Number(vars.delta_stress ?? 0)
       const dh = Number(vars.delta_health ?? 0)
       const dhu = Number(vars.delta_humanity ?? 0)
-      const parts: string[] = []
-      if (dm !== 0) parts.push(`${dm > 0 ? '+' : '-'}♦︎ ${Math.abs(dm)}`)
-      if (ds !== 0) parts.push(`${ds > 0 ? '+' : '-'}${Math.abs(ds)} stress`)
-      if (dh !== 0) parts.push(`${dh > 0 ? '+' : '-'}${Math.abs(dh)} health`)
-      if (dhu !== 0) parts.push(`${dhu > 0 ? '+' : '-'}${Math.abs(dhu)} humanity`)
+      const deltas: Record<string, number> = {}
+      if (dm !== 0) deltas.money = dm
+      if (ds !== 0) deltas.stress = ds
+      if (dh !== 0) deltas.health = dh
+      if (dhu !== 0) deltas.humanity = dhu
 
-      const received = parts.length > 0 ? ` Received: ${parts.join(', ')}` : ''
-      dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.${received}` })
+      dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.`, deltas: Object.keys(deltas).length ? deltas : undefined })
     } catch (e) {
       dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.` })
     }
