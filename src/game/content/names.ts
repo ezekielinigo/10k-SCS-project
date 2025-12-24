@@ -297,8 +297,8 @@ export const pickName = (
 	rng: () => number,
 	opts: NamePickOptions & { gender?: Gender | null }
 ): { first: string; last: string } => {
-	const first = pickGiven(rng, opts.gender, opts.tags) ?? capitalize(pick(opts.fallbackFirst, rng) ?? "Alex")
-	const last = pickFamily(rng, opts.tags) ?? capitalize(pick(opts.fallbackLast, rng) ?? "Doe")
+	const first = pickGiven(rng, opts.gender) ?? capitalize(pick(opts.fallbackFirst, rng) ?? "Alex")
+	const last = pickFamily(rng) ?? capitalize(pick(opts.fallbackLast, rng) ?? "Doe")
 	return { first, last }
 }
 

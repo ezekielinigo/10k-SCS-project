@@ -47,7 +47,7 @@ export default function RelationshipsModal({ open, onClose }: { open: boolean; o
       durationMs={200}
       style={{ padding: "1rem", width: 680, maxHeight: "80vh", overflowY: "auto", borderRadius: 8 }}
     >
-      {({ containerRef, closing, requestClose, durationMs }) => (
+      {() => (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <h3 style={{ margin: 0 }}>Relationships</h3>

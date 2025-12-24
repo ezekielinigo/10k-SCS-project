@@ -69,7 +69,7 @@ export default function AffiliationMapModal({ open, onClose }: { open: boolean; 
 
   return (
     <ModalShell open={open} onClose={onClose} durationMs={200} style={{ padding: "1rem", width: 720, maxHeight: "80vh", overflowY: "auto", borderRadius: 8 }}>
-      {({ containerRef, closing, requestClose, durationMs }) => (
+      {() => (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <h3 style={{ margin: 0 }}>Affiliation Map</h3>

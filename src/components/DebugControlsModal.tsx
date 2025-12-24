@@ -1,4 +1,3 @@
-import React from "react"
 import ModalShell from "./ModalShell"
 import { useGame } from "../game/GameContext"
 
@@ -7,7 +6,7 @@ export default function DebugControlsModal({ open, onClose, onShowProfile, onCha
 
 	return (
 		<ModalShell open={open} onClose={onClose} durationMs={200} style={{ padding: "1rem", minWidth: 320, borderRadius: 8, background: "#0c0c0f", border: "1px solid #333" }}>
-		{({ containerRef, closing, requestClose, durationMs }) => (
+		{({ requestClose }) => (
 			<>
 			<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
 				<strong>Debug Controls</strong>

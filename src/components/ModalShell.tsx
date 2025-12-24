@@ -1,6 +1,6 @@
 import React, { useEffect } from "react"
 import { createPortal } from "react-dom"
-import { useModalDismiss, useModalTransition, useSwipeDismiss, isTopModal, anyModalOpen } from "../utils/ui"
+import { useModalDismiss, useModalTransition, useSwipeDismiss } from "../utils/ui"
 
 type ModalShellProps = {
   open: boolean
@@ -11,7 +11,7 @@ type ModalShellProps = {
   style?: React.CSSProperties
   zIndex?: number
   children: (props: {
-    containerRef: React.RefObject<HTMLElement>
+    containerRef: React.RefObject<HTMLElement | null>
     closing: boolean
     requestClose: () => void
     durationMs: number

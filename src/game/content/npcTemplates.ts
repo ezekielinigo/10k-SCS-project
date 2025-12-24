@@ -1,4 +1,4 @@
-import type { SkillBlock, Tag, VitalBlock } from "../types"
+import type { SkillBlock, Tag } from "../types"
 
 export type NpcTemplate = {
   id: string

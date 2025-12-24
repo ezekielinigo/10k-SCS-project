@@ -27,10 +27,6 @@ const pick = <T,>(arr: T[], rng: () => number): T => arr[Math.floor(rng() * arr.
 const roll = ([min, max]: [number, number], rng: () => number): number =>
   Math.round(min + (max - min) * rng())
 
-const cloneVitals = (v: VitalBlock): VitalBlock => ({ ...v })
-
-const cloneSkills = (s: SkillBlock): SkillBlock => ({ ...s, subSkills: { ...s.subSkills } })
-
 export type GenerateNpcOptions = {
   seed?: string
   templateId?: string
@@ -99,9 +95,6 @@ const buildSkills = (rng: () => number, skills: {
   const weightRef = roll(skills.ref, rng)
   const weightChr = roll(skills.chr, rng)
 
-  const weights = { str: weightStr, int: weightInt, ref: weightRef, chr: weightChr }
-  const totalWeight = weightStr + weightInt + weightRef + weightChr
-
   // 2) amplify weight differences so priorities have stronger effect
   // exponent > 1 increases dominance of higher weights
   const PRIORITY_EXPONENT = 1.6
@@ -169,7 +162,7 @@ const buildSkills = (rng: () => number, skills: {
 
   // 4) derive subskills from parent skills using existing percent-based jitter logic
   for (const [subKey, parentKey] of Object.entries(SUBSKILL_PARENT)) {
-    const parentValue = base[parentKey]
+    const parentValue = base[parentKey as keyof Omit<SkillBlock, "subSkills">] as number
     const parentPercent = Math.round(parentValue * 10)
 
     const aSample = Math.round(parentPercent * rng())

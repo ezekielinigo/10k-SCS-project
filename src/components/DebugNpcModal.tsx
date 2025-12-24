@@ -30,7 +30,7 @@ export default function DebugNpcModal({ open, onClose }: { open: boolean; onClos
 
   return (
     <ModalShell open={open} onClose={onClose} durationMs={200} style={{ padding: "1rem", width: 760, maxHeight: "80vh", overflowY: "auto", borderRadius: 8 }}>
-      {({ containerRef, closing, requestClose, durationMs }) => (
+      {() => (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <h3 style={{ margin: 0 }}>DEBUG: Generate NPCs</h3>

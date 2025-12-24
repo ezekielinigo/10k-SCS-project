@@ -12,15 +12,17 @@ type VitalDefinition = {
   /** Optional text symbol (e.g. diamond) to reuse where icons are not available. */
   symbol?: string
   max?: number
+  /** Whether this vital is enabled (shown) by default in UIs that honor visibility preferences. */
+  enabled?: boolean
 }
 
 export const VITAL_DEFINITIONS: Record<VitalKey, VitalDefinition> = {
-  health: { key: "health", label: "Health", Icon: FiHeart, max: 100 },
-  stress: { key: "stress", label: "Stress", Icon: FiZap, max: 100 },
-  humanity: { key: "humanity", label: "Humanity", Icon: FiCpu, max: 100 },
-  looks: { key: "looks", label: "Looks", Icon: FiEye, max: 100 },
-  popularity: { key: "popularity", label: "Popularity", Icon: FiInstagram, max: 100 },
-  money: { key: "money", label: "Money", Icon: LuDiamond, symbol: "♦" },
+  health: { key: "health", label: "Health", Icon: FiHeart, max: 100, enabled: true },
+  stress: { key: "stress", label: "Stress", Icon: FiZap, max: 100, enabled: true },
+  humanity: { key: "humanity", label: "Humanity", Icon: FiCpu, max: 100, enabled: false },
+  looks: { key: "looks", label: "Looks", Icon: FiEye, max: 100, enabled: false },
+  popularity: { key: "popularity", label: "Popularity", Icon: FiInstagram, max: 100, enabled: false },
+  money: { key: "money", label: "Money", Icon: LuDiamond, symbol: "♦", enabled: true },
 }
 
 // Primary vitals we surface in the player header.

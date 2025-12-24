@@ -20,6 +20,10 @@ export type OutcomeTier =
 
 export type Gender = "male" | "female"
 
+export type Gender = "male" | "female"
+
+export type Gender = "male" | "female"
+
 export type StatBlock = { // stat block is mainly the numeric data
   health: number
   humanity: number
@@ -171,6 +175,8 @@ export type OutcomeTier =
   | "success"
   | "failure"
   | "great_failure"
+
+export type Gender = "male" | "female"
 
 /** EVERYTHING ABOUT THE PLAYER */
 
@@ -440,6 +446,7 @@ export type LogEntry = {
   id: string
   month: number
   text: string
+  deltas?: Record<string, number>
 }
 
 export type GameState = {

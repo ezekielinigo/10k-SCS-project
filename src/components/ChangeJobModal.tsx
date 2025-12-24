@@ -39,7 +39,7 @@ export default function ChangeJobModal({ open, onClose }: { open: boolean; onClo
 
   return (
     <ModalShell open={open} onClose={onClose} durationMs={200} style={{ padding: "1rem", width: 640, borderRadius: 8 }}>
-      {({ containerRef, closing, requestClose, durationMs }) => (
+      {() => (
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

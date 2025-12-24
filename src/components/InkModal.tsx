@@ -26,7 +26,7 @@ export default function InkModal({ open, onClose, frames, onChoose, statsVars }:
                   if (outcome === "great_success") return "#000"
                   return "#fff"
                 })() }}>
-                  {({ containerRef, closing, requestClose, durationMs }) => (
+                  {({ requestClose }) => (
                     <>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}></h3>
