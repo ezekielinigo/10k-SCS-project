@@ -23,7 +23,7 @@ export default function App() {
   const [debugNpcsOpen, setDebugNpcsOpen] = useState(false)
   const [debugControlsOpen, setDebugControlsOpen] = useState(false)
   const { state, dispatch } = useGame()
-  const { inkOpen, inkFrames, inkVars, openInkDebug, openInkForTask, handleChoose, handleCloseInkModal } = useInk({ state, dispatch })
+  const { inkOpen, inkFrames, inkVars, openInkDebug, openInkForTask, handleChoose, handleCloseInkModal, inkStatCheck } = useInk({ state, dispatch })
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
@@ -93,7 +93,9 @@ export default function App() {
         frames={inkFrames}
         statsVars={inkVars}
         onChoose={handleChoose}
+        inkStatCheck={inkStatCheck}
       />
+      {/* Debug stat-check modal disabled in production flow */}
       <DebugControlsModal
         open={debugControlsOpen}
         onClose={() => setDebugControlsOpen(false)}

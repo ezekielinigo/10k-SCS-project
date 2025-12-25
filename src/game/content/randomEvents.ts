@@ -32,7 +32,7 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     title: "Chrome Spike Overload",
     description: "Your neural implant spikes, forcing you to reroute biofeedback.",
     scope: "world",
-    tags: ["cyberware", "health", "tech"],
+    tags: ["cyberware", "world", "tech"],
     taskGraphId: "chrome_spike_overload",
     inkSource: "/src/ink/event_world.json",
   },
@@ -86,6 +86,16 @@ const RANDOM_EVENT_TEMPLATES: Record<string, RandomEventTemplate> = {
     taskGraphId: "risky_hack",
     inkSource: "/src/ink/event_world.json",
   },
+  datacache_encounter: {
+    id: "datacache_encounter",
+    kind: "randomEvent",
+    title: "Datacache Encounter",
+    description: "You find a hidden datacache; accessing it could yield secrets or traps.",
+    scope: "world",
+    tags: ["hacking", "data", "tech"],
+    taskGraphId: "datacache_encounter",
+    inkSource: "/src/ink/event_world.json",
+  }
 }
 
 export const listRandomEventTemplates = (): RandomEventTemplate[] =>

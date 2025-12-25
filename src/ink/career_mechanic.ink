@@ -16,6 +16,9 @@ VAR delta_money = 0
 VAR delta_stress = 0
 VAR delta_health = 0
 VAR delta_humanity = 0
+VAR delta_engineering = 0
+VAR delta_int = 0
+VAR delta_ref = 0
 // External functions provided by the game engine
 EXTERNAL hasStat (name, min)
 EXTERNAL hasMoney (amount)
@@ -25,157 +28,64 @@ EXTERNAL hasMoney (amount)
 // =============================================================
 
 === mechanic_apprentice_shift ===
-The garage floor roars awake. Steam hisses through cracked vents. Which station do you grab?
+The garage floor roars awake. Steam hisses through cracked vents. As the junior on duty, you get pulled to the next urgent task.
 
-+ Tune up cars
-    -> tune
+~ temp _pick = RANDOM(1,3)
 
-+ Handle diagnostics
-    -> diagnostics
-
-=== tune ===
-Lifted groundcars hover above you, humming with unstable charge. Clients pace outside, impatient.
-
-+ Keep a steady pace
-    ~ outcome = "success"
-    ~ delta_money = 120
-    ~ delta_stress = -5
-    The shift ends smoothly. You finish on time with only minor burns.
-    -> END
-
-+ Overclock the lift to clear backlog
-    The lift groans as you push it beyond safety tolerances.
-    -> misfire
-
-=== diagnostics ===
-The Valkarna diagnostic console vomits error codes. The system flickers in neon-red warnings.
-
-{ hasStat("int", 7):
-    + Triple-check the firmware
-        You dive deep into Valkarna firmware and catch a corrupted packet.
-    ~ outcome = "great_success"
-    ~ delta_money = 250
-    ~ delta_stress = -15
-    ~ delta_humanity = 3
-    -> END
-- else:
-    ~ outcome = "failure"
-    ~ delta_money = -60
-    ~ delta_stress = 12
+{
+    - _pick == 1: -> apprentice_tune
+    - _pick == 2: -> apprentice_diag
+    - _pick == 3: -> apprentice_quickfix
 }
 
-+ Rush the diagnostics
-    The backlog is massive; corners are cut.
-    ~ outcome = "failure"
-    ~ delta_money = -60
-    ~ delta_stress = 12
-    -> END
-
-+ Trace the weird knocking noise
-    You isolate the anomaly to a faulty injector coil.
-    -> misfire
-
-=== misfire ===
-A Vulcamax engine misfires violently. Sparks scatter across the bay, and a client starts panicking.
-
-{ hasStat("chr", 6):
-    + Calm the client and stabilize wiring
-        You stabilize the wiring and walk the client through your plan.
-    ~ outcome = "success"
-    ~ delta_money = 120
-    ~ delta_stress = -5
-    -> END
+=== apprentice_tune ===
+// A noisy tune-up station with a balky carburetor — hands-on work.
+{ hasStat("engineering", "11,14"):
+	 ~ outcome = "success"
+	 ~ delta_money = 100
+	 ~ delta_engineering = 1
+	 ~ delta_stress = -3
+	 You methodically reflow connectors, recalibrate the timing, and the engine sings again.
+	 -> END
+ - else:
+	 ~ outcome = "failure"
+	 ~ delta_money = -20
+	 ~ delta_stress = 6
+	 You miss a worn gasket and the car coughs; the client grumbles.
+	 -> END
 }
 
-{ hasStat("ref", 6):
-    + Dive in and reroute power manually
-        With lightning reflexes, you bypass the faulty regulators.
-    ~ outcome = "great_success"
-    ~ delta_money = 250
-    ~ delta_stress = -15
-    ~ delta_humanity = 3
-    -> END
+=== apprentice_diag ===
+// Diagnostic console throwing cryptic error codes — logic and pattern matching.
+{ hasStat("int", "8,10"):
+	 ~ outcome = "great_success"
+	 ~ delta_money = 180
+	 ~ delta_int = 1
+	 ~ delta_stress = -6
+	 You trace a corrupted packet, patch the firmware and extract bonus billable time.
+	 -> END
+ - else:
+	 ~ outcome = "failure"
+	 ~ delta_money = -40
+	 ~ delta_stress = 8
+	 The fix stalls and you reboot the module; the issue lingers.
+	 -> END
 }
 
-+ Call the supervisor to take over
-    You hand it off. No shame, but no glory either.
-    ~ outcome = "failure"
-    ~ delta_money = -60
-    ~ delta_stress = 12
-    -> END
-
-+ Panic and hit the wrong circuit
-    Sparks explode; sensors scream.
-    ~ outcome = "great_failure"
-    ~ delta_money = -150
-    ~ delta_stress = 20
-    ~ delta_health = -10
-    -> END
-
-
-// =============================================================
-//  MECHANIC SENIOR SHIFT
-// =============================================================
-
-=== mechanic_senior_shift ===
-The garage is buzzing with activity. Junior mechanics look to you for guidance.
-+ Oversee engine repairs
-    -> engine_repairs
-+ Manage customer relations
-    -> customer_relations
-
-=== engine_repairs ===
-A high-profile client's vehicle has a critical engine failure. Time is ticking.
-{ hasStat("int", 8):
-    + Diagnose the engine personally
-        You identify a rare fuel injector fault.
-    ~ outcome = "great_success"
-    ~ delta_money = 400
-    ~ delta_stress = -10
-    ~ delta_humanity = 5
-    -> END
-- else:
-    ~ outcome = "failure"
-    ~ delta_money = -100
-    ~ delta_stress = 15
+=== apprentice_quickfix ===
+// A frantic client demands instant action — fast hands and steady nerves.
+{ hasStat("ref", "0,7"):
+	 ~ outcome = "success"
+	 ~ delta_money = 80
+	 ~ delta_ref = 1
+	 ~ delta_stress = -2
+	 You improvise a quick bypass and the vehicle limps out with a grateful nod.
+	 -> END
+ - else:
+	 ~ outcome = "great_failure"
+	 ~ delta_money = -120
+	 ~ delta_stress = 14
+	 ~ delta_health = -5
+	 Your quick attempt backfires; sparks fly and the client is furious.
+	 -> END
 }
-+ Delegate to a junior mechanic
-    The junior fumbles the repair under pressure.
-    ~ outcome = "failure"
-    ~ delta_money = -100
-    ~ delta_stress = 15
-    -> END
-+ Rush the repair to meet the deadline
-    Mistakes are made in the haste.
-    ~ outcome = "great_failure"
-    ~ delta_money = -250
-    ~ delta_stress = 25
-    ~ delta_health = -5
-    -> END
-=== customer_relations ===
-A disgruntled customer storms in, furious about a previous repair.
-{ hasStat("chr", 7):
-    + Calm the customer with empathy
-        You listen and address their concerns sincerely.
-    ~ outcome = "great_success"
-    ~ delta_money = 300
-    ~ delta_stress = -10
-    ~ delta_humanity = 5
-    -> END
-- else:
-    ~ outcome = "failure"
-    ~ delta_money = -80
-    ~ delta_stress = 10
-}
-+ Offer a discount on future services
-    The customer grudgingly accepts.
-    ~ outcome = "success"
-    ~ delta_money = -50
-    ~ delta_stress = -5
-    -> END
-+ Stand your ground and refuse to budge
-    The customer leaves, vowing never to return.
-    ~ outcome = "great_failure"
-    ~ delta_money = -150
-    ~ delta_stress = 15
-    -> END 

@@ -174,3 +174,57 @@ export function useModalTransition(open: boolean, onClose: () => void, durationM
 }
 
 export default { chooseIndefiniteArticle, useModalDismiss, useModalTransition }
+
+// Shared delta pill renderer used by LogPanel and StatCheckModal
+export function renderDeltaPills(deltas?: Record<string, number>) {
+  if (!deltas) return null
+  const entries = Object.entries(deltas).filter(([, v]) => Number(v) !== 0)
+  if (entries.length === 0) return null
+
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+      {entries.map(([key, rawValue]) => {
+        const lower = String(key).toLowerCase()
+        const def = (VITAL_DEFINITIONS as Record<string, any>)[lower as string] as VitalDefinition | undefined
+
+        const value = Number(rawValue) || 0
+        const signed = value > 0 ? `+${value}` : `${value}`
+        const positive = value > 0
+        const isStress = lower === "stress"
+
+        let fg = positive ? "#34d399" : "#f87171"
+        let bg = positive ? "#34d3991a" : "#f871711a"
+        let border = positive ? "#34d39940" : "#f8717140"
+        if (isStress) {
+          fg = positive ? "#f87171" : "#34d399"
+          bg = positive ? "#f871711a" : "#34d3991a"
+          border = positive ? "#f8717140" : "#34d39940"
+        }
+
+        const pretty = (s: string) => String(s).replace(/([A-Z])/g, " $1").trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")
+
+        return (
+          <span
+            key={`${key}-${signed}`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "4px 10px",
+              borderRadius: 999,
+              background: bg,
+              color: fg,
+              border: `1px solid ${border}`,
+              fontSize: "0.85rem",
+              lineHeight: 1.2,
+            }}
+          >
+            {def ? <def.Icon size={14} /> : null}
+            <span style={{ fontWeight: 600 }}>{signed}</span>
+            {!def ? <span style={{ marginLeft: 6, color: "#ddd" }}>{pretty(key)}</span> : null}
+          </span>
+        )
+      })}
+    </div>
+  )
+}

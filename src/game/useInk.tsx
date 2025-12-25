@@ -1,10 +1,10 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { listCareers } from "./content/careers"
 import { getRandomEventTemplateById } from "./content/randomEvents"
 import { describeTask } from "./taskLookup"
 import type { GameState } from "./types"
 import type { GameAction } from "./gameReducer"
-import { createInkStory, resolveInkFrames, type InkFrame } from "./ink"
+import { createInkStory, onInkStatCheck, resolveInkFrames, revealRandomOptionsForEncounter, type InkFrame, type InkStatCheckEvent } from "./ink"
 
 type UseInkArgs = {
   state: GameState
@@ -19,6 +19,9 @@ type UseInkReturn = {
   openInkForTask: (taskId: string, taskGraphId: string) => Promise<void>
   handleChoose: (choiceIndex: number) => void
   handleCloseInkModal: () => void
+  inkStatCheck: InkStatCheckEvent | null
+  inkStatCheckOpen: boolean
+  closeInkStatCheck: () => void
 }
 
 export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
@@ -27,6 +30,31 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
   const [inkFrames, setInkFrames] = useState<InkFrame[]>([])
   const [inkTaskPendingResolve, setInkTaskPendingResolve] = useState<string | null>(null)
   const [inkTaskPendingGraphId, setInkTaskPendingGraphId] = useState<string | null>(null)
+  const [inkStatCheck, setInkStatCheck] = useState<InkStatCheckEvent | null>(null)
+  const [inkStatCheckOpen, setInkStatCheckOpen] = useState(false)
+
+  useEffect(() => {
+    const unsubscribe = onInkStatCheck(evt => {
+      setInkStatCheck(evt)
+      setInkStatCheckOpen(true)
+      const label = evt.subSkillKey
+        ? `${evt.mainStatKey.toUpperCase()}/${evt.subSkillKey.toUpperCase()}`
+        : evt.mainStatKey.toUpperCase()
+      const text = [
+        "STAT CHECK",
+        label,
+        `d20=${evt.result.d20}`,
+        `main=+${evt.result.mainStat}`,
+        `sub=+${evt.result.subSkillBonus}`,
+        `total=${evt.result.total}`,
+        `vs DC ${evt.dc}`,
+        evt.result.success ? "SUCCESS" : "FAIL",
+        evt.result.critical ? `(${evt.result.critical})` : "",
+      ].filter(Boolean).join(" ")
+      dispatch({ type: "ADD_LOG", text })
+    })
+    return () => { unsubscribe() }
+  }, [dispatch])
 
   const openInkDebug = async () => {
     try {
@@ -75,6 +103,9 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
       }
 
       const story = await createInkStory(taskGraphId, state.player, inkSource)
+      if (task?.kind === "randomEvent") {
+        revealRandomOptionsForEncounter(story)
+      }
       setInkStory(story)
       setInkFrames(resolveInkFrames(story))
       setInkOpen(true)
@@ -212,6 +243,11 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
     setInkTaskPendingGraphId(null)
   }
 
+  const closeInkStatCheck = () => {
+    setInkStatCheckOpen(false)
+    setInkStatCheck(null)
+  }
+
   return {
     inkOpen,
     inkFrames,
@@ -220,6 +256,9 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
     openInkForTask,
     handleChoose,
     handleCloseInkModal,
+    inkStatCheck,
+    inkStatCheckOpen,
+    closeInkStatCheck,
   }
 }
 

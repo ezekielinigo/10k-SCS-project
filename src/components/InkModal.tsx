@@ -1,18 +1,56 @@
 // React import not required with new JSX runtime
-import iconMoney from "../assets/icon_money.png"
-import iconStress from "../assets/icon_stress.png"
-import iconHealth from "../assets/icon_health.png"
-import iconDefault from "../assets/icon_default.png"
 import ModalShell from "./ModalShell"
+import StatCheckModal from "./StatCheckModal"
+import type { InkStatCheckEvent } from "../game/ink"
 
 type InkFrame = { text: string; choices: any[] }
 
-export default function InkModal({ open, onClose, frames, onChoose, statsVars }: { open: boolean; onClose: () => void; frames: InkFrame[]; onChoose: (choiceIndex: number) => void; statsVars?: any }) {
+export default function InkModal({ open, onClose, frames, onChoose, statsVars, inkStatCheck }: { open: boolean; onClose: () => void; frames: InkFrame[]; onChoose: (choiceIndex: number) => void; statsVars?: any; inkStatCheck?: InkStatCheckEvent | null }) {
   return (
     <>
       {frames.map((frame, idx) => {
         const isTop = idx === frames.length - 1
         if (isTop) {
+          const noChoices = (frame.choices?.length ?? 0) === 0
+          if (noChoices) {
+            const vars = statsVars ?? {}
+            const deltas: Record<string, number> = {}
+            const dm = Number(vars.delta_money ?? 0)
+            const ds = Number(vars.delta_stress ?? 0)
+            const dh = Number(vars.delta_health ?? 0)
+            const dhu = Number(vars.delta_humanity ?? 0)
+            if (dm !== 0) deltas["Money"] = dm
+            if (ds !== 0) deltas["Stress"] = ds
+            if (dh !== 0) deltas["Health"] = dh
+            if (dhu !== 0) deltas["Humanity"] = dhu
+
+            // include skill/subskill deltas if present
+            Object.keys(vars).forEach(k => {
+              if (!k.startsWith("delta_")) return
+              const val = Number(vars[k] ?? 0)
+              if (!val || ["delta_money", "delta_stress", "delta_health", "delta_humanity"].includes(k)) return
+              const name = k.slice(6)
+              deltas[name.charAt(0).toUpperCase() + name.slice(1)] = val
+            })
+
+            return (
+              <StatCheckModal
+                key={idx}
+                open={open}
+                onClose={onClose}
+                title="Task Result"
+                dc={inkStatCheck?.dc ?? 0}
+                mainStatKey={inkStatCheck?.mainStatKey}
+                mainStatValue={inkStatCheck?.result?.mainStat}
+                subSkillKey={inkStatCheck?.subSkillKey}
+                subSkillValue={inkStatCheck?.result?.subSkillBonus}
+                initialResult={inkStatCheck?.result}
+                autoRun={false}
+                bodyText={frame.text}
+                deltas={deltas}
+              />
+            )
+          }
           return (
             <ModalShell key={idx} open={open} onClose={onClose} preventClose={true} durationMs={200} style={{ padding: "1.25rem", width: "520px", borderRadius: 8, background: ((): string => {
                   const outcome = (statsVars as any)?.outcome ?? null
@@ -26,7 +64,7 @@ export default function InkModal({ open, onClose, frames, onChoose, statsVars }:
                   if (outcome === "great_success") return "#000"
                   return "#fff"
                 })() }}>
-                  {({ requestClose }) => (
+                  {() => (
                     <>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}></h3>
@@ -45,45 +83,7 @@ export default function InkModal({ open, onClose, frames, onChoose, statsVars }:
                           </button>
                         ))}
 
-                        {isTop && (frame.choices?.length ?? 0) === 0 && (
-                          <>
-                            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                              {(() => {
-                                const vars = statsVars ?? {}
-                                const items: { icon: string; value: number; key: string }[] = []
-                                const dm = Number(vars.delta_money ?? 0)
-                                const ds = Number(vars.delta_stress ?? 0)
-                                const dh = Number(vars.delta_health ?? 0)
-                                const dhu = Number(vars.delta_humanity ?? 0)
-                                if (dm !== 0) items.push({ icon: iconMoney, value: dm, key: "money" })
-                                if (ds !== 0) items.push({ icon: iconStress, value: ds, key: "stress" })
-                                if (dh !== 0) items.push({ icon: iconHealth, value: dh, key: "health" })
-                                if (dhu !== 0) items.push({ icon: iconDefault, value: dhu, key: "humanity" })
-
-                                if (items.length === 0) return null
-
-                                return (
-                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-                                    <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", marginBottom: "0.25rem" }}>
-                                      {items.map(it => (
-                                        <div key={it.key} style={{ flexDirection: "column", width: 90, height: 110, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff", borderRadius: 6, padding: 4, background: "#000" }}>
-                                          <img src={it.icon} alt={it.key} style={{ minWidth: 70, minHeight: 70, imageRendering: 'pixelated' as any }} />
-                                          <div style={{ color: "#fff", fontWeight: 600, marginTop: "0.5rem" , fontSize: "0.70rem" }}>
-                                            {it.key === "money" ? `${it.value > 0 ? '+ ' : '- '}♦︎ ${Math.abs(it.value)}` : `${it.value > 0 ? '+ ' : '- '}${Math.abs(it.value)} ${it.key}`}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )
-                              })()}
-                            </div>
-
-                            <button style={{ textAlign: "center", padding: "0.5rem", borderRadius: 6 }} onClick={requestClose}>
-                              OK
-                            </button>
-                          </>
-                        )}
+                        {/* Choices with navigation remain unchanged; terminal screens are handled above by StatCheckModal */}
                       </div>
                     </>
                   )}
