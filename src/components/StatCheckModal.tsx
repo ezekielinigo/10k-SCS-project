@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useSpring, animated } from "react-spring"
 import { FaDiceD20 } from "react-icons/fa"
 import ModalShell from "./ModalShell"
 import { makeRng, performStatCheck, type StatCheckMapping, type StatCheckResult } from "../game/statCheck"
@@ -80,61 +81,121 @@ export default function StatCheckModal({ open, onClose, title = "Stat Check", dc
     return result.success ? "SUCCESS" : "FAILURE"
   }, [result])
 
+  const targetD20 = result?.d20 ?? null
+  const [rollSpring, rollApi] = useSpring(() => ({ val: targetD20 ?? 0, immediate: false }))
+  const rollText = rollSpring.val.to(v => Math.round(v).toFixed(0))
+  const [revealSpring, revealApi] = useSpring(() => ({ opacity: 0, transform: "translateY(6px)" }))
+  const [modifiersSpring, modifiersApi] = useSpring(() => ({ opacity: 1, transform: "translateY(0px)" }))
+  const MotionDiv = animated.div as any
+
+  useEffect(() => {
+    if (result == null) {
+      // reset reveal and modifiers when there's no result
+      revealApi.start({ opacity: 0, transform: "translateY(6px)", immediate: true })
+      modifiersApi.start({ opacity: 1, transform: "translateY(0px)", immediate: true })
+      return
+    }
+
+    const target = result.d20
+    const total = result.total
+
+    // sequence: fast sweep to 20 -> settle to target d20 -> hide modifiers -> animate from d20 -> total -> reveal outcome
+    rollApi.start({
+      from: { val: 1 },
+      reset: true,
+      to: async next => {
+        // fast spring to 20
+        await next({ val: 20, config: { mass: 1, tension: 1000, friction: 60, clamp: false } })
+        // gentle spring to the rolled d20
+        await next({ val: target, config: { mass: 1, tension: 300, friction: 40, clamp: true } })
+
+        // If the roll is a natural 1 (critical fail), skip hiding modifiers
+        // and the second count-up; immediately reveal the outcome instead.
+        if (target === 1) {
+          await revealApi.start({ opacity: 1, transform: "translateY(0)", config: { mass: 1, tension: 180, friction: 18 } })
+          return
+        }
+
+        // hide modifiers with a short reverse-reveal
+        await modifiersApi.start({ opacity: 0, transform: "translateY(-6px)", config: { mass: 1, tension: 160, friction: 20 } })
+
+        // animate the displayed number from d20 -> total (includes modifiers)
+        await next({ val: total, config: { mass: 1, tension: 300, friction: 40, clamp: true } })
+
+        // finalize: reveal outcome/body/actions
+        await revealApi.start({ opacity: 1, transform: "translateY(0)", config: { mass: 1, tension: 180, friction: 18 } })
+      },
+    })
+  }, [result, rollApi, revealApi, modifiersApi])
+
   return (
     <ModalShell open={open} onClose={onClose} durationMs={180} style={{ padding: "1rem", minWidth: 360, borderRadius: 8, background: "#07070b", border: "1px solid #222" }}>
       {({ requestClose }) => (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <strong>{title}</strong>
-            <button onClick={requestClose} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer" }}>✕</button>
-          </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 16 }}>{title}</div>
 
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
 
-            <div style={{ display: "flex", alignItems: "stretch", gap: 12, flexDirection: "column", width: 140, margin: "0 auto" }}>
+            <div style={{ display: "flex", alignItems: "center", flexDirection: "column", width: 360, margin: "0 auto" }}>
               <div style={{ width: "100%", textAlign: "center", paddingBottom: 6 }}>
                 <div style={{ fontSize: 12, color: "#aaa", letterSpacing: 1 }}>DIFFICULTY CLASS:</div>
                 <div style={{ fontSize: 28, fontWeight: 700 }}>{dc}</div>
               </div>
 
-              <div style={{ width: 140, height: 140, borderRadius: 14, background: "#0e0f14", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "1px solid #333", padding: 8, boxSizing: "border-box" }}>
-                <FaDiceD20 style={{ fontSize: 72, color: "#f7d07a" }} />
-                <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center", marginTop: 10 }}>
-                  <div style={{ fontSize: 24, fontWeight: 800 }}>{result ? result.d20 : "—"}</div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                    <div style={{ color: "#bbb", fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>Modifiers</div>
-                    {modifiersLines.map((line, idx) => (
-                      <div key={line + idx} style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{line}</div>
-                    ))}
+              <div style={{ width: 100, height: 140, alignSelf: "center", borderRadius: 14, background: "#0e0f14", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, border: "1px solid #333", padding: 12, boxSizing: "border-box" }}>
+                <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, boxSizing: "border-box" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginTop: 30 }}>
+                    <FaDiceD20 size={72} color="#f7d07a" />
                   </div>
+                  <div style={{ fontSize: 40, fontWeight: 800, textAlign: "center", minHeight: 40 }}>
+                    {result ? (
+                      // @ts-expect-error react-spring types lag React 19 children typing
+                      <animated.div>{rollText}</animated.div>
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                  {/* modifiers: animate hide after initial roll */}
+                  <MotionDiv style={modifiersSpring as any}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", marginTop: 4, minWidth: 1000 }}>
+                      {modifiersLines.map((line, idx) => (
+                        <div key={line + idx} style={{ color: "#bbb", fontSize: 12, fontWeight: "normal", textAlign: "center" }}>{line}</div>
+                      ))}
+                    </div>
+                  </MotionDiv>
                 </div>
               </div>
 
             </div>
           </div>
 
-          <div style={{ padding: "0.6rem", borderRadius: 8, background: "#0b0c0f", border: "1px solid #2a2a2a", textAlign: "center" }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: result ? (result.success ? "#9cf5a6" : "#f78") : "#ccc" }}>
-              {outcomeLabel}
+          {/* outcome: revealed after roll completes */}
+          <MotionDiv style={revealSpring as any}>
+            <div style={{ padding: "0.6rem", borderRadius: 8, background: "#06060a", border: "1px solid #2a2a2a", textAlign: "center" }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: result ? (result.success ? "#9cf5a6" : "#f78") : "#ccc" }}>
+                {outcomeLabel}
+              </div>
             </div>
-            <div style={{ fontSize: 12, color: "#999", marginTop: 6 }}>
-              {result ? `Total: ${result.total} — Margin: ${result.margin >= 0 ? "+" + result.margin : result.margin}` : "No roll yet"}
-            </div>
-          </div>
+          </MotionDiv>
 
           {bodyText ? (
-            <div style={{ padding: "0.6rem", borderRadius: 8, background: "#06060a", border: "1px solid #1f1f1f", color: "#ddd", fontSize: 13 }}>
-              {bodyText}
-            </div>
+            <MotionDiv style={revealSpring as any}>
+              <div style={{ padding: "0.6rem", borderRadius: 8, background: "#06060a", border: "1px solid #1f1f1f", color: "#ddd", fontSize: 13 }}>
+                {bodyText}
+                {renderDeltaPills(deltas)}
+              </div>
+            </MotionDiv>
           ) : null}
 
-          {renderDeltaPills(deltas)}
 
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button onClick={runCheck}>Reroll</button>
-            <button onClick={requestClose}>Close</button>
-          </div>
+          <MotionDiv style={revealSpring as any}>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              {/* Reroll disabled for now — keep available for future debugging */}
+              {/* <button onClick={runCheck}>Reroll</button> */}
+              <button onClick={requestClose} style={{ flex: 1, minWidth: 0 }}>Close</button>
+            </div>
+          </MotionDiv>
         </div>
       )}
     </ModalShell>

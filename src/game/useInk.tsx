@@ -15,6 +15,7 @@ type UseInkReturn = {
   inkOpen: boolean
   inkFrames: InkFrame[]
   inkVars: any
+  inkTitle: string | null
   openInkDebug: () => Promise<void>
   openInkForTask: (taskId: string, taskGraphId: string) => Promise<void>
   handleChoose: (choiceIndex: number) => void
@@ -30,6 +31,7 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
   const [inkFrames, setInkFrames] = useState<InkFrame[]>([])
   const [inkTaskPendingResolve, setInkTaskPendingResolve] = useState<string | null>(null)
   const [inkTaskPendingGraphId, setInkTaskPendingGraphId] = useState<string | null>(null)
+  const [inkTitle, setInkTitle] = useState<string | null>(null)
   const [inkStatCheck, setInkStatCheck] = useState<InkStatCheckEvent | null>(null)
   const [inkStatCheckOpen, setInkStatCheckOpen] = useState(false)
 
@@ -37,21 +39,6 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
     const unsubscribe = onInkStatCheck(evt => {
       setInkStatCheck(evt)
       setInkStatCheckOpen(true)
-      const label = evt.subSkillKey
-        ? `${evt.mainStatKey.toUpperCase()}/${evt.subSkillKey.toUpperCase()}`
-        : evt.mainStatKey.toUpperCase()
-      const text = [
-        "STAT CHECK",
-        label,
-        `d20=${evt.result.d20}`,
-        `main=+${evt.result.mainStat}`,
-        `sub=+${evt.result.subSkillBonus}`,
-        `total=${evt.result.total}`,
-        `vs DC ${evt.dc}`,
-        evt.result.success ? "SUCCESS" : "FAIL",
-        evt.result.critical ? `(${evt.result.critical})` : "",
-      ].filter(Boolean).join(" ")
-      dispatch({ type: "ADD_LOG", text })
     })
     return () => { unsubscribe() }
   }, [dispatch])
@@ -71,6 +58,7 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
       const story = await createInkStory("mechanic_apprentice_shift", state.player, inkSource)
       setInkStory(story)
       setInkFrames(resolveInkFrames(story))
+      setInkTitle("Debug Ink")
       setInkOpen(true)
     } catch (err: any) {
       console.error("Ink debug open failed:", err)
@@ -83,6 +71,9 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
   const openInkForTask = async (taskId: string, taskGraphId: string) => {
     setInkTaskPendingResolve(taskId)
     setInkTaskPendingGraphId(taskGraphId)
+    const taskObj = state.tasks.find(t => t.id === taskId)
+    const taskTitle = taskObj ? describeTask(taskObj).title : String(taskId)
+    setInkTitle(taskTitle)
     try {
       const careers = listCareers()
       let inkSource: string | undefined
@@ -241,6 +232,7 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
     setInkStory(null)
     setInkTaskPendingResolve(null)
     setInkTaskPendingGraphId(null)
+    setInkTitle(null)
   }
 
   const closeInkStatCheck = () => {
@@ -252,6 +244,7 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
     inkOpen,
     inkFrames,
     inkVars: (inkStory as any)?.variablesState ?? {},
+    inkTitle,
     openInkDebug,
     openInkForTask,
     handleChoose,

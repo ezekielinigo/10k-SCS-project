@@ -5,7 +5,7 @@ import type { InkStatCheckEvent } from "../game/ink"
 
 type InkFrame = { text: string; choices: any[] }
 
-export default function InkModal({ open, onClose, frames, onChoose, statsVars, inkStatCheck }: { open: boolean; onClose: () => void; frames: InkFrame[]; onChoose: (choiceIndex: number) => void; statsVars?: any; inkStatCheck?: InkStatCheckEvent | null }) {
+export default function InkModal({ open, onClose, frames, onChoose, statsVars, inkStatCheck, title }: { open: boolean; onClose: () => void; frames: InkFrame[]; onChoose: (choiceIndex: number) => void; statsVars?: any; inkStatCheck?: InkStatCheckEvent | null; title?: string | null }) {
   return (
     <>
       {frames.map((frame, idx) => {
@@ -38,7 +38,7 @@ export default function InkModal({ open, onClose, frames, onChoose, statsVars, i
                 key={idx}
                 open={open}
                 onClose={onClose}
-                title="Task Result"
+                title={title ?? "Task Result"}
                 dc={inkStatCheck?.dc ?? 0}
                 mainStatKey={inkStatCheck?.mainStatKey}
                 mainStatValue={inkStatCheck?.result?.mainStat}

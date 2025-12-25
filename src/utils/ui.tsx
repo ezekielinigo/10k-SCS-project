@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { IconType } from "react-icons"
-import { FiHeart, FiZap, FiInstagram, FiCpu, FiEye } from "react-icons/fi"
-import { LuDiamond } from "react-icons/lu"
+import { FiHeart, FiZap, FiInstagram, FiEye } from "react-icons/fi"
+import { LuDiamond, LuBrainCircuit, LuBrain, LuBicepsFlexed, LuAperture, LuMessageCircle } from "react-icons/lu"
 
 export type VitalKey = "health" | "stress" | "humanity" | "looks" | "popularity" | "money"
 
@@ -19,10 +19,39 @@ type VitalDefinition = {
 export const VITAL_DEFINITIONS: Record<VitalKey, VitalDefinition> = {
   health: { key: "health", label: "Health", Icon: FiHeart, max: 100, enabled: true },
   stress: { key: "stress", label: "Stress", Icon: FiZap, max: 100, enabled: true },
-  humanity: { key: "humanity", label: "Humanity", Icon: FiCpu, max: 100, enabled: false },
+  humanity: { key: "humanity", label: "Humanity", Icon: LuBrainCircuit, max: 100, enabled: false },
   looks: { key: "looks", label: "Looks", Icon: FiEye, max: 100, enabled: false },
   popularity: { key: "popularity", label: "Popularity", Icon: FiInstagram, max: 100, enabled: false },
   money: { key: "money", label: "Money", Icon: LuDiamond, symbol: "♦", enabled: true },
+}
+
+type SkillDefinition = {
+  key: string
+  label: string
+  Icon: IconType
+}
+
+export const SKILL_DEFINITIONS: Record<string, SkillDefinition> = {
+  STR: { key: "STR", label: "Strength", Icon: LuBicepsFlexed },
+  INT: { key: "INT", label: "Intelligence", Icon: LuBrain },
+  REF: { key: "REF", label: "Reflexes", Icon: LuAperture },
+  CHR: { key: "CHR", label: "Charisma", Icon: LuMessageCircle },
+}
+
+// Map subskill keys to their parent main-skill abbreviations (used for pill icons)
+export const SUBSKILL_PARENT_ABBREV: Record<string, keyof typeof SKILL_DEFINITIONS> = {
+  athletics: "STR",
+  closeCombat: "STR",
+  heavyHandling: "STR",
+  hacking: "INT",
+  medical: "INT",
+  engineering: "INT",
+  marksmanship: "REF",
+  stealth: "REF",
+  mobility: "REF",
+  persuasion: "CHR",
+  deception: "CHR",
+  streetwise: "CHR",
 }
 
 // Primary vitals we surface in the player header.
@@ -185,8 +214,6 @@ export function renderDeltaPills(deltas?: Record<string, number>) {
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
       {entries.map(([key, rawValue]) => {
         const lower = String(key).toLowerCase()
-        const def = (VITAL_DEFINITIONS as Record<string, any>)[lower as string] as VitalDefinition | undefined
-
         const value = Number(rawValue) || 0
         const signed = value > 0 ? `+${value}` : `${value}`
         const positive = value > 0
@@ -203,25 +230,44 @@ export function renderDeltaPills(deltas?: Record<string, number>) {
 
         const pretty = (s: string) => String(s).replace(/([A-Z])/g, " $1").trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")
 
+        // Try vitals first (by lower-case key), then explicit skill abbrev, then subskill -> parent mapping
+        const vitalDef = (VITAL_DEFINITIONS as Record<string, any>)[lower as string] as VitalDefinition | undefined
+        const skillDef = (SKILL_DEFINITIONS as Record<string, any>)[String(key).toUpperCase()]
+        const parentAbbrev = SUBSKILL_PARENT_ABBREV[lower]
+        const parentSkillDef = parentAbbrev ? SKILL_DEFINITIONS[parentAbbrev] : undefined
+
+        const IconComponent: IconType | null = vitalDef ? vitalDef.Icon : skillDef ? skillDef.Icon : parentSkillDef ? parentSkillDef.Icon : null
+
+        // label for non-vitals: skill abbrev (if key is abbrev) or pretty name
+        let labelText: string | null = null
+        if (!vitalDef) {
+          if (skillDef) {
+            const isAbbrev = String(key).toUpperCase() === skillDef.key
+            labelText = isAbbrev ? skillDef.key : pretty(key)
+          } else {
+            labelText = pretty(key)
+          }
+        }
+        const text = labelText ? `${labelText} ${signed}` : signed
+
         return (
           <span
             key={`${key}-${signed}`}
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 6,
-              padding: "4px 10px",
+              gap: 5,
+              padding: "3px 6px",
               borderRadius: 999,
               background: bg,
               color: fg,
               border: `1px solid ${border}`,
-              fontSize: "0.85rem",
+              fontSize: "0.75rem",
               lineHeight: 1.2,
             }}
           >
-            {def ? <def.Icon size={14} /> : null}
-            <span style={{ fontWeight: 600 }}>{signed}</span>
-            {!def ? <span style={{ marginLeft: 6, color: "#ddd" }}>{pretty(key)}</span> : null}
+            {IconComponent ? <IconComponent size={12} strokeWidth={0.75} /> : null}
+            <span style={{ fontWeight: 1 }}>{text}</span>
           </span>
         )
       })}

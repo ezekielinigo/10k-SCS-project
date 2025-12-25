@@ -17,8 +17,8 @@ VAR delta_stress = 0
 VAR delta_health = 0
 VAR delta_humanity = 0
 VAR delta_engineering = 0
-VAR delta_int = 0
-VAR delta_ref = 0
+VAR delta_hacking = 0
+VAR delta_mobility = 0
 // External functions provided by the game engine
 EXTERNAL hasStat (name, min)
 EXTERNAL hasMoney (amount)
@@ -60,7 +60,7 @@ The garage floor roars awake. Steam hisses through cracked vents. As the junior 
 { hasStat("int", "8,10"):
 	 ~ outcome = "great_success"
 	 ~ delta_money = 180
-	 ~ delta_int = 1
+	 ~ delta_hacking = 1
 	 ~ delta_stress = -6
 	 You trace a corrupted packet, patch the firmware and extract bonus billable time.
 	 -> END
@@ -77,7 +77,7 @@ The garage floor roars awake. Steam hisses through cracked vents. As the junior 
 { hasStat("ref", "0,7"):
 	 ~ outcome = "success"
 	 ~ delta_money = 80
-	 ~ delta_ref = 1
+	 ~ delta_mobility = 1
 	 ~ delta_stress = -2
 	 You improvise a quick bypass and the vehicle limps out with a grateful nod.
 	 -> END
