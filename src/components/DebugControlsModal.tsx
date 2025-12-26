@@ -1,6 +1,7 @@
 import { useState } from "react"
 import ModalShell from "./ModalShell"
 import DebugStatCheckModal from "./DebugStatCheckModal"
+import ChangeDistrictModal from "./ChangeDistrictModal"
 import { performStatCheck, makeRng } from "../game/statCheck"
 import { useGame } from "../game/GameContext"
 import type { MainStatKey, SubSkillKey } from "../game/statCheck"
@@ -9,6 +10,7 @@ import type { StatCheckResult } from "../game/statCheck"
 export default function DebugControlsModal({ open, onClose, onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs, onOpenInk }: { open: boolean; onClose: () => void; onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void; onOpenInk?: () => void }) {
 	const { state, dispatch } = useGame()
 	const [statCheckOpen, setStatCheckOpen] = useState(false)
+	const [districtOpen, setDistrictOpen] = useState(false)
 	const [statCheckConfig, setStatCheckConfig] = useState<{ dc: number; mainStatKey: MainStatKey; subSkillKey: SubSkillKey } | null>(null)
 	const [statCheckResult, setStatCheckResult] = useState<StatCheckResult | null>(null)
 
@@ -53,6 +55,7 @@ export default function DebugControlsModal({ open, onClose, onShowProfile, onCha
 				<button onClick={() => { if (onOpenInk) onOpenInk() }}>DEBUG: ink</button>
 				<button onClick={() => { if (onShowProfile) onShowProfile() }}>DEBUG: Profile</button>
 				<button onClick={() => { if (onChangeJob) onChangeJob() }}>DEBUG: Change Job</button>
+				<button onClick={() => setDistrictOpen(true)}>DEBUG: Change District</button>
 				<button onClick={() => { if (onShowAffiliationMap) onShowAffiliationMap() }}>DEBUG: Affiliation Map</button>
 				<button onClick={() => { if (onShowRelationships) onShowRelationships() }}>DEBUG: Relationships</button>
 				<button onClick={() => { if (onShowDebugNpcs) onShowDebugNpcs() }}>DEBUG: Generate NPCs</button>
@@ -90,6 +93,8 @@ export default function DebugControlsModal({ open, onClose, onShowProfile, onCha
 					}}
 				/>
 			) : null}
+
+			<ChangeDistrictModal open={districtOpen} onClose={() => setDistrictOpen(false)} />
 			</>
 		)}
 		</ModalShell>

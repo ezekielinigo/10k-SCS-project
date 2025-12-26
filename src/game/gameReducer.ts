@@ -1,6 +1,7 @@
 import type { GameState, TaskState } from "./types"
 import { getJobById, getCareerForJobId } from "./content/careers"
 import { getAffiliationById } from "./content/affiliations"
+import { getDistrictById } from "./districts"
 import { chooseIndefiniteArticle } from "../utils/ui"
 import { generateMonthlyTasks } from "./taskGenerator"
 import { generateJobInstances } from "./generators/jobInstanceGenerator"
@@ -18,6 +19,7 @@ export type GameAction =
   | { type: "START_TASK_RUN"; taskId: string; taskGraphId: string }
   | { type: "MAKE_TASK_CHOICE"; choiceId: string }
   | { type: "SET_PLAYER_JOB"; jobId: string | null }
+  | { type: "SET_PLAYER_DISTRICT"; districtId: string }
   | { type: "REMOVE_JOB_ASSIGNMENT"; jobId: string }
   | { type: "TAKE_JOB_INSTANCE"; instanceId: string; replaceCareer?: boolean }
   | { type: "CONNECT_NPC"; npc: any; affiliations?: string[]; relationshipStrength?: number }
@@ -376,6 +378,26 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
             id: randId(),
             month: state.month,
             text: logText,
+          },
+        ],
+      }
+    }
+
+    case "SET_PLAYER_DISTRICT": {
+      const districtId = action.districtId
+      const districtName = getDistrictById(districtId)?.name ?? districtId
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          currentDistrict: districtId,
+        },
+        log: [
+          ...state.log,
+          {
+            id: randId(),
+            month: state.month,
+            text: `Player moved to ${districtName}`,
           },
         ],
       }
