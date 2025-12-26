@@ -116,17 +116,6 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
     setInkFrames(resolveInkFrames(inkStory))
   }
 
-  const applyInkOutcome = (vars: any) => {
-    try {
-      const outcome = vars.outcome
-      if (outcome && inkTaskPendingGraphId) {
-        dispatch({ type: "APPLY_OUTCOME", outcome: String(outcome), taskGraphId: inkTaskPendingGraphId })
-      }
-    } catch (e) {
-      // swallow
-    }
-  }
-
   const applyInkDeltas = (vars: any) => {
     try {
       const dm = Number(vars.delta_money ?? 0)
@@ -223,7 +212,6 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
 
   const handleCloseInkModal = () => {
     const vars = (inkStory as any)?.variablesState ?? {}
-    applyInkOutcome(vars)
     applyInkDeltas(vars)
     resolvePendingTaskAfterStory(vars)
 

@@ -21,6 +21,7 @@ export type StatCheckModalProps = {
   initialResult?: StatCheckResult
   bodyText?: string
   deltas?: Record<string, number>
+  minimal?: boolean
 }
 
 export default function StatCheckModal({ open, onClose, title = "Stat Check", dc, mainStatKey, mainStatValue = 0, subSkillKey, subSkillValue = 0, mapping = "quintile", rngSeed, autoRun = false, onResolve, initialResult, bodyText, deltas }: StatCheckModalProps) {
@@ -88,6 +89,28 @@ export default function StatCheckModal({ open, onClose, title = "Stat Check", dc
   const [modifiersSpring, modifiersApi] = useSpring(() => ({ opacity: 1, transform: "translateY(0px)" }))
   const MotionDiv = animated.div as any
 
+  // If caller requests a minimal view, render a simple modal that reuses
+  // this component but hides the dice/roll/outcome areas and only shows
+  // the body text and delta pills.
+  if ((arguments[0] as StatCheckModalProps).minimal) {
+    return (
+      <ModalShell open={open} onClose={onClose} durationMs={180} style={{ padding: "1rem", minWidth: 360, borderRadius: 8, background: "#07070b", border: "1px solid #222" }}>
+        {() => (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ textAlign: "center", fontWeight: 700, fontSize: 16 }}>{title}</div>
+            <div style={{ padding: "0.6rem", borderRadius: 8, background: "#06060a", border: "1px solid #1f1f1f", color: "#ddd", fontSize: 13 }}>
+              {bodyText}
+              {renderDeltaPills(deltas)}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={onClose} style={{ flex: 1, minWidth: 0 }}>Close</button>
+            </div>
+          </div>
+        )}
+      </ModalShell>
+    )
+  }
+
   useEffect(() => {
     if (result == null) {
       // reset reveal and modifiers when there's no result
@@ -109,15 +132,15 @@ export default function StatCheckModal({ open, onClose, title = "Stat Check", dc
         // gentle spring to the rolled d20
         await next({ val: target, config: { mass: 1, tension: 300, friction: 40, clamp: true } })
 
-        // If the roll is a natural 1 (critical fail), skip hiding modifiers
-        // and the second count-up; immediately reveal the outcome instead.
+        // hide modifiers with a short reverse-reveal (do this even on natural 1)
+        await modifiersApi.start({ opacity: 0, transform: "translateY(-6px)", config: { mass: 1, tension: 160, friction: 20 } })
+
+        // If the roll is a natural 1 (critical fail), keep the shown d20 as "1"
+        // and skip the second count-up to total; immediately reveal the outcome instead.
         if (target === 1) {
           await revealApi.start({ opacity: 1, transform: "translateY(0)", config: { mass: 1, tension: 180, friction: 18 } })
           return
         }
-
-        // hide modifiers with a short reverse-reveal
-        await modifiersApi.start({ opacity: 0, transform: "translateY(-6px)", config: { mass: 1, tension: 160, friction: 20 } })
 
         // animate the displayed number from d20 -> total (includes modifiers)
         await next({ val: total, config: { mass: 1, tension: 300, friction: 40, clamp: true } })
@@ -158,7 +181,7 @@ export default function StatCheckModal({ open, onClose, title = "Stat Check", dc
                   </div>
                   {/* modifiers: animate hide after initial roll */}
                   <MotionDiv style={modifiersSpring as any}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", marginTop: 4, minWidth: 1000 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", marginTop: 4, minWidth: 300 }}>
                       {modifiersLines.map((line, idx) => (
                         <div key={line + idx} style={{ color: "#bbb", fontSize: 12, fontWeight: "normal", textAlign: "center" }}>{line}</div>
                       ))}

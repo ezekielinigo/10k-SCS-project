@@ -95,7 +95,7 @@ export const createInitialGameState = (): GameState => {
     log: [
       {
         id: randId(),
-        month: 1,
+        month: 0,
         text: "You wake up in Downtown Ark. Fresh start.",
       },
     ],

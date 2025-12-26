@@ -1,6 +1,5 @@
 
-// JS will read this at the end of each story
-VAR outcome = "" 
+// JS will read deltas at the end of each story
 // VARIABLES
 VAR delta_money = 0
 VAR delta_stress = 0
@@ -25,13 +24,11 @@ Your neural implant spikes without warning. Vision blurs, HUD glitches, and your
 
 { ch_1:
     + Run a self-diagnostic throttle
-        { hasStat("int", "8,10"):
-            ~ outcome = "success"
+            { hasStat("int", "8,10"):
             ~ delta_stress = 4
             You reroute the spike and stabilize the implant.
             -> END
-        - else:
-            ~ outcome = "failure"
+            - else:
             ~ delta_stress = 10
             The script misfires and worsens the feedback.
             -> END
@@ -40,14 +37,12 @@ Your neural implant spikes without warning. Vision blurs, HUD glitches, and your
 
 { ch_2:
     + Flush coolant through the port (50c)
-        { hasMoney(50):
+            { hasMoney(50):
             ~ delta_money = -50
-            ~ outcome = "success"
             ~ delta_health = -2
             A harsh coolant flush chills the spike; you recover.
             -> END
         - else:
-            ~ outcome = "failure"
             ~ delta_stress = 6
             You fumble for funds as the spike keeps burning.
             -> END
@@ -58,14 +53,12 @@ Your neural implant spikes without warning. Vision blurs, HUD glitches, and your
     + Clamp the surge manually
         ~ delta_health = -6
         ~ delta_stress = 8
-        ~ outcome = "success"
         You pinch the channel shut with raw pain tolerance.
         -> END
 }
 
 { ch_4:
     + Overload the channel to burn it out
-        ~ outcome = "great_failure"
         ~ delta_health = -10
         ~ delta_stress = 12
         The spike arcs; your arm goes numb.
@@ -74,7 +67,6 @@ Your neural implant spikes without warning. Vision blurs, HUD glitches, and your
 
 { ch_5:
     + Ride the wave with controlled breathing
-        ~ outcome = "failure"
         ~ delta_stress = -4
         You weather the spike; it fades but leaves jitters.
         -> END
@@ -360,7 +352,7 @@ You find a quiet courtyard with a monk offering breathing guidance.
 
 { ch_3:
     { hasMoney(10):
-        + Donate 10c for incense
+        + [Donate 10c for incense]
             ~ delta_money = -10
             ~ delta_stress = -8
             The scent helps you settle deeply.
@@ -420,7 +412,6 @@ An opportunity to hack a small kiosk presents itself — payoffs vary.
             -> END
         - else:
             ~ delta_stress = 12
-            ~ outcome = "failure"
             Your script stalls; an alarm light blinks.
             -> END
         }
@@ -439,10 +430,8 @@ An opportunity to hack a small kiosk presents itself — payoffs vary.
     + Override the safety limiter
         { hasStat("int", "8,10"):
             You manually re-route the implant's spike channel.
-            ~ outcome = "great_success"
             -> END
         - else:
-            ~ outcome = "failure"
             ~ delta_stress = 10
             The override fails and heat builds dangerously.
             -> END
@@ -450,19 +439,17 @@ An opportunity to hack a small kiosk presents itself — payoffs vary.
 }
 
 { ch_4:
-    { hasMoney(200):
+        { hasMoney(200):
         + Trigger emergency auto-stabilizer (200c)
-            ~ outcome = "success"
             -> END
-    - else:
-            ~ outcome = "failure"
-    }
+        - else:
+            -> END
+        }
 }
 
 { ch_5:
     + Smash the emergency shutdown button
         The implant hard-reboots. Everything goes dark.
-        ~ outcome = "great_failure"
         -> END
 }
 

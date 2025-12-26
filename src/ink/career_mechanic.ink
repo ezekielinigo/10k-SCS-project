@@ -2,15 +2,13 @@
 //  TASK STORIES — INK TEMPLATE
 //  This file contains job/event/encounter-related interactive tasks.
 //  JS/TS will call the entry knot by name, e.g. "mechanic_apprentice_shift".
-//  All stories MUST set "outcome" before reaching -> END.
 // =============================================================
 
 // -------------------------------------------------------------
 //  GLOBAL VARIABLES
 // -------------------------------------------------------------
 
-// JS will read this at the end of each story
-VAR outcome = ""
+// JS will read deltas at the end of each story
 // Local accumulators for stat deltas — set these during the story and the app will apply them once at the end
 VAR delta_money = 0
 VAR delta_stress = 0
@@ -41,51 +39,45 @@ The garage floor roars awake. Steam hisses through cracked vents. As the junior 
 === apprentice_tune ===
 // A noisy tune-up station with a balky carburetor — hands-on work.
 { hasStat("engineering", "11,14"):
-	 ~ outcome = "success"
-	 ~ delta_money = 100
-	 ~ delta_engineering = 1
-	 ~ delta_stress = -3
-	 You methodically reflow connectors, recalibrate the timing, and the engine sings again.
-	 -> END
+ 	 ~ delta_money = 100
+ 	 ~ delta_engineering = 1
+ 	 ~ delta_stress = -3
+ 	 You methodically reflow connectors, recalibrate the timing, and the engine sings again.
+ 	 -> END
  - else:
-	 ~ outcome = "failure"
-	 ~ delta_money = -20
-	 ~ delta_stress = 6
-	 You miss a worn gasket and the car coughs; the client grumbles.
-	 -> END
+ 	 ~ delta_money = -20
+ 	 ~ delta_stress = 6
+ 	 You miss a worn gasket and the car coughs; the client grumbles.
+ 	 -> END
 }
 
 === apprentice_diag ===
 // Diagnostic console throwing cryptic error codes — logic and pattern matching.
 { hasStat("int", "8,10"):
-	 ~ outcome = "great_success"
-	 ~ delta_money = 180
-	 ~ delta_hacking = 1
-	 ~ delta_stress = -6
-	 You trace a corrupted packet, patch the firmware and extract bonus billable time.
-	 -> END
+ 	 ~ delta_money = 180
+ 	 ~ delta_hacking = 1
+ 	 ~ delta_stress = -6
+ 	 You trace a corrupted packet, patch the firmware and extract bonus billable time.
+ 	 -> END
  - else:
-	 ~ outcome = "failure"
-	 ~ delta_money = -40
-	 ~ delta_stress = 8
-	 The fix stalls and you reboot the module; the issue lingers.
-	 -> END
+ 	 ~ delta_money = -40
+ 	 ~ delta_stress = 8
+ 	 The fix stalls and you reboot the module; the issue lingers.
+ 	 -> END
 }
 
 === apprentice_quickfix ===
 // A frantic client demands instant action — fast hands and steady nerves.
 { hasStat("ref", "0,7"):
-	 ~ outcome = "success"
-	 ~ delta_money = 80
-	 ~ delta_mobility = 1
-	 ~ delta_stress = -2
-	 You improvise a quick bypass and the vehicle limps out with a grateful nod.
-	 -> END
+ 	 ~ delta_money = 80
+ 	 ~ delta_mobility = 1
+ 	 ~ delta_stress = -2
+ 	 You improvise a quick bypass and the vehicle limps out with a grateful nod.
+ 	 -> END
  - else:
-	 ~ outcome = "great_failure"
-	 ~ delta_money = -120
-	 ~ delta_stress = 14
-	 ~ delta_health = -5
-	 Your quick attempt backfires; sparks fly and the client is furious.
-	 -> END
+ 	 ~ delta_money = -120
+ 	 ~ delta_stress = 14
+ 	 ~ delta_health = -5
+ 	 Your quick attempt backfires; sparks fly and the client is furious.
+ 	 -> END
 }

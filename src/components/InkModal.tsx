@@ -32,38 +32,42 @@ export default function InkModal({ open, onClose, frames, onChoose, statsVars, i
               const name = k.slice(6)
               deltas[name.charAt(0).toUpperCase() + name.slice(1)] = val
             })
+            // If an ink-provided stat-check event exists, show the full StatCheckModal
+            if (inkStatCheck) {
+              return (
+                <StatCheckModal
+                  key={idx}
+                  open={open}
+                  onClose={onClose}
+                  title={title ?? "Task Result"}
+                  dc={inkStatCheck?.dc ?? 0}
+                  mainStatKey={inkStatCheck?.mainStatKey}
+                  mainStatValue={inkStatCheck?.result?.mainStat}
+                  subSkillKey={inkStatCheck?.subSkillKey}
+                  subSkillValue={inkStatCheck?.result?.subSkillBonus}
+                  initialResult={inkStatCheck?.result}
+                  autoRun={false}
+                  bodyText={frame.text}
+                  deltas={deltas}
+                />
+              )
+            }
 
+            // Otherwise reuse StatCheckModal in minimal mode to show only text + deltas
             return (
               <StatCheckModal
                 key={idx}
                 open={open}
                 onClose={onClose}
                 title={title ?? "Task Result"}
-                dc={inkStatCheck?.dc ?? 0}
-                mainStatKey={inkStatCheck?.mainStatKey}
-                mainStatValue={inkStatCheck?.result?.mainStat}
-                subSkillKey={inkStatCheck?.subSkillKey}
-                subSkillValue={inkStatCheck?.result?.subSkillBonus}
-                initialResult={inkStatCheck?.result}
-                autoRun={false}
                 bodyText={frame.text}
                 deltas={deltas}
+                minimal={true}
               />
             )
           }
           return (
-            <ModalShell key={idx} open={open} onClose={onClose} preventClose={true} durationMs={200} style={{ padding: "1.25rem", width: "520px", borderRadius: 8, background: ((): string => {
-                  const outcome = (statsVars as any)?.outcome ?? null
-                  if (outcome === "great_failure") return "#8b0000"
-                  if (outcome === "failure") return "#ce5408ff"
-                  if (outcome === "success") return "#0054a9ff"
-                  if (outcome === "great_success") return "#ffd21eff"
-                  return "#111"
-                })(), color: ((): string => {
-                  const outcome = (statsVars as any)?.outcome ?? null
-                  if (outcome === "great_success") return "#000"
-                  return "#fff"
-                })() }}>
+            <ModalShell key={idx} open={open} onClose={onClose} preventClose={true} durationMs={200} style={{ padding: "1.25rem", width: "520px", borderRadius: 8, background: "#111", color: "#fff" }}>
                   {() => (
                     <>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -106,19 +110,8 @@ export default function InkModal({ open, onClose, frames, onChoose, statsVars, i
           >
             <div
               style={{
-                background: ((): string => {
-                  const outcome = (statsVars as any)?.outcome ?? null
-                  if (outcome === "great_failure") return "#8b0000"
-                  if (outcome === "failure") return "#ce5408ff"
-                  if (outcome === "success") return "#0054a9ff"
-                  if (outcome === "great_success") return "#ffd21eff"
-                  return "#111"
-                })(),
-                color: ((): string => {
-                  const outcome = (statsVars as any)?.outcome ?? null
-                  if (outcome === "great_success") return "#000"
-                  return "#fff"
-                })(),
+                background: "#111",
+                color: "#fff",
                 padding: "1.25rem",
                 width: "520px",
                 borderRadius: 8,

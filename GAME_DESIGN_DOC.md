@@ -16,6 +16,7 @@
 		INT - logic solutions
 		REF - finesse / flexibility / mobility
 		CHR - social / bribe / work arounds
+		NPC - talk to certain NPCs to reveal hidden info
 		SKIP - abort / partial reward / escape (always shown)
 		item, cyberware, consumable based - 
 			if has_item:
