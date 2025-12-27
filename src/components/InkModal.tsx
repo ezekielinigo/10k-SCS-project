@@ -60,6 +60,7 @@ export default function InkModal({ open, onClose, frames, onChoose, statsVars, i
                 open={open}
                 onClose={onClose}
                 title={title ?? "Task Result"}
+                dc={0}
                 bodyText={frame.text}
                 deltas={deltas}
                 minimal={true}

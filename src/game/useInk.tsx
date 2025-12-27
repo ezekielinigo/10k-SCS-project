@@ -30,7 +30,7 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
   const [inkStory, setInkStory] = useState<any | null>(null)
   const [inkFrames, setInkFrames] = useState<InkFrame[]>([])
   const [inkTaskPendingResolve, setInkTaskPendingResolve] = useState<string | null>(null)
-  const [inkTaskPendingGraphId, setInkTaskPendingGraphId] = useState<string | null>(null)
+  const [_inkTaskPendingGraphId, setInkTaskPendingGraphId] = useState<string | null>(null)
   const [inkTitle, setInkTitle] = useState<string | null>(null)
   const [inkStatCheck, setInkStatCheck] = useState<InkStatCheckEvent | null>(null)
   const [inkStatCheckOpen, setInkStatCheckOpen] = useState(false)
@@ -222,6 +222,16 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
     setInkTaskPendingGraphId(null)
     setInkTitle(null)
   }
+
+  // Auto-open any active task run (e.g., travel-triggered random events)
+  useEffect(() => {
+    if (!state.activeTaskRun) return
+    if (inkOpen) return
+
+    openInkForTask(state.activeTaskRun.originTaskId, state.activeTaskRun.taskGraphId)
+    dispatch({ type: "CONSUME_ACTIVE_TASK_RUN" })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.activeTaskRun])
 
   const closeInkStatCheck = () => {
     setInkStatCheckOpen(false)

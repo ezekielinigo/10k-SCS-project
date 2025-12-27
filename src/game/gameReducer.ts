@@ -1,18 +1,19 @@
-import type { GameState, TaskState } from "./types"
+import type { GameState, TaskState, PendingTaskRun } from "./types"
 import { getJobById, getCareerForJobId } from "./content/careers"
 import { getAffiliationById } from "./content/affiliations"
-import { getDistrictById } from "./districts"
-import { chooseIndefiniteArticle } from "../utils/ui"
+import { findRoute, formatRoute, buildTravelLogText } from "./map"
 import { generateMonthlyTasks } from "./taskGenerator"
-import { generateJobInstances } from "./generators/jobInstanceGenerator"
-import { listCareers } from "./content/careers"
+import { chooseIndefiniteArticle } from "../utils/ui"
 import { getTaskGraphById, OUTCOME_DEFINITIONS, TASK_OUTCOME_OVERRIDES } from "./content/tasks"
+import { selectEventForDistrictTags, createRandomEventTaskFromTemplate } from "./content/randomEvents"
+// random event helpers moved to content; reducer no longer imports them here
 
 export type GameAction =
   | { type: "ADVANCE_MONTH" }
   | { type: "ADD_LOG"; text: string; deltas?: Record<string, number> }
   | { type: "SET_TASKS"; tasks: TaskState[] }
   | { type: "RESOLVE_TASK"; taskId: string }
+  | { type: "CONSUME_ACTIVE_TASK_RUN" }
   | { type: "APPLY_STATS_DELTA"; delta: Partial<{ health: number; humanity: number; stress: number; money: number }> }
   | { type: "APPLY_SKILL_DELTAS"; skillDeltas?: Record<string, number>; subSkillDeltas?: Record<string, number> }
   | { type: "APPLY_OUTCOME"; outcome: string; taskGraphId?: string }
@@ -26,11 +27,28 @@ export type GameAction =
 
 const randId = () => Math.random().toString(36).slice(2)
 
-function pick<T>(value: T | T[]): T {
-  return Array.isArray(value)
-    ? value[Math.floor(Math.random() * value.length)]
-    : value;
+const withoutPendingTask = (runs: PendingTaskRun[] | undefined, taskId: string): PendingTaskRun[] =>
+  (runs ?? []).filter(run => run.taskId !== taskId)
+
+const ensureActiveTaskRun = (state: GameState): GameState => {
+  const queue = state.pendingTaskRuns ?? []
+  if (state.activeTaskRun || queue.length === 0) {
+    return { ...state, pendingTaskRuns: queue }
+  }
+
+  const [next, ...rest] = queue
+  return {
+    ...state,
+    pendingTaskRuns: rest,
+    activeTaskRun: {
+      taskGraphId: next.taskGraphId,
+      originTaskId: next.taskId,
+      currentNodeId: null,
+    },
+  }
 }
+
+
 
 // Resolve affiliation ids for a given job assignment (posting-linked or career-linked)
 function getAffiliationIdsForJob(state: GameState, jobId: string, memberId: string, jobInstances?: Record<string, any>): string[] {
@@ -78,100 +96,48 @@ function rebuildPlayerMemberships(state: GameState, nextAssignments: Record<stri
       reputation: currentMemberships[membershipId]?.reputation ?? 0,
     }
   }
-
   return nextMemberships
 }
 
-export const gameReducer = (state: GameState, action: GameAction): GameState => {
+export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
+
     case "ADVANCE_MONTH": {
       const newMonth = state.month + 1
-      const interimState: GameState = { ...state, month: newMonth }
-      const tasks = generateMonthlyTasks(interimState)
-      // generate fresh procedural job instances (replace previous)
-      try {
-        const careers = listCareers()
-        const templates = careers.flatMap(c => c.levels.map(l => l.id))
-
-        // determine player's current job, career, and affiliation
-        const assignment = Object.values(state.jobAssignments ?? {}).find(a => a.memberId === state.player.id)
-        const playerCareerId = assignment ? getCareerForJobId(assignment.jobId)?.id ?? null : null
-
-        // try to get affiliation from memberships first; fallback to filled job instance if present
-        const membership = Object.values(state.memberships ?? {}).find((m: any) => m.memberId === state.player.id)
-        const playerAffiliationId = membership ? membership.affiliationId ?? null : (() => {
-          const playerPosting = Object.values(state.jobInstances ?? {}).find((p: any) => p.filledBy === state.player.id)
-          return playerPosting ? playerPosting.affiliationId ?? null : null
-
-    
-        })()
-
-        const postings = generateJobInstances(templates, {
-          salaryJitter: 0.15,
-          maxListings: 5,
-          playerCareerId,
-          playerAffiliationId,
-          playerCurrentJobId: assignment?.jobId ?? null,
-        })
-        const jobInstances = postings.reduce<Record<string, any>>((m, p) => {
-          m[p.id] = p
-          return m
-        }, {})
-
-        return {
-          ...state,
-          month: newMonth,
-          tasks,
-          jobInstances,
+      const carryTasks = state.tasks.filter(t => !t.resolved && t.kind !== "job")
+      const newTasks = [...carryTasks, ...generateMonthlyTasks(state)]
+      return {
+        ...state,
+        month: newMonth,
+        tasks: newTasks,
         log: [
           ...state.log,
           {
             id: randId(),
             month: newMonth,
-            text: pick([
-              "Mayor Denies Allegations of Illegal Cyberware Donations from Corpo Syndicate",
-              "Mysterious EMP Pulse Blackouts District 7 for 3 Minutes, Authorities 'Investigating'",
-              "Netrunner Collective Claims Responsibility for Overnight Transit Shutdown",
-              "Food Printer Malfunction Causes Neon-Green Protein Sludge Recall",
-              "Biotech Firm Unveils New 'Emotion Regulator' Implant, Critics Raise Concerns",
-              "Gang Leader ‘ChromeJack’ Spotted in High-Security Zone, How Did He Get In?",
-              "Illegal Drone Racing Ring Busted Under Old MagRail Tunnels",
-              "Rising Radiation Levels Near the Dead Zone Prompt Evacuation Order",
-              "Street Vendors Protest New Microtax on Augmented Hands Payments",
-              "Corpo War Rumors Spike After CEO Found Dead in Encrypted Hotel Capsule",
-              "District 3 Water Supply Contaminated After Factory Coolant Leak",
-              "Arcology’s AI Assistant Glitches, Issues 2,000 False Eviction Notices",
-              "Black Market Cyberware Prices Triple After Border Checkpoint Crackdowns",
-              "Valkarna Auto Consortium Announces Layoffs Following Plant Explosion",
-              "Hyperloop Station Hijacked, Passengers Forced to Watch Pirate Broadcast",
-              "Synthetic Pets Firmware Update Causes Mass Runaways Across the City",
-              "Anonymous Tips Reveal Hidden Vault Beneath Decommissioned Police Precinct",
-              "Cyberpsychosis Cases Surge After Release of Experimental Brain Mod",
-              "Coastal Weather Shields Fail, Acid Rain Warning Issued for Entire Weekend",
-              "AI Judge Sentences Itself to Maintenance After 'Ethical Conflict Detected'"
-            ]),
-          },
-        ],
-        }
-      } catch (e) {
-        // if job instance generation fails, fall back to previous behavior without instances
-        return {
-          ...state,
-          month: newMonth,
-          tasks,
-          log: [
-            ...state.log,
-            {
-              id: randId(),
-              month: newMonth,
-              text: pick([
+            text: (() => {
+              const headlines = [
                 "Mayor Denies Allegations of Illegal Cyberware Donations from Corpo Syndicate",
                 "Mysterious EMP Pulse Blackouts District 7 for 3 Minutes, Authorities 'Investigating'",
                 "Netrunner Collective Claims Responsibility for Overnight Transit Shutdown",
-              ]),
-            },
-          ],
-        }
+                "Rising Radiation Levels Near the Dead Zone Prompt Evacuation Order",
+                "Street Vendors Protest New Microtax on Augmented Hands Payments",
+                "Corpo War Rumors Spike After CEO Found Dead in Encrypted Hotel Capsule",
+                "District 3 Water Supply Contaminated After Factory Coolant Leak",
+                "Arcology’s AI Assistant Glitches, Issues 2,000 False Eviction Notices",
+                "Black Market Cyberware Prices Triple After Border Checkpoint Crackdowns",
+                "Valkarna Auto Consortium Announces Layoffs Following Plant Explosion",
+                "Hyperloop Station Hijacked, Passengers Forced to Watch Pirate Broadcast",
+                "Synthetic Pets Firmware Update Causes Mass Runaways Across the City",
+                "Anonymous Tips Reveal Hidden Vault Beneath Decommissioned Police Precinct",
+                "Cyberpsychosis Cases Surge After Release of Experimental Brain Mod",
+                "Coastal Weather Shields Fail, Acid Rain Warning Issued for Entire Weekend",
+                "AI Judge Sentences Itself to Maintenance After 'Ethical Conflict Detected'",
+              ]
+              return headlines[Math.floor(Math.random() * headlines.length)]
+            })(),
+          },
+        ],
       }
     }
 
@@ -198,15 +164,24 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         t.id === action.taskId ? { ...t, resolved: true } : t,
       )
 
-      return { ...state, tasks }
+      const pendingTaskRuns = withoutPendingTask(state.pendingTaskRuns, action.taskId)
+
+      return ensureActiveTaskRun({ ...state, tasks, pendingTaskRuns })
+    }
+
+    case "CONSUME_ACTIVE_TASK_RUN": {
+      return { ...state, activeTaskRun: null }
     }
 
     case "START_TASK_RUN": {
       const graph = getTaskGraphById(action.taskGraphId)
       if (!graph) return state
 
+      const pendingTaskRuns = withoutPendingTask(state.pendingTaskRuns, action.taskId)
+
       return {
         ...state,
+        pendingTaskRuns,
         activeTaskRun: {
           taskGraphId: action.taskGraphId,
           originTaskId: action.taskId,
@@ -385,22 +360,52 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
 
     case "SET_PLAYER_DISTRICT": {
       const districtId = action.districtId
-      const districtName = getDistrictById(districtId)?.name ?? districtId
-      return {
+      const routeIds = findRoute(state.player.currentDistrict, districtId, state.districts)
+      const routeLabel = formatRoute(routeIds, state.districts)
+
+      // base updates
+      let nextTasks = [...state.tasks]
+      let nextLog = [
+        ...state.log,
+        {
+          id: randId(),
+          month: state.month,
+          text: buildTravelLogText(routeIds, state.districts) || `Player moved, ${routeLabel}`,
+        },
+      ]
+
+      // For each hop after the origin, roll for a random event (50% per hop)
+      let nextPendingRuns: PendingTaskRun[] = [...(state.pendingTaskRuns ?? [])]
+      for (let i = 1; i < routeIds.length; i++) {
+        const hopId = routeIds[i]
+        const roll = Math.random()
+        if (roll < 0.5) {
+          const district = state.districts[hopId]
+          const template = selectEventForDistrictTags(district?.tags ?? [])
+          if (template) {
+            const task = createRandomEventTaskFromTemplate(template)
+            nextTasks.push(task)
+            nextLog.push({ id: randId(), month: state.month, text: `Event triggered: ${template.title} in ${district?.name ?? hopId}` })
+
+            if (task.taskGraphId) {
+              nextPendingRuns = [...nextPendingRuns, { taskId: task.id, taskGraphId: task.taskGraphId }]
+            }
+          }
+        }
+      }
+
+      const baseState: GameState = {
         ...state,
         player: {
           ...state.player,
           currentDistrict: districtId,
         },
-        log: [
-          ...state.log,
-          {
-            id: randId(),
-            month: state.month,
-            text: `Player moved to ${districtName}`,
-          },
-        ],
+        tasks: nextTasks,
+        log: nextLog,
+        pendingTaskRuns: nextPendingRuns,
       }
+
+      return ensureActiveTaskRun(baseState)
     }
 
     case "REMOVE_JOB_ASSIGNMENT": {

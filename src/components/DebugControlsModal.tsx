@@ -1,18 +1,13 @@
 import { useState } from "react"
 import ModalShell from "./ModalShell"
-import DebugStatCheckModal from "./DebugStatCheckModal"
-import ChangeDistrictModal from "./ChangeDistrictModal"
 import { performStatCheck, makeRng } from "../game/statCheck"
 import { useGame } from "../game/GameContext"
 import type { MainStatKey, SubSkillKey } from "../game/statCheck"
 import type { StatCheckResult } from "../game/statCheck"
 
-export default function DebugControlsModal({ open, onClose, onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs, onOpenInk }: { open: boolean; onClose: () => void; onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void; onOpenInk?: () => void }) {
+
+export default function DebugControlsModal({ open, onClose, onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs, onOpenInk, onOpenDistrict, onOpenStatCheck }: { open: boolean; onClose: () => void; onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void; onOpenInk?: () => void; onOpenDistrict?: () => void; onOpenStatCheck?: (config: { dc: number; mainStatKey: MainStatKey; subSkillKey: SubSkillKey }, result: StatCheckResult) => void }) {
 	const { state, dispatch } = useGame()
-	const [statCheckOpen, setStatCheckOpen] = useState(false)
-	const [districtOpen, setDistrictOpen] = useState(false)
-	const [statCheckConfig, setStatCheckConfig] = useState<{ dc: number; mainStatKey: MainStatKey; subSkillKey: SubSkillKey } | null>(null)
-	const [statCheckResult, setStatCheckResult] = useState<StatCheckResult | null>(null)
 
 	const launchRandomCheck = () => {
 		const mainStatKey = pick(MAIN_KEYS)
@@ -32,9 +27,8 @@ export default function DebugControlsModal({ open, onClose, onShowProfile, onCha
 			res.success ? "SUCCESS" : "FAIL",
 			res.critical ? `(${res.critical})` : "",
 		].filter(Boolean).join(" ")
-		setStatCheckConfig({ dc, mainStatKey, subSkillKey })
-		setStatCheckResult(res)
-		setStatCheckOpen(true)
+		// notify parent to open stat-check modal with config and result
+		if (onOpenStatCheck) onOpenStatCheck({ dc, mainStatKey, subSkillKey }, res)
 		dispatch({ type: "ADD_LOG", text })
 	}
 
@@ -49,52 +43,21 @@ export default function DebugControlsModal({ open, onClose, onShowProfile, onCha
 
 			<div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
 				<button onClick={async () => {
-				const res = await awaitBuildContentContext(state)
-				dispatch({ type: "ADD_LOG", text: res.text })
+					const res = await awaitBuildContentContext(state)
+					dispatch({ type: "ADD_LOG", text: res.text })
+					requestClose()
 				}}>DEBUG: Tags</button>
-				<button onClick={() => { if (onOpenInk) onOpenInk() }}>DEBUG: ink</button>
-				<button onClick={() => { if (onShowProfile) onShowProfile() }}>DEBUG: Profile</button>
-				<button onClick={() => { if (onChangeJob) onChangeJob() }}>DEBUG: Change Job</button>
-				<button onClick={() => setDistrictOpen(true)}>DEBUG: Change District</button>
-				<button onClick={() => { if (onShowAffiliationMap) onShowAffiliationMap() }}>DEBUG: Affiliation Map</button>
-				<button onClick={() => { if (onShowRelationships) onShowRelationships() }}>DEBUG: Relationships</button>
-				<button onClick={() => { if (onShowDebugNpcs) onShowDebugNpcs() }}>DEBUG: Generate NPCs</button>
-				<button onClick={launchRandomCheck}>DEBUG: Random Stat Check</button>
+				<button onClick={() => { if (onOpenInk) onOpenInk(); requestClose() }}>DEBUG: ink</button>
+				<button onClick={() => { if (onShowProfile) onShowProfile(); requestClose() }}>DEBUG: Profile</button>
+				<button onClick={() => { if (onChangeJob) onChangeJob(); requestClose() }}>DEBUG: Change Job</button>
+				<button onClick={() => { if (onOpenDistrict) onOpenDistrict(); requestClose() }}>DEBUG: Change District</button>
+				<button onClick={() => { if (onShowAffiliationMap) onShowAffiliationMap(); requestClose() }}>DEBUG: Affiliation Map</button>
+				<button onClick={() => { if (onShowRelationships) onShowRelationships(); requestClose() }}>DEBUG: Relationships</button>
+				<button onClick={() => { if (onShowDebugNpcs) onShowDebugNpcs(); requestClose() }}>DEBUG: Generate NPCs</button>
+				<button onClick={() => { launchRandomCheck(); requestClose() }}>DEBUG: Random Stat Check</button>
 			</div>
 
-			{statCheckConfig ? (
-				<DebugStatCheckModal
-					open={statCheckOpen}
-					onClose={() => {
-						setStatCheckOpen(false)
-						setStatCheckResult(null)
-					}}
-					title="Debug Stat Check"
-					dc={statCheckConfig.dc}
-					mainStatKey={statCheckConfig.mainStatKey}
-					mainStatValue={state.player?.skills?.[statCheckConfig.mainStatKey] ?? 0}
-					subSkillKey={statCheckConfig.subSkillKey}
-					subSkillValue={state.player?.skills?.subSkills?.[statCheckConfig.subSkillKey] ?? 0}
-					initialResult={statCheckResult ?? undefined}
-					autoRun={false}
-					onResolve={(res) => {
-						const text = [
-							"STAT CHECK",
-							`${statCheckConfig.mainStatKey.toUpperCase()}/${statCheckConfig.subSkillKey.toUpperCase()}`,
-							`d20=${res.d20}`,
-							`main=+${res.mainStat}`,
-							`sub=+${res.subSkillBonus}`,
-							`total=${res.total}`,
-							`vs DC ${res.dc}`,
-							res.success ? "SUCCESS" : "FAIL",
-							res.critical ? `(${res.critical})` : "",
-						].filter(Boolean).join(" ")
-						dispatch({ type: "ADD_LOG", text })
-					}}
-				/>
-			) : null}
-
-			<ChangeDistrictModal open={districtOpen} onClose={() => setDistrictOpen(false)} />
+			{/* stat-check and district modals are lifted to parent App.tsx */}
 			</>
 		)}
 		</ModalShell>

@@ -66,7 +66,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
       },
     },
     tags: ["courier", "runner", "street_smart"],
-    districts: ["downtown", "midlands"],
+    districts: ["redlined_cermieshaven", "redlined_cliffcity"],
   },
   mechanic_grease: {
     id: "mechanic_grease",
@@ -92,7 +92,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
       },
     },
     tags: ["mechanic", "industrial", "blue_collar"],
-    districts: ["industrial"],
+    districts: ["redlined_cliffcity", "redlined_chodanshell"],
   },
   fixer_face: {
     id: "fixer_face",
@@ -116,7 +116,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
       },
     },
     tags: ["fixer", "charismatic", "midlands"],
-    districts: ["midlands", "downtown"],
+    districts: ["redlined_cermieshaven", "capital_c23"],
   },
   street_tough: {
     id: "street_tough",
@@ -140,7 +140,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
       },
     },
     tags: ["muscle", "street", "independent"],
-    districts: ["downtown", "industrial"],
+    districts: ["redlined_cliffcity", "redlined_chodanshell", "redlined_cermieshaven"],
   },
   clinic_medic: {
     id: "clinic_medic",
@@ -164,7 +164,7 @@ export const NPC_TEMPLATES: Record<string, NpcTemplate> = {
       },
     },
     tags: ["medic", "support", "lawful"],
-    districts: ["midlands"],
+    districts: ["capital_c1", "capital_c23", "redlined_cliffcity"],
   },
 }
 

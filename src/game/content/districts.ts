@@ -1,4 +1,4 @@
-import type { DistrictState } from "./types"
+import type { DistrictState } from "../types"
 
 /*************** DISTRICT LOCATIONS */
 
@@ -100,7 +100,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "medium",
     economyLevel: "wealthy",
 
-    adjacency: ["capital_c1", "redlined_cermieshaven", "deadzone_northborder"],
+    adjacency: ["capital_c1", "redlined_cermieshaven"],
     description: "Twin neon commercial zones merged together. Consumerism, nightlife, vice.",
 
     tags: [
@@ -128,7 +128,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "low",
     economyLevel: "poor",
 
-    adjacency: ["capital_c1", "fallen_oldminingdistrict"],
+    adjacency: ["capital_c1", "fallen_blacklatticelabs"],
     description: "Warehousing sprawl. Camo workers, knockoff gear, street economies.",
 
     tags: [
@@ -154,7 +154,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "low",
     economyLevel: "poor",
 
-    adjacency: [],
+    adjacency: ["fallen_blacklatticelabs", "fallen_oldminingdistrict"],
     description: "Ark headquarters. Crusade training grounds. Militant faith and discipline.",
 
     tags: [
@@ -179,7 +179,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "low",
     economyLevel: "average",
 
-    adjacency: ["capital_c23", "redlined_chodanshell", "deadzone_westborder"],
+    adjacency: ["capital_c23", "redlined_chodanshell"],
     description: "Outlaw professional hub. Hackers, sinths, mercenaries, black markets.",
 
     tags: [
@@ -278,7 +278,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "low",
     economyLevel: "collapsed",
 
-    adjacency: ["redlined_cliffcity", "redlined_chodanshell", "deadzone_westborder"],
+    adjacency: ["redlined_chodanshell", "deadzone_westborder"],
     description: "Collapsed tunnels and rusted roads. Fast, cheap, and deadly smuggling route.",
 
     tags: [
@@ -303,7 +303,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "high",
     economyLevel: "collapsed",
 
-    adjacency: ["fallen_oldminingdistrict"],
+    adjacency: ["redlined_sanctuary", "redlined_sanctuary", "deadzone_southborder"],
     description: "Hidden research facility. No civilians. No witnesses. No promised return.",
 
     tags: [
@@ -318,30 +318,6 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
   // ============================================================
   // DEAD ZONE
   // ============================================================
-  deadzone_northborder: {
-    id: "deadzone_northborder",
-    name: "North Border",
-    tier: "deadzone",
-    controllingFaction: "asi",
-
-    security: 5,
-    unrest: 85,
-    economy: 5,
-
-    securityLevel: "none",
-    economyLevel: "collapsed",
-
-    adjacency: ["capital_c23", "deadzone_centralsitezero"],
-    description: "Once-automated farms and factories. Now rust and forgotten machinery.",
-
-    tags: [
-      "deadzone",
-      "wasteland",
-      "industrial_ruins",
-      "hazardous_air"
-    ],
-  },
-
   deadzone_southborder: {
     id: "deadzone_southborder",
     name: "South Border",
@@ -355,7 +331,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "none",
     economyLevel: "collapsed",
 
-    adjacency: ["deadzone_centralsitezero"],
+    adjacency: ["deadzone_centralsitezero", "fallen_blacklatticelabs"],
     description: "Smog-choked divide. Acid storms, rotting plants, old reactors still humming.",
 
     tags: [
@@ -379,7 +355,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "low",
     economyLevel: "collapsed",
 
-    adjacency: ["redlined_cermieshaven", "fallen_oldminingdistrict", "deadzone_centralsitezero"],
+    adjacency: ["deadzone_centralsitezero", "fallen_oldminingdistrict"],
     description: "Rusted dunes and broken convoys. Last road before the anomaly.",
 
     tags: [
@@ -403,7 +379,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "none",
     economyLevel: "collapsed",
 
-    adjacency: ["deadzone_northborder", "deadzone_southborder", "deadzone_westborder"],
+    adjacency: ["deadzone_southborder", "deadzone_westborder"],
     description: "The anomaly heart. Electronics die instantly. No signal. No return.",
 
     tags: [

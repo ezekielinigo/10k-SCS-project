@@ -1,7 +1,7 @@
 import type { GameState, JobAssignment } from "./types"
 import { getJobById, getCareerForJobId } from "./content/careers"
 import { getProfileById, getRandomProfile } from "./content/playerProfiles"
-import DISTRICTS from "./districts"
+import DISTRICTS from "./content/districts"
 import { generateRandomNpc } from "./generators/npcGenerator"
 import { generateMonthlyTasks } from "./taskGenerator"
 import { generateJobInstances } from "./generators/jobInstanceGenerator"
@@ -101,6 +101,7 @@ export const createInitialGameState = (): GameState => {
     ],
     worldTags: ["baseline", "season_late_spring"],
     activeTaskRun: null,
+    pendingTaskRuns: [],
     relationships: {},
     jobs: {},
     jobAssignments,

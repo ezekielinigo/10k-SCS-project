@@ -132,6 +132,11 @@ export type ActiveTaskRun = {
   outcomeFlavorText?: string
 }
 
+export type PendingTaskRun = {
+  taskId: string
+  taskGraphId: string
+}
+
 export type LogEntry = {
   id: string
   month: number
@@ -442,6 +447,11 @@ export type ActiveTaskRun = {
   outcomeFlavorText?: string
 }
 
+export type PendingTaskRun = {
+  taskId: string
+  taskGraphId: string
+}
+
 export type LogEntry = {
   id: string
   month: number
@@ -458,6 +468,7 @@ export type GameState = {
   log: LogEntry[]
   worldTags: Tag[]
   activeTaskRun: ActiveTaskRun | null
+  pendingTaskRuns: PendingTaskRun[]
   relationships: Record<string, Relationship>
   // centralized affiliation data and memberships (many-to-many)
   affiliations?: Record<string, Affiliation>

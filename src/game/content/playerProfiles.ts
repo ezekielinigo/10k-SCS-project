@@ -37,7 +37,7 @@ const profiles: PlayerProfile[] = [
     name: "Rook Grease",
     ageMonths: 20 * 12,
     gender: "male",
-    currentDistrict: "downtown",
+    currentDistrict: "redlined_cliffcity",
     vitals: {
       health: 100,
       humanity: 85,

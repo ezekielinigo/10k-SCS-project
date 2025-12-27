@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { useGame } from "../game/GameContext"
 import ModalShell from "./ModalShell"
-import DISTRICTS, { getDistrictById } from "../game/districts"
+import DISTRICTS, { getDistrictById } from "../game/content/districts"
 import { LuCar } from "react-icons/lu"
 
 export default function ChangeDistrictModal({ open, onClose }: { open: boolean; onClose: () => void }) {
