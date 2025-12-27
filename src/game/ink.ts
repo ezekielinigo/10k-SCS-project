@@ -187,7 +187,7 @@ export const resolveInkFrames = (story: any): InkFrame[] => {
   return [{ text: out, choices: story.currentChoices ?? [] }]
 }
 
-export const createInkStory = async (knot: string | undefined, player: PlayerState, inkSource?: string) => {
+export const createInkStory = async (knot: string | undefined, player: PlayerState, inkSource?: string, initialVars?: Record<string, any>) => {
   const InkModule = await import("inkjs")
   const StoryCtor = (InkModule as any).Story ?? (InkModule as any).default ?? InkModule
   if (!StoryCtor) throw new Error("inkjs Story constructor not found")
@@ -215,6 +215,17 @@ export const createInkStory = async (knot: string | undefined, player: PlayerSta
 
   const story = new StoryCtor(tasks)
   bindInkExternals(story, player)
+
+  // Apply any initial variables into the story before choosing a path
+  try {
+    if (initialVars && typeof initialVars === "object") {
+      for (const [k, v] of Object.entries(initialVars)) {
+        ;(story as any).variablesState[k] = v
+      }
+    }
+  } catch (e) {
+    // swallow; not critical
+  }
 
   if (knot && typeof story.ChoosePathString === "function") {
     story.ChoosePathString(knot)

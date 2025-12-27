@@ -1,13 +1,7 @@
 
 // JS will read deltas at the end of each story
-// VARIABLES
-VAR delta_money = 0
-VAR delta_stress = 0
-VAR delta_health = 0
-VAR delta_humanity = 0
-VAR delta_closeCombat = 0
-VAR delta_engineering = 0
-VAR delta_hacking = 0
+// external VARIABLES provided by the game engine
+VAR location = ""
 VAR ch_1 = false
 VAR ch_2 = false
 VAR ch_3 = false
@@ -15,6 +9,14 @@ VAR ch_4 = false
 VAR ch_5 = false
 VAR quit_1 = false
 VAR quit_2 = false
+// internal VARIABLES passed to the game engine
+VAR delta_money = 0
+VAR delta_stress = 0
+VAR delta_health = 0
+VAR delta_humanity = 0
+VAR delta_closeCombat = 0
+VAR delta_engineering = 0
+VAR delta_hacking = 0
 // External functions provided by the game engine
 EXTERNAL hasStat (name, min)
 EXTERNAL hasMoney (amount)
@@ -400,7 +402,7 @@ You find a quiet courtyard with a monk offering breathing guidance.
 }
 
 === risky_hack ===
-An opportunity to hack a small kiosk presents itself — payoffs vary.
+An opportunity to hack a small kiosk presents itself at {location} — payoffs vary.
 
 { ch_1:
     + Attempt a clean exploit

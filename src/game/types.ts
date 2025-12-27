@@ -89,6 +89,8 @@ export type TaskState = {
   resolved: boolean
   assignedNpcId?: string | null
   contextTags: Tag[]
+  // optional metadata to store auxiliary context (e.g., originating district for random events)
+  metadata?: Record<string, any>
 }
 
 export type TaskChoiceCondition = {

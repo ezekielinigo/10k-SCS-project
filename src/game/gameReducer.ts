@@ -117,22 +117,36 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             month: newMonth,
             text: (() => {
               const headlines = [
-                "Mayor Denies Allegations of Illegal Cyberware Donations from Corpo Syndicate",
-                "Mysterious EMP Pulse Blackouts District 7 for 3 Minutes, Authorities 'Investigating'",
-                "Netrunner Collective Claims Responsibility for Overnight Transit Shutdown",
-                "Rising Radiation Levels Near the Dead Zone Prompt Evacuation Order",
-                "Street Vendors Protest New Microtax on Augmented Hands Payments",
-                "Corpo War Rumors Spike After CEO Found Dead in Encrypted Hotel Capsule",
-                "District 3 Water Supply Contaminated After Factory Coolant Leak",
-                "Arcology’s AI Assistant Glitches, Issues 2,000 False Eviction Notices",
-                "Black Market Cyberware Prices Triple After Border Checkpoint Crackdowns",
-                "Valkarna Auto Consortium Announces Layoffs Following Plant Explosion",
-                "Hyperloop Station Hijacked, Passengers Forced to Watch Pirate Broadcast",
-                "Synthetic Pets Firmware Update Causes Mass Runaways Across the City",
-                "Anonymous Tips Reveal Hidden Vault Beneath Decommissioned Police Precinct",
-                "Cyberpsychosis Cases Surge After Release of Experimental Brain Mod",
-                "Coastal Weather Shields Fail, Acid Rain Warning Issued for Entire Weekend",
-                "AI Judge Sentences Itself to Maintenance After 'Ethical Conflict Detected'",
+                // capital districts / mainstream news
+                "GENESIS Confirms Economic Plateau is \"Expected and Efficient.\"Experts assure citizens \"stagnation is a sign of optimal stability.\"",
+                "Weather Grid Update: Slight Drizzle Scheduled in C2-3 for Market Aesthetic. \"Moisture boosts consumer spending,\" says Kuriyama Medical study",
+                "GENESIS Approves New Drone Patrols Near Cermie Border. \"More drones equal safer streets,\" says spokesperson.",
+                "New Arcology to Expand in C1 District, Promising Jobs and Housing. \"A beacon of progress,\" says city planner.",
+                // redlined districts
+                "Camo Freight Convoy Missing in the Old Mining District. Possible Hijacking Suspected.",
+                "New Color Strain 'Blue Dream' Linked to Shared Hallucinations Among Users.",
+                "Cliff City Hellcats Enforce New Curfew Near Western Border.",
+                // leaks, rumors, illegal net feeds
+                "C1 Residents Worry About Increased ARK Presence Near Cliff City Borders.",
+                "Anonymous Source Claims Evidence of Corporate Collusion in Recent Market Crash.",
+                "Underground Fight Clubs Gain Popularity In Chodan's Hell. \"It's the only real thrill left,\" from an exclusive interview.",
+                "An Exclusive Synth Body Mod Just Sold For 14 Million Credits To An Anonymous Buyer.",
+                "'Deep Black Stimulants' Continue To Sweep The Streets of Chodan's Hell. Users Report Increased Paranoia.",
+                "Drone Residents Near Cliff City Report A Mysterious Dream-Like Memory of \"A Room With No Reflections.\"",
+                "Sandstorm Detected Over Central Site Zero Formed A Perfect Spiral Which Experts Call, \"Meteorologically Impossible.\"",
+                // culture and lifestyle
+                "Group Of Cappie Tourists Found Dead In The Old Mining District. GENESIS Spokesperson Continues To Warn Against \"Alternative Tourism.\"",
+                "Minh Syndicate Heir Opens Luxury Gym In Cermie's Haven, Promising An Exclusive Experience. \"Fitness is the new status symbol,\" he says.",
+                "'Club Gothik' Closes After Just Three Months, Citing \"Creative Differences.\"",
+                "REVIEW: 'Backtrack' Is A Mature, Sensitive Look At The End Of Love. A Must See For Romantics.",
+                // corporate and advertisements
+                "Famous Y3K Brand Debut \"Hollow Skins\" Body Mod Line Which Featured Transparent Limbs To \"Show Off Your Inner Beauty.\"",
+                "New VR Club Opening In Cermie's Haven Promises \"The Ultimate Escape From Reality.\"",
+                "Demetre Biocorp Offers New Cyberware Insurance Plan Covering \"All Manner Of Cybernetic Failures.\"",
+                "Kuriyama Medical Releases New Line Of \"Mood Enhancing\" Biochips. \"Happiness is just a chip away,\" says spokesperson.",
+                "RockaTech Recalls Latest Line Of Budget Pistols After Reports Of \"Unintended Discharges.\"",
+                "Hardstone Silver Announced Famous Pop Star \"Luna Lux\" As New Brand Ambassador For Their Jewelry Line.",
+                "Sanguine Tries To Break Into The Mainstream Market With Low-Profile Mantis Blades.",
               ]
               return headlines[Math.floor(Math.random() * headlines.length)]
             })(),
@@ -384,8 +398,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           const template = selectEventForDistrictTags(district?.tags ?? [])
           if (template) {
             const task = createRandomEventTaskFromTemplate(template)
+            // record originating district on the task so we can open the Ink story with the correct location later
+            task.metadata = { districtId: hopId, districtName: district?.name }
             nextTasks.push(task)
-            nextLog.push({ id: randId(), month: state.month, text: `Event triggered: ${template.title} in ${district?.name ?? hopId}` })
 
             if (task.taskGraphId) {
               nextPendingRuns = [...nextPendingRuns, { taskId: task.id, taskGraphId: task.taskGraphId }]

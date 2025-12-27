@@ -93,7 +93,12 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
         inkSource = getRandomEventTemplateById(task.templateId)?.inkSource
       }
 
-      const story = await createInkStory(taskGraphId, state.player, inkSource)
+      // Prefer the task-origin district (stored on the task) so multi-hop events keep their original locations
+      const taskObj = state.tasks.find(t => t.id === taskId)
+      const originDistrictId = taskObj?.metadata?.districtId ?? state.player.currentDistrict
+      const originDistrict = state.districts[originDistrictId]
+      const locationName = originDistrict ? originDistrict.name : (originDistrictId ?? "Unknown")
+      const story = await createInkStory(taskGraphId, state.player, inkSource, { location: locationName, eventName: taskTitle })
       if (task?.kind === "randomEvent") {
         revealRandomOptionsForEncounter(story)
       }
@@ -201,7 +206,13 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
         }
       }
 
-      dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.`, deltas: Object.keys(deltas).length ? deltas : undefined })
+      // Use the Ink-provided story text as the log entry instead of a generic 'Finished' line.
+      try {
+        const storyText = (inkFrames && inkFrames[0] && inkFrames[0].text) ? String(inkFrames[0].text).trim() : `Finished ${taskTitle}.`
+        dispatch({ type: "ADD_LOG", text: storyText || `Finished ${taskTitle}.`, deltas: Object.keys(deltas).length ? deltas : undefined })
+      } catch (e) {
+        dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.`, deltas: Object.keys(deltas).length ? deltas : undefined })
+      }
     } catch (e) {
       dispatch({ type: "ADD_LOG", text: `Finished ${taskTitle}.` })
     }
