@@ -6,7 +6,7 @@ import type { MainStatKey, SubSkillKey } from "../game/statCheck"
 import type { StatCheckResult } from "../game/statCheck"
 
 
-export default function DebugControlsModal({ open, onClose, onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs, onOpenInk, onOpenDistrict, onOpenStatCheck }: { open: boolean; onClose: () => void; onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void; onOpenInk?: () => void; onOpenDistrict?: () => void; onOpenStatCheck?: (config: { dc: number; mainStatKey: MainStatKey; subSkillKey: SubSkillKey }, result: StatCheckResult) => void }) {
+export default function DebugControlsModal({ open, onClose, onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs, onOpenInk, onOpenDistrict, onOpenStatCheck, onOpenAvatarMixer }: { open: boolean; onClose: () => void; onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void; onOpenInk?: () => void; onOpenDistrict?: () => void; onOpenStatCheck?: (config: { dc: number; mainStatKey: MainStatKey; subSkillKey: SubSkillKey }, result: StatCheckResult) => void; onOpenAvatarMixer?: () => void }) {
 	const { state, dispatch } = useGame()
 
 	const launchRandomCheck = () => {
@@ -54,6 +54,7 @@ export default function DebugControlsModal({ open, onClose, onShowProfile, onCha
 				<button onClick={() => { if (onShowAffiliationMap) onShowAffiliationMap(); requestClose() }}>DEBUG: Affiliation Map</button>
 				<button onClick={() => { if (onShowRelationships) onShowRelationships(); requestClose() }}>DEBUG: Relationships</button>
 				<button onClick={() => { if (onShowDebugNpcs) onShowDebugNpcs(); requestClose() }}>DEBUG: Generate NPCs</button>
+				<button onClick={() => { if (onOpenAvatarMixer) onOpenAvatarMixer(); requestClose() }}>DEBUG: Avatar Mixer</button>
 				<button onClick={() => { launchRandomCheck(); requestClose() }}>DEBUG: Random Stat Check</button>
 			</div>
 

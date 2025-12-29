@@ -8,6 +8,7 @@ import AffiliationMapModal from "./components/AffiliationMapModal"
 import RelationshipsModal from "./components/RelationshipsModal"
 import DebugNpcModal from "./components/DebugNpcModal"
 import DebugControlsModal from "./components/DebugControlsModal"
+import DebugAvatarModal from "./components/DebugAvatarModal"
 import { FiMenu, FiPlus } from "react-icons/fi"
 import PlayerSummary from "./components/PlayerSummary"
 import TaskPanel from "./components/TaskPanel"
@@ -24,6 +25,7 @@ export default function App() {
   const [relationshipsOpen, setRelationshipsOpen] = useState(false)
   const [debugNpcsOpen, setDebugNpcsOpen] = useState(false)
   const [debugControlsOpen, setDebugControlsOpen] = useState(false)
+  const [debugAvatarOpen, setDebugAvatarOpen] = useState(false)
   const [districtOpen, setDistrictOpen] = useState(false)
   const [statCheckOpen, setStatCheckOpen] = useState(false)
   const [statCheckConfig, setStatCheckConfig] = useState<{ dc: number; mainStatKey: any; subSkillKey: any } | null>(null)
@@ -122,6 +124,7 @@ export default function App() {
         onShowAffiliationMap={openAndClose(() => setAffiliationOpen(true))}
         onShowRelationships={openAndClose(() => setRelationshipsOpen(true))}
         onShowDebugNpcs={openAndClose(() => setDebugNpcsOpen(true))}
+        onOpenAvatarMixer={openAndClose(() => setDebugAvatarOpen(true))}
         onOpenInk={openAndClose(() => openInkDebug())}
         onOpenDistrict={openDistrict}
         onOpenStatCheck={openStatCheck}
@@ -165,6 +168,7 @@ export default function App() {
       <AffiliationMapModal open={affiliationOpen} onClose={() => setAffiliationOpen(false)} />
       <RelationshipsModal open={relationshipsOpen} onClose={() => setRelationshipsOpen(false)} />
       <DebugNpcModal open={debugNpcsOpen} onClose={() => setDebugNpcsOpen(false)} />
+      <DebugAvatarModal open={debugAvatarOpen} onClose={() => setDebugAvatarOpen(false)} />
     </div>
   )
 }
