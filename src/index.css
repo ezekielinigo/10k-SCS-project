@@ -108,3 +108,36 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
+
+/* Debug avatar modal helpers */
+.debug-avatar-modal {
+  padding: 0.75rem;
+  min-width: 320px;
+  border-radius: 10px;
+  background: #0c0c0f;
+  border: 1px solid #333;
+}
+.debug-avatar-column { display: flex; flex-direction: column; gap: 0.75rem; }
+.debug-avatar-preview-wrap { display: flex; justify-content: center; }
+.debug-avatar-preview { zoom: 2; position: relative; width: 120px; height: 120px; background: #1a1a1f; border: 1px solid #333; border-radius: 8px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+.debug-avatar-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.debug-avatar-row-space { display:flex; gap:0.4rem; justify-content:space-between; }
+.debug-avatar-controls { border-top: 1px solid #333; padding-top: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.debug-avatar-btn-small { flex: 1; padding: 4px 6px; font-size: 12px; border-radius: 4px; border: 1px solid #666; background: #111; color: #fff; }
+.debug-avatar-chevron-btn { background: transparent; border: none; color: #fff; padding: 6px; cursor: pointer; }
+.debug-avatar-menu-btn { width: 100%; padding: 4px 8px; text-align: center; font-size: 12px; border-radius: 4px; border: 1px solid #666; background: #111; color: #fff; }
+.debug-avatar-menu { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: #0c0c0f; border: 1px solid #333; border-radius: 6px; padding: 6px; max-height: 220px; overflow-y: auto; z-index: 10; }
+.debug-avatar-menu .debug-avatar-control { width: 100%; display: flex; justify-content: space-between; align-items: center; background: transparent; border: none; color: #fff; padding: 4px 0; font-size: 12px; cursor: pointer; }
+.debug-avatar-control-label { flex: 1; text-align: left; }
+.debug-avatar-control-count { opacity: 0.7; }
+.debug-avatar-palette-scroll { height: 200px; overflow-y: auto; padding-right: 6px; }
+.debug-avatar-palette-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 6px; }
+.debug-avatar-palette-btn { width: 100%; border-radius: 4px; padding: 0; overflow: hidden; display: grid; grid-template-rows: 1fr 1fr; }
+.debug-avatar-palette-btn.selected { border: 2px solid #fff; }
+.debug-avatar-palette-btn:not(.selected) { border: 1px solid #666; }
+.debug-avatar-done-btn { width: 100%; padding: 8px 12px; border-radius: 4px; border: 1px solid #666; background: #111; color: #fff; font-size: 13px; }
+
+.debug-avatar-done-wrap { display: flex; justify-content: center; }
+
+.debug-avatar-control-row { display: flex; align-items: center; gap: 6px; }
+.debug-avatar-control-inner { flex: 1; position: relative; }

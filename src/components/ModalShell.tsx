@@ -1,6 +1,6 @@
 import React, { useEffect } from "react"
 import { createPortal } from "react-dom"
-import { useModalDismiss, useModalTransition, useSwipeDismiss } from "../utils/ui"
+import { useModalDismiss, useModalTransition } from "../utils/ui"
 
 type ModalShellProps = {
   open: boolean
@@ -22,8 +22,8 @@ export default function ModalShell({ open, onClose, preventClose = false, durati
   const { shouldRender, closing, requestClose } = useModalTransition(open, onClose, durationMs)
 
   // If preventClose is true, we don't wire outside clicks / escape / swipe to close.
+  // swipe-to-dismiss temporarily disabled globally — keep modal dismiss and transition logic
   const containerRef = useModalDismiss(preventClose ? (() => {}) : requestClose)
-  useSwipeDismiss(preventClose ? (() => {}) : requestClose, undefined, containerRef)
 
   useEffect(() => {
     // prevent body scroll while modal open
