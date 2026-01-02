@@ -1130,8 +1130,11 @@ export const PALETTE_VARIATIONS: Record<PaletteCategory, Tone[]> = {
 	inner_body: INNER_BODY_PALETTES,
 }
 
-export function hexToRgb(hex: Hex): { r: number; g: number; b: number } {
-  const h = hex.replace("#", "")
-  const bigint = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16)
-  return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 }
+export function hexToRgb(hex: Hex | undefined | null): { r: number; g: number; b: number } {
+	const raw = String(hex ?? "").trim()
+	if (!raw) return { r: 0, g: 0, b: 0 }
+	const h = raw.replace("#", "")
+	const normalized = h.length === 3 ? h.split("").map((c) => c + c).join("") : h
+	const bigint = parseInt(normalized, 16) || 0
+	return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 }
 }

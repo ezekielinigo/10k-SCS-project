@@ -1,4 +1,4 @@
-import { PALETTE_VARIATIONS, type Tone, type PaletteCategory, hexToRgb } from "./palettes"
+import { PALETTE_VARIATIONS, type Tone, type PaletteCategory, hexToRgb } from "@shared/utils/palettes"
 
 export type PaletteSelection = Partial<Record<PaletteCategory, number>>
 
@@ -12,7 +12,6 @@ export type PaletteRule = {
   id: string
   description: string
   validate: (sel: PaletteSelection) => RuleViolation | null
-  // Optional automatic fix: returns an adjusted selection
   fix?: (sel: PaletteSelection) => PaletteSelection
 }
 
@@ -46,7 +45,6 @@ function pickAlternativeIndex(category: PaletteCategory, avoidIndex?: number | n
   return idx
 }
 
-// Example rule: skin and hair should not be too similar
 export const rule_skin_vs_hair_distinct: PaletteRule = {
   id: "skin_vs_hair_distinct",
   description: "Skin and hair palettes should not be the same or too similar",
@@ -55,7 +53,6 @@ export const rule_skin_vs_hair_distinct: PaletteRule = {
     const hair = resolveTone("hair", sel.hair)
     if (!skin || !hair) return null
     const d = colorDistance(skin.dark, hair.dark)
-    // Tolerance 0 means equal; allow small distance threshold if desired
     if (d <= 0) {
       return {
         ruleId: "skin_vs_hair_distinct",
@@ -79,7 +76,6 @@ export const rule_skin_vs_inner_body_distinct: PaletteRule = {
     const skin = resolveTone("skin", sel.skin)
     const inner = resolveTone("inner_body", sel.inner_body)
     if (!skin || !inner) return null
-    // require exact distinctness among the four colors: skin.dark, skin.mid, inner.dark, inner.mid
     const normalize = (s?: string) => (s || "").toLowerCase()
     const vals = [normalize(skin.dark), normalize(skin.mid), normalize(inner.dark), normalize(inner.mid)]
     if (vals.some((v) => !v)) return null
@@ -96,7 +92,6 @@ export const rule_skin_vs_inner_body_distinct: PaletteRule = {
   fix: (sel) => {
     const original = sel.inner_body ?? null
     if (original == null) return sel
-    // try up to 16 times to find an inner_body palette whose dark/mid are distinct from skin's
     const skin = resolveTone("skin", sel.skin)
     if (!skin) return sel
     const normalize = (s?: string) => (s || "").toLowerCase()

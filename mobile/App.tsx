@@ -1,5 +1,6 @@
 import React from "react"
-import { SafeAreaView, StatusBar, StyleSheet, View, TouchableOpacity, Text } from "react-native"
+import { StatusBar, StyleSheet, View, TouchableOpacity, Text } from "react-native"
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"
 import { GameProvider, useGame } from "@shared/game/GameContext"
 import { useInk } from "@shared/game/useInk"
 import SummaryPanel from "./src/components/SummaryPanel.native"
@@ -14,6 +15,7 @@ import AffiliationMapModal from "./src/components/AffiliationMapModal.native"
 import DebugControlsModal from "./src/components/DebugControlsModal.native"
 import DebugNpcModal from "./src/components/DebugNpcModal.native"
 import StatCheckModal from "./src/components/StatCheckModal.native"
+import AvatarMixerModal from "./src/components/AvatarMixerModal.native"
 
 const extractDeltas = (vars?: Record<string, any>) => {
   const deltas: Record<string, number> = {}
@@ -38,6 +40,7 @@ function GameScreen() {
   const [relationshipsOpen, setRelationshipsOpen] = React.useState(false)
   const [debugNpcsOpen, setDebugNpcsOpen] = React.useState(false)
   const [debugControlsOpen, setDebugControlsOpen] = React.useState(false)
+  const [avatarMixerOpen, setAvatarMixerOpen] = React.useState(false)
   const [statCheckCfg, setStatCheckCfg] = React.useState<{ dc: number; mainStatKey: any; subSkillKey: any } | null>(null)
   const [statCheckResult, setStatCheckResult] = React.useState<any | null>(null)
 
@@ -101,6 +104,7 @@ function GameScreen() {
         onOpenInk={() => ink.openInkDebug()}
         onOpenDistrict={() => setDistrictOpen(true)}
         onOpenStatCheck={(cfg, res) => { setStatCheckCfg(cfg); setStatCheckResult(res); }}
+        onOpenAvatarMixer={() => setAvatarMixerOpen(true)}
       />
 
       <ProfileViewHandler open={profileOpen} onClose={() => setProfileOpen(false)} target={{ mode: "player" }} />
@@ -109,6 +113,7 @@ function GameScreen() {
       <RelationshipsModal open={relationshipsOpen} onClose={() => setRelationshipsOpen(false)} />
       <AffiliationMapModal open={affiliationOpen} onClose={() => setAffiliationOpen(false)} />
       <DebugNpcModal open={debugNpcsOpen} onClose={() => setDebugNpcsOpen(false)} />
+      <AvatarMixerModal open={avatarMixerOpen} onClose={() => setAvatarMixerOpen(false)} />
       <StatCheckModal
         open={!!statCheckCfg}
         onClose={() => { setStatCheckCfg(null); setStatCheckResult(null) }}
@@ -143,9 +148,11 @@ function GameScreen() {
 export default function App() {
   return (
     <GameProvider>
-      <SafeAreaView style={styles.safe}>
-        <GameScreen />
-      </SafeAreaView>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.safe}>
+          <GameScreen />
+        </SafeAreaView>
+      </SafeAreaProvider>
     </GameProvider>
   )
 }
