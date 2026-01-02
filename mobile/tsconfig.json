@@ -2,7 +2,11 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "jsx": "react-native",
-    "strict": true
+    "strict": true,
+    "baseUrl": "./",
+    "paths": {
+      "@shared/*": ["../src/*"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "../src/**/*"]
 }
