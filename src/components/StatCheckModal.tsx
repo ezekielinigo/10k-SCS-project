@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useSpring, animated } from "react-spring"
-import { FaDiceD20 } from "react-icons/fa"
-import ModalShell from "./ModalShell"
-import { makeRng, performStatCheck, type StatCheckMapping, type StatCheckResult } from "../game/statCheck"
-import { renderDeltaPills } from "../utils/ui"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native"
+import { FontAwesome5 } from "@expo/vector-icons"
+import ModalCard from "./ModalCard"
+import { renderDeltaPills } from "@shared/utils/ui"
+import { makeRng, performStatCheck, type StatCheckMapping, type StatCheckResult } from "@shared/game/statCheck"
 
 export type StatCheckModalProps = {
   open: boolean
   onClose: () => void
   title?: string
   dc: number
-  mainStatKey?: string
+  mainStatKey: string
   mainStatValue?: number
   subSkillKey?: string
   subSkillValue?: number
@@ -21,15 +21,70 @@ export type StatCheckModalProps = {
   initialResult?: StatCheckResult
   bodyText?: string
   deltas?: Record<string, number>
-  minimal?: boolean
 }
 
-export default function StatCheckModal({ open, onClose, title = "Stat Check", dc, mainStatKey, mainStatValue = 0, subSkillKey, subSkillValue = 0, mapping = "quintile", rngSeed, autoRun = false, onResolve, initialResult, bodyText, deltas }: StatCheckModalProps) {
+const pretty = (value?: string | null) => {
+  if (!value) return ""
+  return value
+    .replace(/([A-Z])/g, " $1")
+    .trim()
+    .split(/\s+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ")
+}
+
+export default function StatCheckModal({
+  open,
+  onClose,
+  title = "Stat Check",
+  dc,
+  mainStatKey,
+  mainStatValue = 0,
+  subSkillKey,
+  subSkillValue = 0,
+  mapping = "quintile",
+  rngSeed,
+  autoRun = false,
+  onResolve,
+  initialResult,
+  bodyText,
+  deltas,
+}: StatCheckModalProps) {
   const [result, setResult] = useState<StatCheckResult | null>(initialResult ?? null)
   const onResolveRef = useRef<StatCheckModalProps["onResolve"]>(onResolve)
   const autoRunRef = useRef(false)
 
   useEffect(() => { onResolveRef.current = onResolve }, [onResolve])
+
+  const mainLabel = useMemo(() => (mainStatKey ? mainStatKey.toUpperCase() : "MAIN"), [mainStatKey])
+  const subLabel = useMemo(() => (subSkillKey ? pretty(subSkillKey).toUpperCase() : null), [subSkillKey])
+
+  const rollAnim = useRef(new Animated.Value(initialResult?.d20 ?? 1)).current
+  const revealOpacity = useRef(new Animated.Value(initialResult ? 1 : 0)).current
+  const modifierOpacity = useRef(new Animated.Value(1)).current
+  const [rollDisplay, setRollDisplay] = useState<number>(initialResult?.d20 ?? 1)
+
+  useEffect(() => {
+    const sub = rollAnim.addListener(({ value }) => setRollDisplay(Math.round(value)))
+    return () => rollAnim.removeListener(sub)
+  }, [rollAnim])
+
+  const modifiersLines = useMemo(() => {
+    const lines: string[] = []
+    lines.push(`+${mainStatValue ?? 0}${mainLabel ? ` (${mainLabel})` : ""}`)
+    if (subSkillKey) {
+      const subVal = result ? result.subSkillBonus : subSkillValue ?? 0
+      lines.push(`+${subVal} (${pretty(subSkillKey)})`)
+    }
+    return lines
+  }, [mainLabel, mainStatValue, result, subSkillKey, subSkillValue])
+
+  const outcomeLabel = useMemo(() => {
+    if (!result) return "—"
+    if (result.critical === "nat20") return "CRITICAL SUCCESS"
+    if (result.critical === "nat1") return "CRITICAL FAIL"
+    return result.success ? "SUCCESS" : "FAILURE"
+  }, [result])
 
   const runCheck = useCallback(() => {
     try {
@@ -38,7 +93,6 @@ export default function StatCheckModal({ open, onClose, title = "Stat Check", dc
       setResult(next)
       onResolveRef.current?.(next)
     } catch (e) {
-      console.error("StatCheckModal.runCheck error", e)
       setResult(null)
     }
   }, [dc, mainStatValue, subSkillValue, mapping, rngSeed])
@@ -60,167 +114,130 @@ export default function StatCheckModal({ open, onClose, title = "Stat Check", dc
     }
   }, [open, autoRun, runCheck, initialResult])
 
-  const mainLabel = useMemo(() => mainStatKey ? mainStatKey.toUpperCase() : "MAIN", [mainStatKey])
-  
-
-  const modifiersLines = useMemo(() => {
-    const lines: string[] = []
-    const mainStr = `+${mainStatValue ?? 0}${mainStatKey ? ` (${mainLabel})` : ""}`
-    lines.push(mainStr)
-    if (subSkillKey) {
-      const subValue = result ? result.subSkillBonus : subSkillValue ?? 0
-      const pretty = (s: string) => s.replace(/([A-Z])/g, " $1").trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")
-      lines.push(`+${subValue} (${pretty(subSkillKey)})`)
-    }
-    return lines
-  }, [mainLabel, mainStatKey, mainStatValue, result, subSkillKey, subSkillValue])
-
-  const outcomeLabel = useMemo(() => {
-    if (!result) return "—"
-    if (result.critical === "nat20") return "CRITICAL SUCCESS"
-    if (result.critical === "nat1") return "CRITICAL FAIL"
-    return result.success ? "SUCCESS" : "FAILURE"
-  }, [result])
-
-  const targetD20 = result?.d20 ?? null
-  const [rollSpring, rollApi] = useSpring(() => ({ val: targetD20 ?? 0, immediate: false }))
-  const rollText = rollSpring.val.to(v => Math.round(v).toFixed(0))
-  const [revealSpring, revealApi] = useSpring(() => ({ opacity: 0, transform: "translateY(6px)" }))
-  const [modifiersSpring, modifiersApi] = useSpring(() => ({ opacity: 1, transform: "translateY(0px)" }))
-  const MotionDiv = animated.div as any
-
-  // If caller requests a minimal view, render a simple modal that reuses
-  // this component but hides the dice/roll/outcome areas and only shows
-  // the body text and delta pills.
-  if ((arguments[0] as StatCheckModalProps).minimal) {
-    return (
-      <ModalShell open={open} onClose={onClose} durationMs={180} style={{ padding: "1rem", minWidth: 360, borderRadius: 8, background: "#07070b", border: "1px solid #222" }}>
-        {() => (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ textAlign: "center", fontWeight: 700, fontSize: 16 }}>{title}</div>
-            <div style={{ padding: "0.6rem", borderRadius: 8, background: "#06060a", border: "1px solid #1f1f1f", color: "#ddd", fontSize: 13 }}>
-              {bodyText}
-              {renderDeltaPills(deltas)}
-            </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={onClose} style={{ flex: 1, minWidth: 0 }}>Close</button>
-            </div>
-          </div>
-        )}
-      </ModalShell>
-    )
-  }
-
   useEffect(() => {
-    if (result == null) {
-      // reset reveal and modifiers when there's no result
-      revealApi.start({ opacity: 0, transform: "translateY(6px)", immediate: true })
-      modifiersApi.start({ opacity: 1, transform: "translateY(0px)", immediate: true })
+    if (!result) {
+      revealOpacity.setValue(0)
+      modifierOpacity.setValue(1)
+      rollAnim.setValue(1)
       return
     }
+    revealOpacity.setValue(0)
+    modifierOpacity.setValue(1)
 
     const target = result.d20
     const total = result.total
 
-    // sequence: fast sweep to 20 -> settle to target d20 -> hide modifiers -> animate from d20 -> total -> reveal outcome
-    rollApi.start({
-      from: { val: 1 },
-      reset: true,
-      to: async next => {
-        // fast spring to 20
-        await next({ val: 20, config: { mass: 1, tension: 1000, friction: 60, clamp: false } })
-        // gentle spring to the rolled d20
-        await next({ val: target, config: { mass: 1, tension: 300, friction: 40, clamp: true } })
+    const sequence: Animated.CompositeAnimation[] = [
+      Animated.timing(rollAnim, { toValue: 20, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+      Animated.timing(rollAnim, { toValue: target, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(modifierOpacity, { toValue: 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]
 
-        // hide modifiers with a short reverse-reveal (do this even on natural 1)
-        await modifiersApi.start({ opacity: 0, transform: "translateY(-6px)", config: { mass: 1, tension: 160, friction: 20 } })
+    if (target !== 1) {
+      sequence.push(Animated.timing(rollAnim, { toValue: total, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: false }))
+    }
 
-        // If the roll is a natural 1 (critical fail), keep the shown d20 as "1"
-        // and skip the second count-up to total; immediately reveal the outcome instead.
-        if (target === 1) {
-          await revealApi.start({ opacity: 1, transform: "translateY(0)", config: { mass: 1, tension: 180, friction: 18 } })
-          return
-        }
+    sequence.push(Animated.timing(revealOpacity, { toValue: 1, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: true }))
 
-        // animate the displayed number from d20 -> total (includes modifiers)
-        await next({ val: total, config: { mass: 1, tension: 300, friction: 40, clamp: true } })
+    Animated.sequence(sequence).start()
+  }, [result, rollAnim, revealOpacity, modifierOpacity])
 
-        // finalize: reveal outcome/body/actions
-        await revealApi.start({ opacity: 1, transform: "translateY(0)", config: { mass: 1, tension: 180, friction: 18 } })
-      },
-    })
-  }, [result, rollApi, revealApi, modifiersApi])
+  const hasDeltas = deltas && Object.keys(deltas).length > 0
 
   return (
-    <ModalShell open={open} onClose={onClose} durationMs={180} style={{ padding: "1rem", minWidth: 360, borderRadius: 8, background: "#07070b", border: "1px solid #222" }}>
-      {({ requestClose }) => (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <ModalCard open={open} onClose={onClose} maxHeight="85%">
+      <Text style={styles.centeredTitle}>{title}</Text>
+      <View style={styles.headerBlock}>
+        <Text style={styles.subtitle}>DIFFICULTY CLASS</Text>
+        <Text style={styles.dc}>{dc}</Text>
+      </View>
 
-          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 16 }}>{title}</div>
+      <View style={styles.diceCard}>
+        <FontAwesome5 name="dice-d20" size={70} color="#f7d07a" style={{ marginBottom: -10 }} />
+        <Text style={styles.rollValue}>{result ? rollDisplay : "—"}</Text>
+        <Animated.View style={[styles.modifiersRow, { opacity: modifierOpacity }]}> 
+          {modifiersLines.map(line => (
+            <Text key={line} style={styles.modifierText}>{line}</Text>
+          ))}
+        </Animated.View>
+      </View>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Animated.View style={[styles.revealBlock, { opacity: revealOpacity }]}> 
+        <View style={styles.outcomeCard}>
+          <Text style={[styles.outcomeLabel, { color: result ? (result.success ? "#9cf5a6" : "#f78") : "#cfcfde" }]}>
+            {outcomeLabel}
+          </Text>
+        </View>
 
-            <div style={{ display: "flex", alignItems: "center", flexDirection: "column", width: 360, margin: "0 auto" }}>
-              <div style={{ width: "100%", textAlign: "center", paddingBottom: 6 }}>
-                <div style={{ fontSize: 12, color: "#aaa", letterSpacing: 1 }}>DIFFICULTY CLASS:</div>
-                <div style={{ fontSize: 28, fontWeight: 700 }}>{dc}</div>
-              </div>
+        {bodyText ? (
+          <View style={styles.bodyCard}>
+            <Text style={styles.bodyText}>{bodyText}</Text>
+            {hasDeltas ? renderDeltaPills(deltas) : null}
+          </View>
+        ) : null}
 
-              <div style={{ width: 100, height: 140, alignSelf: "center", borderRadius: 14, background: "#0e0f14", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, border: "1px solid #333", padding: 12, boxSizing: "border-box" }}>
-                <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, boxSizing: "border-box" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginTop: 30 }}>
-                    <FaDiceD20 size={72} color="#f7d07a" />
-                  </div>
-                  <div style={{ fontSize: 40, fontWeight: 800, textAlign: "center", minHeight: 40 }}>
-                    {result ? (
-                      // @ts-expect-error react-spring types lag React 19 children typing
-                      <animated.div>{rollText}</animated.div>
-                    ) : (
-                      "—"
-                    )}
-                  </div>
-                  {/* modifiers: animate hide after initial roll */}
-                  <MotionDiv style={modifiersSpring as any}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", marginTop: 4, minWidth: 300 }}>
-                      {modifiersLines.map((line, idx) => (
-                        <div key={line + idx} style={{ color: "#bbb", fontSize: 12, fontWeight: "normal", textAlign: "center" }}>{line}</div>
-                      ))}
-                    </div>
-                  </MotionDiv>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          {/* outcome: revealed after roll completes */}
-          <MotionDiv style={revealSpring as any}>
-            <div style={{ padding: "0.6rem", borderRadius: 8, background: "#06060a", border: "1px solid #2a2a2a", textAlign: "center" }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: result ? (result.success ? "#9cf5a6" : "#f78") : "#ccc" }}>
-                {outcomeLabel}
-              </div>
-            </div>
-          </MotionDiv>
-
-          {bodyText ? (
-            <MotionDiv style={revealSpring as any}>
-              <div style={{ padding: "0.6rem", borderRadius: 8, background: "#06060a", border: "1px solid #1f1f1f", color: "#ddd", fontSize: 13 }}>
-                {bodyText}
-                {renderDeltaPills(deltas)}
-              </div>
-            </MotionDiv>
-          ) : null}
-
-
-          <MotionDiv style={revealSpring as any}>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              {/* Reroll disabled for now — keep available for future debugging */}
-              {/* <button onClick={runCheck}>Reroll</button> */}
-              <button onClick={requestClose} style={{ flex: 1, minWidth: 0 }}>Close</button>
-            </div>
-          </MotionDiv>
-        </div>
-      )}
-    </ModalShell>
+        <View style={styles.actions}>
+          <Pressable style={[styles.button, styles.secondary]} onPress={runCheck}>
+            <Text style={styles.buttonText}>Reroll</Text>
+          </Pressable>
+          <Pressable style={[styles.button, styles.primary]} onPress={onClose}>
+            <Text style={styles.buttonText}>Close</Text>
+          </Pressable>
+        </View>
+      </Animated.View>
+    </ModalCard>
   )
 }
+
+const styles = StyleSheet.create({
+  headerBlock: { alignItems: "center", marginBottom: 6 },
+  subtitle: { color: "#9fa3b5", fontSize: 12, letterSpacing: 1 },
+  dc: { color: "#f5f6fb", fontSize: 26, fontWeight: "800", marginTop: 4 },
+  diceCard: {
+    backgroundColor: "#0e0f18",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#1d2030",
+    padding: 10,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 6,
+    width: 92,
+    maxHeight: 135,
+    alignSelf: "center",
+    marginBottom: 10,
+	marginTop: -5,
+  },
+  rollValue: { color: "#f5f6fb", fontSize: 32, fontWeight: "800", textAlign: "center", minHeight: 32 },
+  modifiersRow: { flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap", justifyContent: "center", alignItems: "center", minWidth: 500 },
+  modifierText: { color: "#b6b9c7", fontSize: 12, textAlign: "center" },
+  revealBlock: { gap: 10 },
+  outcomeCard: {
+    backgroundColor: "#0c0f18",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#1d2030",
+    padding: 12,
+    alignItems: "center",
+    gap: 4,
+  },
+  outcomeLabel: { fontSize: 20, fontWeight: "800" },
+  outcomeSub: { color: "#cfcfde", fontSize: 13, textAlign: "center" },
+  centeredTitle: { color: "#fff", fontSize: 18, fontWeight: "800", textAlign: "center", marginBottom: 8 },
+  bodyCard: {
+    backgroundColor: "#0c0f18",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#1d2030",
+    padding: 12,
+    gap: 8,
+  },
+  bodyText: { color: "#e1e3eb", fontSize: 13, lineHeight: 18 },
+  deltaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  deltaPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "#1f2b33", color: "#a8e4ff", fontSize: 12 },
+  actions: { flexDirection: "row", gap: 10, marginTop: 2 },
+  button: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", borderWidth: 1 },
+  primary: { backgroundColor: "#1b5cff", borderColor: "#2c86f0" },
+  secondary: { backgroundColor: "#161826", borderColor: "#25283a" },
+  buttonText: { color: "#fff", fontWeight: "800" },
+})

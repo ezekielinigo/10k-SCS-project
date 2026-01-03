@@ -1,12 +1,12 @@
-import { useMemo } from "react"
-import { useGame } from "../game/GameContext"
-import { listAffiliations, getAffiliationById } from "../game/content/affiliations"
-import { getCareerForJobId, getJobById } from "../game/content/careers"
-import ModalShell from "./ModalShell"
+import React, { useMemo } from "react"
+import { View, Text, StyleSheet } from "react-native"
+import { useGame } from "@shared/game/GameContext"
+import { listAffiliations, getAffiliationById } from "@shared/game/content/affiliations"
+import { getCareerForJobId, getJobById } from "@shared/game/content/careers"
+import ModalCard from "./ModalCard"
 
 export default function AffiliationMapModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { state } = useGame()
-  // groups computed above via useMemo; return null if none
 
   const groups = useMemo(() => {
     const memberships = Object.values(state.memberships ?? {}) as any[]
@@ -14,7 +14,6 @@ export default function AffiliationMapModal({ open, onClose }: { open: boolean; 
     const assignments = Object.values(state.jobAssignments ?? {})
     const jobInstances = state.jobInstances ?? {}
 
-    // Map member -> affiliation -> job titles for that affiliation
     const jobTitlesByMemberAff: Record<string, Record<string, string[]>> = {}
 
     const resolveAffs = (jobId: string, memberId: string): string[] => {
@@ -34,7 +33,6 @@ export default function AffiliationMapModal({ open, onClose }: { open: boolean; 
       }
     }
 
-    // Include procedurally attached jobs stored on NPCs (generated but saved)
     for (const [npcId, npc] of Object.entries(state.npcs ?? {})) {
       const npcJobs = (npc as any).jobs ?? []
       for (const j of npcJobs) {
@@ -68,45 +66,43 @@ export default function AffiliationMapModal({ open, onClose }: { open: boolean; 
   }, [state.memberships, state.npcs, state.player, state.jobAssignments])
 
   return (
-    <ModalShell open={open} onClose={onClose} durationMs={200} style={{ padding: "1rem", width: 720, maxHeight: "80vh", overflowY: "auto", borderRadius: 8 }}>
-      {() => (
-        <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <h3 style={{ margin: 0 }}>Affiliation Map</h3>
-            <span style={{ opacity: 0.7, fontSize: "0.9rem" }}>{groups.length} orgs</span>
-          </div>
+    <ModalCard open={open} onClose={onClose} title="Affiliation Map" maxHeight="80%">
+      <Text style={styles.muted}>{groups.length} orgs</Text>
+      {groups.length === 0 && <Text style={styles.muted}>No affiliations yet.</Text>}
 
-          {groups.length === 0 && <div>No affiliations yet.</div>}
+      {groups.map(group => (
+        <View key={group.id} style={styles.group}>
+          <View style={styles.groupHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.groupTitle}>{group.affiliation?.name ?? group.id}</Text>
+              {group.affiliation?.description ? <Text style={styles.muted}>{group.affiliation.description}</Text> : null}
+              {group.affiliation?.tags?.length ? <Text style={styles.meta}>{group.affiliation.tags.join(", ")}</Text> : null}
+            </View>
+            <Text style={styles.muted}>{group.members.length} member{group.members.length === 1 ? "" : "s"}</Text>
+          </View>
 
-          {groups.map(group => (
-            <div key={group.id} style={{ padding: "0.5rem 0", borderBottom: "1px solid #222" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{group.affiliation?.name ?? group.id}</div>
-                  {group.affiliation?.description && (
-                    <div style={{ fontSize: "0.9rem", opacity: 0.8 }}>{group.affiliation.description}</div>
-                  )}
-                  {group.affiliation?.tags?.length ? (
-                    <div style={{ fontSize: "0.8rem", opacity: 0.7, marginTop: 4 }}>{group.affiliation.tags.join(", ")}</div>
-                  ) : null}
-                </div>
-                <div style={{ color: "#aaa", minWidth: 80, textAlign: "right" }}>{group.members.length} member{group.members.length === 1 ? "" : "s"}</div>
-              </div>
-
-              <div style={{ marginTop: 6, paddingLeft: 4 }}>
-                {group.members.length === 0 && <div style={{ opacity: 0.7 }}>No known members.</div>}
-                {group.members.map(m => (
-                  <div key={m.memberId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
-                    <div style={{ fontWeight: 600 }}>{m.name}</div>
-                    <div style={{ fontSize: "0.85rem", opacity: 0.8 }}>{m.jobs.join(", ") || "No job recorded"}</div>
-                    <div style={{ fontSize: "0.8rem", opacity: 0.7 }}>Rep {m.reputation ?? 0}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </>
-      )}
-    </ModalShell>
+          <View style={{ marginTop: 6 }}>
+            {group.members.length === 0 && <Text style={styles.muted}>No known members.</Text>}
+            {group.members.map(m => (
+              <View key={m.memberId} style={styles.memberRow}>
+                <Text style={styles.memberName}>{m.name}</Text>
+                <Text style={styles.meta}>{m.jobs.join(", ") || "No job recorded"}</Text>
+                <Text style={styles.muted}>Rep {m.reputation ?? 0}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
+    </ModalCard>
   )
 }
+
+const styles = StyleSheet.create({
+  muted: { color: "#9fa3b5", marginBottom: 6 },
+  meta: { color: "#9fa3b5", fontSize: 12, marginTop: 2 },
+  group: { paddingVertical: 8, borderBottomWidth: 1, borderColor: "#1c1c28" },
+  groupHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  groupTitle: { color: "#fff", fontWeight: "800" },
+  memberRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
+  memberName: { color: "#fff", fontWeight: "700" },
+})

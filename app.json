@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "10k-scs-mobile",
+    "slug": "10k-scs-mobile",
+    "version": "1.0.0",
+    "platforms": ["ios", "android"],
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {}
+  }
+}

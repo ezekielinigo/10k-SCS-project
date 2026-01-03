@@ -1,44 +1,41 @@
-import { useEffect, useRef, useState } from "react"
-import type { IconType } from "react-icons"
-import { FiHeart, FiZap, FiInstagram, FiEye } from "react-icons/fi"
-import { LuDiamond, LuBrainCircuit, LuBrain, LuBicepsFlexed, LuAperture, LuMessageCircle } from "react-icons/lu"
+import React from "react"
+import { View, Text, StyleSheet } from "react-native"
+import { Feather } from "@expo/vector-icons"
+import { BicepsFlexed, Brain, Aperture, MessageCircle } from "lucide-react-native"
 
 export type VitalKey = "health" | "stress" | "humanity" | "looks" | "popularity" | "money"
 
 type VitalDefinition = {
   key: VitalKey
   label: string
-  Icon: IconType
-  /** Optional text symbol (e.g. diamond) to reuse where icons are not available. */
+  Icon: React.ComponentType<{ size?: number; color?: string }>
   symbol?: string
   max?: number
-  /** Whether this vital is enabled (shown) by default in UIs that honor visibility preferences. */
   enabled?: boolean
 }
 
 export const VITAL_DEFINITIONS: Record<VitalKey, VitalDefinition> = {
-  health: { key: "health", label: "Health", Icon: FiHeart, max: 100, enabled: true },
-  stress: { key: "stress", label: "Stress", Icon: FiZap, max: 100, enabled: true },
-  humanity: { key: "humanity", label: "Humanity", Icon: LuBrainCircuit, max: 100, enabled: false },
-  looks: { key: "looks", label: "Looks", Icon: FiEye, max: 100, enabled: false },
-  popularity: { key: "popularity", label: "Popularity", Icon: FiInstagram, max: 100, enabled: false },
-  money: { key: "money", label: "Money", Icon: LuDiamond, symbol: "♦", enabled: true },
+  health: { key: "health", label: "Health", Icon: (p) => <Feather name="heart" size={p.size ?? 14} color={p.color ?? "#fff"} />, max: 100, enabled: true },
+  stress: { key: "stress", label: "Stress", Icon: (p) => <Feather name="activity" size={p.size ?? 14} color={p.color ?? "#fff"} />, max: 100, enabled: true },
+  humanity: { key: "humanity", label: "Humanity", Icon: (p) => <Feather name="bar-chart-2" size={p.size ?? 14} color={p.color ?? "#fff"} />, max: 100, enabled: false },
+  looks: { key: "looks", label: "Looks", Icon: (p) => <Feather name="eye" size={p.size ?? 14} color={p.color ?? "#fff"} />, max: 100, enabled: false },
+  popularity: { key: "popularity", label: "Popularity", Icon: (p) => <Feather name="users" size={p.size ?? 14} color={p.color ?? "#fff"} />, max: 100, enabled: false },
+  money: { key: "money", label: "Money", Icon: (p) => <Feather name="dollar-sign" size={p.size ?? 14} color={p.color ?? "#fff"} />, max: 100, enabled: true },
 }
 
 type SkillDefinition = {
   key: string
   label: string
-  Icon: IconType
+  Icon: React.ComponentType<{ size?: number; color?: string }>
 }
 
 export const SKILL_DEFINITIONS: Record<string, SkillDefinition> = {
-  STR: { key: "STR", label: "Strength", Icon: LuBicepsFlexed },
-  INT: { key: "INT", label: "Intelligence", Icon: LuBrain },
-  REF: { key: "REF", label: "Reflexes", Icon: LuAperture },
-  CHR: { key: "CHR", label: "Charisma", Icon: LuMessageCircle },
+  STR: { key: "STR", label: "Strength", Icon: (p) => <BicepsFlexed size={p.size ?? 14} color={p.color ?? "#fff"} /> },
+  INT: { key: "INT", label: "Intelligence", Icon: (p) => <Brain size={p.size ?? 14} color={p.color ?? "#fff"} /> },
+  REF: { key: "REF", label: "Reflexes", Icon: (p) => <Aperture size={p.size ?? 14} color={p.color ?? "#fff"} /> },
+  CHR: { key: "CHR", label: "Charisma", Icon: (p) => <MessageCircle size={p.size ?? 14} color={p.color ?? "#fff"} /> },
 }
 
-// Map subskill keys to their parent main-skill abbreviations (used for pill icons)
 export const SUBSKILL_PARENT_ABBREV: Record<string, keyof typeof SKILL_DEFINITIONS> = {
   athletics: "STR",
   closeCombat: "STR",
@@ -54,13 +51,12 @@ export const SUBSKILL_PARENT_ABBREV: Record<string, keyof typeof SKILL_DEFINITIO
   streetwise: "CHR",
 }
 
-// Primary vitals we surface in the player header.
 export const PLAYER_VITAL_KEYS: VitalKey[] = ["health", "stress", "humanity", "looks", "popularity", "money"]
 
-type SkillColorKey = "DEF_" | "STR" | "INT" | "REF" | "CHR"
+type SkillColorKey = "DEFAULT" | "STR" | "INT" | "REF" | "CHR"
 
 export const SKILL_COLORS: Record<SkillColorKey, string> = {
-  DEF_: "#888888",
+  DEFAULT: "#888888",
   STR: "#ff1053",
   INT: "#47A8BD",
   REF: "#2C6E49",
@@ -75,143 +71,13 @@ export const chooseIndefiniteArticle = (title?: string | null): string => {
   return /^[aeiou]/i.test(jobTitle) ? "an" : "a"
 }
 
-// Hook: returns a ref to attach to modal container. Calls onClose when
-// click occurs outside the element or Escape is pressed.
-// internal stack of modal refs (top = last)
-let modalStack: Array<React.RefObject<HTMLElement | null>> = []
-
-// Utility: return whether the given ref is the topmost modal
-export function isTopModal(ref?: React.RefObject<HTMLElement | null>) {
-  if (!ref) return false
-  return modalStack[modalStack.length - 1] === ref
-}
-
-// Utility: whether any modal is currently registered (open)
-export function anyModalOpen() {
-  return modalStack.length > 0
-}
-
-// Hook: returns a ref to attach to modal container. Calls onClose when
-// click occurs outside the element or Escape is pressed, but only when
-// this modal is the topmost modal.
-export function useModalDismiss(onClose: () => void) {
-  const ref = useRef<HTMLElement | null>(null)
-
-  useEffect(() => {
-    // register in stack
-    modalStack.push(ref)
-    return () => {
-      modalStack = modalStack.filter(r => r !== ref)
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      const top = modalStack[modalStack.length - 1]
-      if (top !== ref) return
-      if (e.key === "Escape" || e.key === "Esc") onClose()
-    }
-
-    document.addEventListener("keydown", handleKey)
-    return () => {
-      document.removeEventListener("keydown", handleKey)
-    }
-  }, [onClose])
-
-  return ref
-}
-
-// Hook: listen for an upward swipe starting in the bottom portion of the screen
-// and call `onClose`. Useful for modals that want swipe-to-dismiss behavior.
-export function useSwipeDismiss(onClose: () => void, opts?: { startRatio?: number; thresholdRatio?: number }, containerRef?: React.RefObject<HTMLElement | null>) {
-  const startRatio = opts?.startRatio ?? 2 / 3
-  const thresholdRatio = opts?.thresholdRatio ?? 0.08
-
-  useEffect(() => {
-    let startY: number | null = null
-    let lastY = 0
-
-    const onTouchStart = (e: TouchEvent) => {
-      const t = e.touches?.[0]
-      if (!t) return
-      const h = window.innerHeight
-      const sy = t.clientY
-      // only start if touch begins in bottom portion
-      if (sy < h * startRatio) return
-      // if a containerRef is provided, only allow swipe for topmost modal
-      if (containerRef) {
-        const top = modalStack[modalStack.length - 1]
-        if (top !== containerRef) return
-      }
-      startY = sy
-      lastY = sy
-    }
-
-    const onTouchMove = (e: TouchEvent) => {
-      const t = e.touches?.[0]
-      if (!t) return
-      lastY = t.clientY
-    }
-
-    const onTouchEnd = () => {
-      if (startY == null) return
-      const delta = lastY - startY
-      const threshold = Math.max(40, window.innerHeight * thresholdRatio)
-      if (delta < -threshold) onClose()
-      startY = null
-    }
-
-    document.addEventListener("touchstart", onTouchStart, { passive: true })
-    document.addEventListener("touchmove", onTouchMove, { passive: true })
-    document.addEventListener("touchend", onTouchEnd)
-
-    return () => {
-      document.removeEventListener("touchstart", onTouchStart)
-      document.removeEventListener("touchmove", onTouchMove)
-      document.removeEventListener("touchend", onTouchEnd)
-    }
-  }, [onClose, startRatio, thresholdRatio])
-}
-
-// Hook: Handles modal open/close transitions with animation support
-export function useModalTransition(open: boolean, onClose: () => void, durationMs: number = 200) {
-  const [shouldRender, setShouldRender] = useState(open)
-  const [closing, setClosing] = useState(false)
-
-  useEffect(() => {
-    if (open) {
-      setShouldRender(true)
-      setClosing(false)
-    } else if (shouldRender) {
-      setClosing(true)
-      const timer = setTimeout(() => {
-        setShouldRender(false)
-        setClosing(false)
-      }, durationMs)
-      return () => clearTimeout(timer)
-    }
-  }, [open, durationMs, shouldRender])
-
-  const requestClose = () => {
-    if (!closing) {
-      setClosing(true)
-      setTimeout(onClose, durationMs)
-    }
-  }
-
-  return { shouldRender, closing, requestClose, durationMs }
-}
-
-export default { chooseIndefiniteArticle, useModalDismiss, useModalTransition }
-
-// Shared delta pill renderer used by LogPanel and StatCheckModal
 export function renderDeltaPills(deltas?: Record<string, number>) {
   if (!deltas) return null
   const entries = Object.entries(deltas).filter(([, v]) => Number(v) !== 0)
   if (entries.length === 0) return null
 
   return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+    <View style={styles.deltaContainer}>
       {entries.map(([key, rawValue]) => {
         const lower = String(key).toLowerCase()
         const value = Number(rawValue) || 0
@@ -230,15 +96,11 @@ export function renderDeltaPills(deltas?: Record<string, number>) {
 
         const pretty = (s: string) => String(s).replace(/([A-Z])/g, " $1").trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")
 
-        // Try vitals first (by lower-case key), then explicit skill abbrev, then subskill -> parent mapping
         const vitalDef = (VITAL_DEFINITIONS as Record<string, any>)[lower as string] as VitalDefinition | undefined
         const skillDef = (SKILL_DEFINITIONS as Record<string, any>)[String(key).toUpperCase()]
         const parentAbbrev = SUBSKILL_PARENT_ABBREV[lower]
         const parentSkillDef = parentAbbrev ? SKILL_DEFINITIONS[parentAbbrev] : undefined
 
-        const IconComponent: IconType | null = vitalDef ? vitalDef.Icon : skillDef ? skillDef.Icon : parentSkillDef ? parentSkillDef.Icon : null
-
-        // label for non-vitals: skill abbrev (if key is abbrev) or pretty name
         let labelText: string | null = null
         if (!vitalDef) {
           if (skillDef) {
@@ -250,27 +112,23 @@ export function renderDeltaPills(deltas?: Record<string, number>) {
         }
         const text = labelText ? `${labelText} ${signed}` : signed
 
+        const IconComponent: React.ComponentType<any> | null = vitalDef ? vitalDef.Icon : skillDef ? skillDef.Icon : parentSkillDef ? parentSkillDef.Icon : null
+
         return (
-          <span
-            key={`${key}-${signed}`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "3px 6px",
-              borderRadius: 999,
-              background: bg,
-              color: fg,
-              border: `1px solid ${border}`,
-              fontSize: "0.75rem",
-              lineHeight: 1.2,
-            }}
-          >
-            {IconComponent ? <IconComponent size={12} strokeWidth={0.75} /> : null}
-            <span style={{ fontWeight: 1 }}>{text}</span>
-          </span>
+          <View key={`${key}-${signed}`} style={[styles.pill, { backgroundColor: bg, borderColor: border }] as any}>
+            {IconComponent ? <IconComponent size={12} color={fg} /> : null}
+            <Text style={[styles.pillText, { color: fg }]}>{text}</Text>
+          </View>
         )
       })}
-    </div>
+    </View>
   )
 }
+
+const styles = StyleSheet.create({
+  deltaContainer: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
+  pill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1, marginRight: 1, marginBottom: 6 },
+  pillText: { fontSize: 12 },
+})
+
+export default { chooseIndefiniteArticle, renderDeltaPills }
