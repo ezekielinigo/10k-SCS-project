@@ -1,8 +1,8 @@
-import { useMemo } from "react"
+import React, { useMemo } from "react"
 import ProfileModal, { type ProfileData, type ProfileOccupation } from "./ProfileModal"
-import { useGame } from "../game/GameContext"
-import { getAffiliationById } from "../game/content/affiliations"
-import { getCareerForJobId, getJobById } from "../game/content/careers"
+import { useGame } from "@shared/game/GameContext"
+import { getAffiliationById } from "@shared/game/content/affiliations"
+import { getCareerForJobId, getJobById } from "@shared/game/content/careers"
 
 export type ProfileTarget = { mode: "player" } | { mode: "npc"; npcId?: string; npc?: any }
 

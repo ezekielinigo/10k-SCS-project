@@ -1,42 +1,5 @@
 import { PALETTE_VARIATIONS, type Tone, type PaletteCategory, hexToRgb } from "./palettes"
-
-// Layers and controls used by DebugAvatarModal; kept consistent here
-export const RENDER_ORDER = [
-  "BG",
-  "H_BACK",
-  "BODY_BACK",
-  "NECK",
-  "SHAPE",
-  "BODY_INNER",
-  "EYES",
-  "EYEBROWS",
-  "NOSE",
-  "MOUTH",
-  "ACCESSORY",
-  "H_SIDE",
-  "H_FRONT",
-  "BODY_FRONT",
-  "H_ACCESSORY",
-] as const
-export type RenderKey = typeof RENDER_ORDER[number]
-
-export const CONTROLS = [
-  { key: "BG", label: "Background" },
-  { key: "SHAPE", label: "Base" },
-  { key: "NECK", label: "Neck" },
-  { key: "OUTER_BODY", label: "Outer Body" },
-  { key: "BODY_INNER", label: "Inner Body" },
-  { key: "EYES", label: "Eyes" },
-  { key: "EYEBROWS", label: "Eyebrows" },
-  { key: "NOSE", label: "Nose" },
-  { key: "MOUTH", label: "Mouth" },
-  { key: "H_BACK", label: "Hair Back" },
-  { key: "H_SIDE", label: "Hair Side" },
-  { key: "H_FRONT", label: "Hair Front" },
-  { key: "H_ACCESSORY", label: "Hair Accessory" },
-  { key: "ACCESSORY", label: "Accessory" },
-] as const
-export type ControlKey = typeof CONTROLS[number]["key"]
+import { RENDER_ORDER, type RenderKey, CONTROL_ORDER, type ControlKey } from "@shared/utils/avatarConfig"
 
 export type CharOptionsMap = Record<string, string[]>
 export type LayerSelection = Record<ControlKey, number>
@@ -69,7 +32,7 @@ export function getCountForControl(options: CharOptionsMap, key: ControlKey): nu
 
 export function randomizeLayers(options: CharOptionsMap): LayerSelection {
   const indices = {} as LayerSelection
-  for (const ctl of CONTROLS) {
+  for (const ctl of CONTROL_ORDER) {
     const len = getCountForControl(options, ctl.key)
     indices[ctl.key] = len > 0 ? Math.floor(Math.random() * len) : 0
   }

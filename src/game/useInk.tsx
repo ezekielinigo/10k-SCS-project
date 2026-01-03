@@ -37,8 +37,11 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
 
   useEffect(() => {
     const unsubscribe = onInkStatCheck(evt => {
+      // When an ink stat-check is emitted, prefer showing the StatCheckModal
+      // and ensure the InkModal is not visible (avoid a flash).
       setInkStatCheck(evt)
       setInkStatCheckOpen(true)
+      setInkOpen(false)
     })
     return () => { unsubscribe() }
   }, [dispatch])
@@ -245,6 +248,8 @@ export const useInk = ({ state, dispatch }: UseInkArgs): UseInkReturn => {
   }, [state.activeTaskRun])
 
   const closeInkStatCheck = () => {
+    // Finish the ink story and resolve the pending task when the stat-check UI closes.
+    handleCloseInkModal()
     setInkStatCheckOpen(false)
     setInkStatCheck(null)
   }

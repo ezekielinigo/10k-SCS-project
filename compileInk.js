@@ -1,6 +1,6 @@
-import { execFileSync } from "child_process";
-import { existsSync, readdirSync, statSync } from "fs";
-import path from "path";
+const { execFileSync } = require("child_process");
+const { existsSync, readdirSync, statSync } = require("fs");
+const path = require("path");
 
 const root = process.cwd();
 const inkDir = path.join(root, "src", "ink");

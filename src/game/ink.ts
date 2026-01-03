@@ -1,6 +1,8 @@
 import type { PlayerState } from "./types"
 import { makeRng, performStatCheck, type MainStatKey, type StatCheckResult, type SubSkillKey } from "./statCheck"
 
+const isReactNative = typeof navigator !== "undefined" && navigator.product === "ReactNative"
+
 export type InkStatCheckEvent = {
   statName: string
   dc: number
@@ -187,30 +189,55 @@ export const resolveInkFrames = (story: any): InkFrame[] => {
   return [{ text: out, choices: story.currentChoices ?? [] }]
 }
 
+const normalizeInkSourceId = (src?: string | null) => {
+  if (!src) return "career_mechanic"
+  const cleaned = src
+    .replace(/\\/g, "/")
+    .replace(/^\.\/?/, "")
+    .replace(/^\.\.\//, "")
+    .replace(/^src\//, "")
+    .replace(/^ink\//, "")
+    .replace(/\.json$/i, "")
+  const parts = cleaned.split("/")
+  return parts[parts.length - 1] || "career_mechanic"
+}
+
+const loadInkContent = async (inkSource?: string) => {
+  const sourceId = normalizeInkSourceId(inkSource)
+
+  if (isReactNative) {
+    switch (sourceId) {
+      case "career_courier":
+        return require("../ink/career_courier.json")
+      case "career_mechanic":
+        return require("../ink/career_mechanic.json")
+      case "event_world":
+        return require("../ink/event_world.json")
+      default:
+        return require("../ink/career_mechanic.json")
+    }
+  }
+
+  const loaders: Record<string, () => Promise<any>> = {
+    career_courier: () => import("../ink/career_courier.json"),
+    career_mechanic: () => import("../ink/career_mechanic.json"),
+    event_world: () => import("../ink/event_world.json"),
+  }
+
+  const load = loaders[sourceId] ?? loaders.career_mechanic
+  return load()
+}
+
 export const createInkStory = async (knot: string | undefined, player: PlayerState, inkSource?: string, initialVars?: Record<string, any>) => {
   const InkModule = await import("inkjs")
   const StoryCtor = (InkModule as any).Story ?? (InkModule as any).default ?? InkModule
   if (!StoryCtor) throw new Error("inkjs Story constructor not found")
 
-  const fallbackSource = "/src/ink/career_mechanic.json"
   let tasks: any
   try {
-    const normalize = (src: string) => {
-      // If already absolute, use as-is. Otherwise prefer Vite-friendly /src/ path.
-      if (src.startsWith("/") || src.startsWith("http")) return src
-      // strip leading ./ or ../
-      const cleaned = src.replace(/^\.\/?/, "").replace(/^\.\.\//, "")
-      return `/src/${cleaned}`
-    }
-
-    if (inkSource) {
-      const spec = normalize(inkSource)
-      tasks = (await import(/* @vite-ignore */ spec)) as any
-    } else {
-      tasks = (await import(fallbackSource)) as any
-    }
+    tasks = await loadInkContent(inkSource)
   } catch (e) {
-    throw new Error(`Failed to load ink content from ${inkSource ?? fallbackSource}: ${(e as any)?.message ?? e}`)
+    throw new Error(`Failed to load ink content from ${inkSource ?? "default"}: ${(e as any)?.message ?? e}`)
   }
 
   const story = new StoryCtor(tasks)

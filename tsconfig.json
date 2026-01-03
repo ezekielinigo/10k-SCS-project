@@ -1,7 +1,13 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "jsx": "react-native",
+    "baseUrl": "./",
+    "paths": {
+      "@shared/*": ["src/*"]
+    },
+    "strict": true,
+    "noEmit": true
+  },
+  "include": ["app", "src", "App.tsx", "index.ts", "compileInk.js"]
 }

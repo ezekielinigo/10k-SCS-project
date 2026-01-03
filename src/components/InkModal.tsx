@@ -1,139 +1,119 @@
-// React import not required with new JSX runtime
-import ModalShell from "./ModalShell"
-import StatCheckModal from "./StatCheckModal"
-import type { InkStatCheckEvent } from "../game/ink"
+import React, { useMemo } from "react"
+import { Modal, View, Text, StyleSheet, ScrollView, Pressable } from "react-native"
+import type { InkFrame, InkStatCheckEvent } from "@shared/game/ink"
 
-type InkFrame = { text: string; choices: any[] }
+const extractDeltas = (vars?: Record<string, any>) => {
+  const deltas: Record<string, number> = {}
+  if (!vars) return deltas
+  const keys = Object.keys(vars)
+  for (const key of keys) {
+    if (!key.startsWith("delta_")) continue
+    const name = key.slice(6)
+    const val = Number(vars[key] ?? 0)
+    if (!val) continue
+    deltas[name] = val
+  }
+  return deltas
+}
 
 export default function InkModal({ open, onClose, frames, onChoose, statsVars, inkStatCheck, title }: { open: boolean; onClose: () => void; frames: InkFrame[]; onChoose: (choiceIndex: number) => void; statsVars?: any; inkStatCheck?: InkStatCheckEvent | null; title?: string | null }) {
+  const top = frames[frames.length - 1]
+
+  const deltas = useMemo(() => extractDeltas(statsVars), [statsVars])
+
+  if (!top) return null
+
+  const hasChoices = (top.choices?.length ?? 0) > 0
+
   return (
-    <>
-      {frames.map((frame, idx) => {
-        const isTop = idx === frames.length - 1
-        if (isTop) {
-          const noChoices = (frame.choices?.length ?? 0) === 0
-          if (noChoices) {
-            const vars = statsVars ?? {}
-            const deltas: Record<string, number> = {}
-            const dm = Number(vars.delta_money ?? 0)
-            const ds = Number(vars.delta_stress ?? 0)
-            const dh = Number(vars.delta_health ?? 0)
-            const dhu = Number(vars.delta_humanity ?? 0)
-            if (dm !== 0) deltas["Money"] = dm
-            if (ds !== 0) deltas["Stress"] = ds
-            if (dh !== 0) deltas["Health"] = dh
-            if (dhu !== 0) deltas["Humanity"] = dhu
-
-            // include skill/subskill deltas if present
-            Object.keys(vars).forEach(k => {
-              if (!k.startsWith("delta_")) return
-              const val = Number(vars[k] ?? 0)
-              if (!val || ["delta_money", "delta_stress", "delta_health", "delta_humanity"].includes(k)) return
-              const name = k.slice(6)
-              deltas[name.charAt(0).toUpperCase() + name.slice(1)] = val
-            })
-            // If an ink-provided stat-check event exists, show the full StatCheckModal
-            if (inkStatCheck) {
-              return (
-                <StatCheckModal
-                  key={idx}
-                  open={open}
-                  onClose={onClose}
-                  title={title ?? "Task Result"}
-                  dc={inkStatCheck?.dc ?? 0}
-                  mainStatKey={inkStatCheck?.mainStatKey}
-                  mainStatValue={inkStatCheck?.result?.mainStat}
-                  subSkillKey={inkStatCheck?.subSkillKey}
-                  subSkillValue={inkStatCheck?.result?.subSkillBonus}
-                  initialResult={inkStatCheck?.result}
-                  autoRun={false}
-                  bodyText={frame.text}
-                  deltas={deltas}
-                />
-              )
-            }
-
-            // Otherwise reuse StatCheckModal in minimal mode to show only text + deltas
-            return (
-              <StatCheckModal
-                key={idx}
-                open={open}
-                onClose={onClose}
-                title={title ?? "Task Result"}
-                dc={0}
-                bodyText={frame.text}
-                deltas={deltas}
-                minimal={true}
-              />
-            )
-          }
-          return (
-            <ModalShell key={idx} open={open} onClose={onClose} preventClose={true} durationMs={200} style={{ padding: "1.25rem", width: "520px", borderRadius: 8, background: "#111", color: "#fff" }}>
-                  {() => (
-                    <>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}></h3>
-                      </div>
-                      <div style={{ whiteSpace: "pre-wrap", marginBottom: "1rem" }}>{frame.text}</div>
-
-                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                        {frame.choices.map((c, cidx) => (
-                          <button
-                            key={cidx}
-                            style={{ textAlign: "center", padding: "0.5rem", borderRadius: 6 }}
-                            onClick={() => onChoose(c.index ?? cidx)}
-                            disabled={!isTop}
-                          >
-                            {c.text}
-                          </button>
-                        ))}
-
-                        {/* Choices with navigation remain unchanged; terminal screens are handled above by StatCheckModal */}
-                      </div>
-                    </>
-                  )}
-                </ModalShell>
-          )
-        }
-
-        return (
-          <div
-            key={idx}
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.65)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 60 + idx,
-            }}
-          >
-            <div
-              style={{
-                background: "#111",
-                color: "#fff",
-                padding: "1.25rem",
-                width: "520px",
-                borderRadius: 8,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h3 style={{ marginTop: 0, letterSpacing: 0.5 }}></h3>
-              </div>
-              <div style={{ whiteSpace: "pre-wrap", marginBottom: "1rem" }}>{frame.text}</div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {frame.choices.map((c, cidx) => (
-                  <button key={cidx} style={{ textAlign: "center", padding: "0.5rem", borderRadius: 6 }} onClick={() => onChoose(c.index ?? cidx)}>
-                    {c.text}
-                  </button>
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.backdrop}>
+        <View style={styles.card}>
+          <Text style={styles.title}>{title ?? "Story"}</Text>
+          <ScrollView style={styles.body}>
+            <Text style={styles.text}>{top.text}</Text>
+            {inkStatCheck ? (
+              <View style={styles.statBox}>
+                <Text style={styles.statTitle}>Stat Check</Text>
+                <Text style={styles.statText}>
+                  {inkStatCheck.mainStatKey.toUpperCase()}
+                  {inkStatCheck.subSkillKey ? `/${inkStatCheck.subSkillKey}` : ""} vs DC {inkStatCheck.dc}
+                </Text>
+                <Text style={styles.statText}>Roll: {inkStatCheck.result.d20} → Total {inkStatCheck.result.total}</Text>
+                <Text style={[styles.statText, { color: inkStatCheck.result.success ? "#9ef0ae" : "#f78" }]}>
+                  {inkStatCheck.result.success ? "Success" : "Failure"}
+                </Text>
+              </View>
+            ) : null}
+            {Object.keys(deltas).length ? (
+              <View style={styles.deltaRow}>
+                {Object.entries(deltas).map(([k, v]) => (
+                  <Text key={k} style={styles.deltaPill}>{`${k}: ${v > 0 ? "+" : ""}${v}`}</Text>
                 ))}
-              </div>
-            </div>
-          </div>
-        )
-      })}
-    </>
+              </View>
+            ) : null}
+          </ScrollView>
+
+          {hasChoices ? (
+            <View style={{ gap: 8 }}>
+                      {(() => {
+                        const vars = statsVars ?? {}
+                        const quitCount = Object.keys(vars).filter(k => k.startsWith("quit_") && vars[k]).length
+                        const total = top.choices.length
+                        return top.choices.map((c, idx) => {
+                          const isQuit = quitCount > 0 && idx >= total - quitCount
+                          return (
+                            <Pressable
+                              key={idx}
+                              style={isQuit ? [styles.choice, styles.secondaryBtn] : styles.choice}
+                              onPress={() => onChoose(c.index ?? idx)}
+                            >
+                              <Text style={isQuit ? styles.secondaryText : styles.choiceText}>{c.text}</Text>
+                            </Pressable>
+                          )
+                        })
+                      })()}
+            </View>
+          ) : (
+            <Pressable style={[styles.choice, styles.primaryBtn]} onPress={onClose}>
+              <Text style={styles.choiceText}>Continue</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </Modal>
   )
 }
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  card: {
+    width: "100%",
+    maxHeight: "90%",
+    backgroundColor: "#0c0c12",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#1f1f2a",
+    gap: 12,
+  },
+  title: { color: "#fff", fontSize: 18, fontWeight: "800", marginBottom: 4 },
+  body: { flexGrow: 0 },
+  text: { color: "#e5e5e5", fontSize: 15, lineHeight: 22 },
+  choice: { padding: 12, backgroundColor: "#1b5cff", borderRadius: 10, alignItems: "center" },
+  choiceText: { color: "#fff", fontWeight: "700" },
+  primaryBtn: { backgroundColor: "#1b5cff" },
+  secondaryBtn: { backgroundColor: "#1a1a22", borderWidth: 1, borderColor: "#2b2b34" },
+  secondaryText: { color: "#d0d0d0", fontWeight: "600" },
+  deltaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  deltaPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "#1f2b33", color: "#a8e4ff", fontSize: 12 },
+  statBox: { borderWidth: 1, borderColor: "#2e2e3a", borderRadius: 10, padding: 10, marginTop: 12, backgroundColor: "#101018" },
+  statTitle: { color: "#fff", fontWeight: "700", marginBottom: 4 },
+  statText: { color: "#cfcfde", fontSize: 13 },
+})

@@ -1,7 +1,7 @@
-import { useState } from "react"
-import { FiCheck } from "react-icons/fi"
-import { useGame } from "../game/GameContext"
-import { describeTask } from "../game/taskLookup"
+import React, { useState } from "react"
+import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native"
+import { useGame } from "@shared/game/GameContext"
+import { describeTask } from "@shared/game/taskLookup"
 
 export default function TaskPanel({ onOpenInk }: { onOpenInk?: (taskId: string, taskGraphId: string) => void }) {
   const { state, dispatch } = useGame()
@@ -16,7 +16,6 @@ export default function TaskPanel({ onOpenInk }: { onOpenInk?: (taskId: string, 
         onOpenInk(task.id, task.taskGraphId)
         return
       }
-
       dispatch({ type: "START_TASK_RUN", taskId: task.id, taskGraphId: task.taskGraphId })
       return
     }
@@ -31,77 +30,59 @@ export default function TaskPanel({ onOpenInk }: { onOpenInk?: (taskId: string, 
   }
 
   return (
-    <div className="task-panel" style={{ padding: "0.5rem", flexShrink: 0, display: "flex", flexDirection: "column" }}>
-      <h2 style={{ margin: 0, marginBottom: 8 }}>Tasks this month</h2>
-      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-        {state.tasks.length === 0 && <p style={{ margin: 0 }}>No tasks yet. Advance month.</p>}
+    <View style={styles.container}>
+      <Text style={styles.title}>Tasks this month</Text>
+      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+        {state.tasks.length === 0 && <Text style={styles.empty}>No tasks yet. Advance month.</Text>}
         {state.tasks.map(task => {
           const presentation = describeTask(task)
           const isExpanded = expandedId === task.id
           return (
-            <div
+            <Pressable
               key={task.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => setExpandedId(isExpanded ? null : task.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault()
-                  setExpandedId(isExpanded ? null : task.id)
-                }
-              }}
-              style={{
-                marginBottom: "0.4rem",
-                padding: "0.25rem 0.5rem",
-                border: "1px solid #444",
-                borderRadius: 6,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                opacity: task.resolved ? 0.6 : 1,
-                background: isExpanded ? "#0d0f14" : "transparent",
-                cursor: "pointer",
-                outline: "none",
-              }}
+              onPress={() => setExpandedId(isExpanded ? null : task.id)}
+              style={[styles.card, isExpanded && styles.cardExpanded, task.resolved && styles.cardResolved]}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{presentation.title}</div>
-                {isExpanded && <p style={{ fontSize: "0.85rem", margin: "6px 0 0" }}>{presentation.description}</p>}
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center" }}>
-                {isExpanded && !task.resolved && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleResolve(task.id) }}
-                    aria-label="Resolve task"
-                    style={{
-                      width: 36,
-                      height: 36,
-                      minWidth: 36,
-                      minHeight: 36,
-                      padding: 0,
-                      boxSizing: "border-box",
-                      lineHeight: 0,
-                      fontSize: 16,
-                      borderRadius: 6,
-                      border: "1px solid #333",
-                      background: "#1c1f2a",
-                      color: "#fff",
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <FiCheck size={20} />
-                  </button>
-                )}
-              </div>
-            </div>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text numberOfLines={1} style={styles.cardTitle}>{presentation.title}</Text>
+                {isExpanded ? <Text style={styles.cardBody}>{presentation.description}</Text> : null}
+              </View>
+              {isExpanded && !task.resolved ? (
+                <Pressable onPress={() => handleResolve(task.id)} style={[styles.resolveBtn, task.taskGraphId ? styles.playBtn : styles.doneBtn]}>
+                  <Text style={styles.resolveText}>{task.taskGraphId ? "Play" : "Done"}</Text>
+                </Pressable>
+              ) : null}
+            </Pressable>
           )
         })}
-      </div>
-    </div>
+      </ScrollView>
+    </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#0c0f18", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#1d2435" },
+  title: { color: "#f5f6fb", fontWeight: "800", fontSize: 16, marginBottom: 8 },
+  list: { gap: 10 },
+  empty: { color: "#8e93a8" },
+  card: {
+    borderWidth: 1,
+    borderColor: "#252b3c",
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: "#111624",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 10,
+  },
+  cardExpanded: { backgroundColor: "#151c2c", borderColor: "#2f3a52" },
+  cardResolved: { opacity: 0.6 },
+  cardTitle: { color: "#f2f3f7", fontWeight: "800", marginBottom: 2, fontSize: 15 },
+  cardBody: { color: "#c9cdd8", fontSize: 13, lineHeight: 18 },
+  resolveBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 9 },
+  playBtn: { backgroundColor: "#1f7aec", borderWidth: 1, borderColor: "#2c86f0" },
+  doneBtn: { backgroundColor: "#2c7a4b", borderWidth: 1, borderColor: "#338a56" },
+  resolveText: { color: "#fff", fontWeight: "800" },
+  listContent: { paddingBottom: 12 },
+})

@@ -1,15 +1,14 @@
-import { useMemo, useState } from "react"
-import { useGame } from "../game/GameContext"
-import ModalShell from "./ModalShell"
-import NpcAvatar from "./NpcAvatar"
+import React, { useMemo, useState } from "react"
+import { View, Text, StyleSheet, Pressable } from "react-native"
+import { useGame } from "@shared/game/GameContext"
 import ProfileViewHandler from "./ProfileViewHandler"
 
 function SmallStrengthBar({ value, max = 100 }: { value: number; max?: number }) {
   const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)))
   return (
-    <div style={{ background: "#222", borderRadius: 4, height: 6, width: "100%" }}>
-      <div style={{ width: `${pct}%`, height: "100%", background: "#4f82ff", borderRadius: 4 }} />
-    </div>
+    <View style={styles.strengthBg}>
+      <View style={[styles.strengthFill, { width: `${pct}%` }]} />
+    </View>
   )
 }
 
@@ -40,38 +39,36 @@ export default function RelationshipsModal({ open, onClose }: { open: boolean; o
       })
       .sort((a, b) => (b.strength ?? 0) - (a.strength ?? 0))
   }, [state.relationships, state.npcs, state.player])
+
   return (
-    <ModalShell
-      open={open}
-      onClose={onClose}
-      durationMs={200}
-      style={{ padding: "1rem", width: 680, maxHeight: "80vh", overflowY: "auto", borderRadius: 8 }}
-    >
-      {() => (
-        <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <h3 style={{ margin: 0 }}>Relationships</h3>
-          </div>
+    <ModalCard open={open} onClose={onClose} title="Relationships" maxHeight="80%">
+      {rows.length === 0 && <Text style={styles.muted}>No relationships recorded yet.</Text>}
 
-          {rows.length === 0 && <div>No relationships recorded yet.</div>}
+      {rows.map(r => (
+        <View key={r.id} style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>{r.name}</Text>
+            <SmallStrengthBar value={r.strength ?? 0} />
+          </View>
+          <Pressable style={styles.action} onPress={() => setOpenNpcId(r.id)}>
+            <Text style={styles.actionText}>View</Text>
+          </Pressable>
+        </View>
+      ))}
 
-          {rows.map(r => (
-            <div key={r.id} style={{ padding: "0.75rem", borderBottom: "1px solid #222", display: "flex", alignItems: "center", gap: 12 }}>
-              <NpcAvatar avatarId={r.avatarId} alt={`${r.name} avatar`} size={48} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</div>
-                <div style={{ marginTop: 6 }}>
-                  <SmallStrengthBar value={r.strength ?? 0} />
-                </div>
-              </div>
-              <button onClick={() => setOpenNpcId(r.id)} style={{ width: 40, height: 40, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>P</button>
-              <button style={{ width: 40, height: 40, borderRadius: 6, background: "#1c1f2a", border: "1px solid #333", color: "#fff" }}>★</button>
-            </div>
-          ))}
-
-          <ProfileViewHandler open={!!openNpcId} onClose={() => setOpenNpcId(null)} target={{ mode: "npc", npcId: openNpcId ?? undefined }} />
-        </>
-      )}
-    </ModalShell>
+      <ProfileViewHandler open={!!openNpcId} onClose={() => setOpenNpcId(null)} target={{ mode: "npc", npcId: openNpcId ?? undefined }} />
+    </ModalCard>
   )
 }
+
+import ModalCard from "./ModalCard"
+
+const styles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderColor: "#1c1c28" },
+  name: { color: "#fff", fontWeight: "700", marginBottom: 6 },
+  muted: { color: "#9fa3b5", marginBottom: 8 },
+  action: { backgroundColor: "#1b5cff", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+  actionText: { color: "#fff", fontWeight: "700" },
+  strengthBg: { height: 6, borderRadius: 6, backgroundColor: "#1f1f29", width: 140 },
+  strengthFill: { height: "100%", borderRadius: 6, backgroundColor: "#5dd19b" },
+})
