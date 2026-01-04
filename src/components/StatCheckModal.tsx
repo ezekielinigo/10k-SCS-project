@@ -4,6 +4,8 @@ import { FontAwesome5 } from "@expo/vector-icons"
 import ModalCard from "./ModalCard"
 import { renderDeltaPills } from "@shared/utils/ui"
 import { makeRng, performStatCheck, type StatCheckMapping, type StatCheckResult } from "@shared/game/statCheck"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 
 export type StatCheckModalProps = {
   open: boolean
@@ -192,7 +194,7 @@ export default function StatCheckModal({
 const styles = StyleSheet.create({
   headerBlock: { alignItems: "center", marginBottom: 6 },
   subtitle: { color: "#9fa3b5", fontSize: 12, letterSpacing: 1 },
-  dc: { color: "#f5f6fb", fontSize: 26, fontWeight: "800", marginTop: 4 },
+  dc: { color: "#f5f6fb", fontSize: 26, fontFamily: FACES.EXTRABOLD, marginTop: 4 },
   diceCard: {
     backgroundColor: "#0e0f18",
     borderRadius: 12,
@@ -208,7 +210,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
 	marginTop: -5,
   },
-  rollValue: { color: "#f5f6fb", fontSize: 32, fontWeight: "800", textAlign: "center", minHeight: 32 },
+  rollValue: { color: "#f5f6fb", fontSize: 32, fontFamily: FACES.EXTRABOLD, textAlign: "center", minHeight: 32 },
   modifiersRow: { flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap", justifyContent: "center", alignItems: "center", minWidth: 500 },
   modifierText: { color: "#b6b9c7", fontSize: 12, textAlign: "center" },
   revealBlock: { gap: 10 },
@@ -221,9 +223,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
-  outcomeLabel: { fontSize: 20, fontWeight: "800" },
+  outcomeLabel: { fontSize: 20, fontFamily: FACES.EXTRABOLD },
   outcomeSub: { color: "#cfcfde", fontSize: 13, textAlign: "center" },
-  centeredTitle: { color: "#fff", fontSize: 18, fontWeight: "800", textAlign: "center", marginBottom: 8 },
+  centeredTitle: { color: "#fff", fontSize: 18, fontFamily: FACES.EXTRABOLD, textAlign: "center", marginBottom: 8 },
   bodyCard: {
     backgroundColor: "#0c0f18",
     borderRadius: 10,
@@ -239,5 +241,5 @@ const styles = StyleSheet.create({
   button: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", borderWidth: 1 },
   primary: { backgroundColor: "#1b5cff", borderColor: "#2c86f0" },
   secondary: { backgroundColor: "#161826", borderColor: "#25283a" },
-  buttonText: { color: "#fff", fontWeight: "800" },
+  buttonText: { color: "#fff", fontFamily: FACES.BOLD },
 })

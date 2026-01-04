@@ -5,6 +5,8 @@ import { generateNpcBatch } from "@shared/game/generators/npcGenerator"
 import { getAffiliationById } from "@shared/game/content/affiliations"
 import ProfileViewHandler from "./ProfileViewHandler"
 import ModalCard from "./ModalCard"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 
 export default function DebugNpcModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { state, dispatch } = useGame()
@@ -61,9 +63,9 @@ export default function DebugNpcModal({ open, onClose }: { open: boolean; onClos
 const styles = StyleSheet.create({
   muted: { color: "#9fa3b5", marginBottom: 6 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingVertical: 8, borderBottomWidth: 1, borderColor: "#1c1c28" },
-  name: { color: "#fff", fontWeight: "700" },
+  name: { color: "#fff", fontFamily: FACES.BOLD },
   action: { backgroundColor: "#1b5cff", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  actionText: { color: "#fff", fontWeight: "700" },
+  actionText: { color: "#fff", fontFamily: FACES.BOLD },
   secondary: { backgroundColor: "#10121c", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: "#1f1f29" },
-  secondaryText: { color: "#fff", fontWeight: "700" },
+  secondaryText: { color: "#fff", fontFamily: FACES.BOLD },
 })

@@ -3,12 +3,18 @@
     "name": "10k-scs-mobile",
     "slug": "10k-scs-mobile",
     "version": "1.0.0",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
-    "android": {}
+    "android": {},
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

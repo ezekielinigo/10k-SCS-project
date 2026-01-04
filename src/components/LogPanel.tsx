@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef } from "react"
 import { View, Text, StyleSheet, ScrollView } from "react-native"
 import { renderDeltaPills } from "@shared/utils/ui"
 import { useGame } from "@shared/game/GameContext"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 
 const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 
@@ -9,6 +11,7 @@ const formatMonthYear = (m: number) => {
   const year = 2077 + Math.floor(m / 12)
   const mon = monthNames[((m % 12) + 12) % 12]
   return `${mon} ${year}`
+
 }
 
 export default function LogPanel() {
@@ -58,7 +61,7 @@ export default function LogPanel() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0c0f18", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#1d2435" },
-  title: { color: "#f5f6fb", fontWeight: "800", fontSize: 16, marginBottom: 8 },
+  title: { color: "#f5f6fb", fontFamily: FACES.BOLD, fontSize: 16, marginBottom: 8 },
   scroll: { flex: 1 },
   monthHeader: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
   monthLabel: { color: "#8e93a8", fontSize: 12, letterSpacing: 0.2 },

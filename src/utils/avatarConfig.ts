@@ -1,4 +1,4 @@
-import type { PaletteCategory } from "./palettes"
+import type { PaletteCategory } from "./avatarPaletteConfig"
 
 export const RENDER_ORDER = [
   "BG",

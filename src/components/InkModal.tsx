@@ -1,5 +1,7 @@
 import React, { useMemo } from "react"
 import { Modal, View, Text, StyleSheet, ScrollView, Pressable } from "react-native"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 import type { InkFrame, InkStatCheckEvent } from "@shared/game/ink"
 
 const extractDeltas = (vars?: Record<string, any>) => {
@@ -103,17 +105,17 @@ const styles = StyleSheet.create({
     borderColor: "#1f1f2a",
     gap: 12,
   },
-  title: { color: "#fff", fontSize: 18, fontWeight: "800", marginBottom: 4 },
+  title: { color: "#fff", fontSize: 18, fontFamily: FACES.BOLD, marginBottom: 4 },
   body: { flexGrow: 0 },
   text: { color: "#e5e5e5", fontSize: 15, lineHeight: 22 },
   choice: { padding: 12, backgroundColor: "#1b5cff", borderRadius: 10, alignItems: "center" },
-  choiceText: { color: "#fff", fontWeight: "700" },
+  choiceText: { color: "#fff", fontFamily: FACES.BOLD },
   primaryBtn: { backgroundColor: "#1b5cff" },
   secondaryBtn: { backgroundColor: "#1a1a22", borderWidth: 1, borderColor: "#2b2b34" },
-  secondaryText: { color: "#d0d0d0", fontWeight: "600" },
+  secondaryText: { color: "#d0d0d0", fontFamily: FACES.BOLD },
   deltaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
   deltaPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "#1f2b33", color: "#a8e4ff", fontSize: 12 },
   statBox: { borderWidth: 1, borderColor: "#2e2e3a", borderRadius: 10, padding: 10, marginTop: 12, backgroundColor: "#101018" },
-  statTitle: { color: "#fff", fontWeight: "700", marginBottom: 4 },
+  statTitle: { color: "#fff", fontFamily: FACES.BOLD, marginBottom: 4 },
   statText: { color: "#cfcfde", fontSize: 13 },
 })

@@ -1,4 +1,4 @@
-import { PALETTE_VARIATIONS, type Tone, type PaletteCategory, hexToRgb } from "./palettes"
+import { PALETTE_VARIATIONS, type Tone, type PaletteCategory, hexToRgb } from "./avatarPaletteConfig"
 
 export type PaletteSelection = Partial<Record<PaletteCategory, number>>
 

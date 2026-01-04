@@ -2,6 +2,8 @@ import React, { useMemo } from "react"
 import { View, Text, StyleSheet, Pressable } from "react-native"
 import { useGame } from "@shared/game/GameContext"
 import DISTRICTS, { getDistrictById } from "@shared/game/content/districts"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 import ModalCard from "./ModalCard"
 
 export default function ChangeDistrictModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -41,8 +43,8 @@ const styles = StyleSheet.create({
   muted: { color: "#9fa3b5", marginBottom: 6 },
   listBox: { borderWidth: 1, borderColor: "#1f1f29", borderRadius: 10 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 10, borderBottomWidth: 1, borderColor: "#1f1f29" },
-  title: { color: "#fff", fontWeight: "700" },
+  title: { color: "#fff", fontFamily: FACES.BOLD },
   meta: { color: "#9fa3b5", fontSize: 12, marginTop: 2 },
   action: { backgroundColor: "#1b5cff", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  actionText: { color: "#fff", fontWeight: "700" },
+  actionText: { color: "#fff", fontFamily: FACES.BOLD },
 })

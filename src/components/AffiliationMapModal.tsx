@@ -3,6 +3,8 @@ import { View, Text, StyleSheet } from "react-native"
 import { useGame } from "@shared/game/GameContext"
 import { listAffiliations, getAffiliationById } from "@shared/game/content/affiliations"
 import { getCareerForJobId, getJobById } from "@shared/game/content/careers"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 import ModalCard from "./ModalCard"
 
 export default function AffiliationMapModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -102,7 +104,7 @@ const styles = StyleSheet.create({
   meta: { color: "#9fa3b5", fontSize: 12, marginTop: 2 },
   group: { paddingVertical: 8, borderBottomWidth: 1, borderColor: "#1c1c28" },
   groupHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  groupTitle: { color: "#fff", fontWeight: "800" },
+  groupTitle: { color: "#fff", fontFamily: FACES.BOLD },
   memberRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
-  memberName: { color: "#fff", fontWeight: "700" },
+  memberName: { color: "#fff", fontFamily: FACES.BOLD },
 })

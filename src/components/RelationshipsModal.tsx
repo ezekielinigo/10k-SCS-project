@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react"
 import { View, Text, StyleSheet, Pressable } from "react-native"
 import { useGame } from "@shared/game/GameContext"
 import ProfileViewHandler from "./ProfileViewHandler"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 
 function SmallStrengthBar({ value, max = 100 }: { value: number; max?: number }) {
   const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)))
@@ -65,10 +67,10 @@ import ModalCard from "./ModalCard"
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderColor: "#1c1c28" },
-  name: { color: "#fff", fontWeight: "700", marginBottom: 6 },
+  name: { color: "#fff", fontFamily: FACES.BOLD, marginBottom: 6 },
   muted: { color: "#9fa3b5", marginBottom: 8 },
   action: { backgroundColor: "#1b5cff", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  actionText: { color: "#fff", fontWeight: "700" },
   strengthBg: { height: 6, borderRadius: 6, backgroundColor: "#1f1f29", width: 140 },
   strengthFill: { height: "100%", borderRadius: 6, backgroundColor: "#5dd19b" },
+  actionText: { color: "#fff", fontFamily: FACES.BOLD },
 })

@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from "react"
 import { GLView } from "expo-gl"
 import { Asset } from "expo-asset"
 import { Image, ImageSourcePropType, StyleSheet } from "react-native"
-import type { Tone } from "@shared/utils/palettes"
-import { hexToRgb } from "@shared/utils/palettes"
+import type { Tone } from "@shared/utils/avatarPaletteConfig"
+import { hexToRgb } from "@shared/utils/avatarPaletteConfig"
 
 type GLPaletteSwapProps = {
   source: ImageSourcePropType

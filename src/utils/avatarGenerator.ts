@@ -1,4 +1,4 @@
-import { PALETTE_VARIATIONS, type Tone, type PaletteCategory, hexToRgb } from "./palettes"
+import { PALETTE_VARIATIONS, type Tone, type PaletteCategory, hexToRgb } from "./avatarPaletteConfig"
 import { RENDER_ORDER, type RenderKey, CONTROL_ORDER, type ControlKey } from "@shared/utils/avatarConfig"
 
 export type CharOptionsMap = Record<string, string[]>

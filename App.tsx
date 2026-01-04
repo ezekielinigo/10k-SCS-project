@@ -1,5 +1,6 @@
 import React from "react"
-import { StatusBar, StyleSheet, View, TouchableOpacity, Text } from "react-native"
+import { StatusBar, StyleSheet, View, TouchableOpacity, Text, TextInput } from "react-native"
+import * as SplashScreen from "expo-splash-screen"
 import useHideSystemBars from "@shared/utils/useHideSystemBars"
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"
 import { GameProvider, useGame } from "@shared/game/GameContext"
@@ -17,6 +18,8 @@ import DebugControlsModal from "@shared/components/DebugControlsModal"
 import DebugNpcModal from "@shared/components/DebugNpcModal"
 import StatCheckModal from "@shared/components/StatCheckModal"
 import AvatarMixerModal from "@shared/components/AvatarMixerModal"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 
 const extractDeltas = (vars?: Record<string, any>) => {
   const deltas: Record<string, number> = {}
@@ -146,8 +149,19 @@ function GameScreen() {
   )
 }
 
+SplashScreen.preventAutoHideAsync().catch(() => undefined)
+
 export default function App() {
   useHideSystemBars(true)
+
+  const [fontsLoaded, fontError] = fontConfig.useLoadFonts()
+
+  React.useEffect(() => {
+    if (!fontsLoaded && !fontError) return
+    SplashScreen.hideAsync().catch(() => undefined)
+  }, [fontsLoaded, fontError])
+
+  if (!fontsLoaded && !fontError) return null
 
   return (
     <GameProvider>
@@ -180,5 +194,5 @@ const styles = StyleSheet.create({
     borderColor: "#295fff",
   },
   secondaryFab: { backgroundColor: "#161620", borderColor: "#252536" },
-  fabText: { color: "#fff", fontWeight: "800", letterSpacing: 0.5 },
+  fabText: { color: "#fff", fontFamily: FACES.BOLD, letterSpacing: 0.5 },
 })

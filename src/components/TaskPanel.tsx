@@ -2,6 +2,8 @@ import React, { useState } from "react"
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native"
 import { useGame } from "@shared/game/GameContext"
 import { describeTask } from "@shared/game/taskLookup"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 
 export default function TaskPanel({ onOpenInk }: { onOpenInk?: (taskId: string, taskGraphId: string) => void }) {
   const { state, dispatch } = useGame()
@@ -62,7 +64,7 @@ export default function TaskPanel({ onOpenInk }: { onOpenInk?: (taskId: string, 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0c0f18", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#1d2435" },
-  title: { color: "#f5f6fb", fontWeight: "800", fontSize: 16, marginBottom: 8 },
+  title: { color: "#f5f6fb", fontFamily: FACES.BOLD, fontSize: 16, marginBottom: 8 },
   list: { gap: 10 },
   empty: { color: "#8e93a8" },
   card: {
@@ -78,11 +80,11 @@ const styles = StyleSheet.create({
   },
   cardExpanded: { backgroundColor: "#151c2c", borderColor: "#2f3a52" },
   cardResolved: { opacity: 0.6 },
-  cardTitle: { color: "#f2f3f7", fontWeight: "800", marginBottom: 2, fontSize: 15 },
+  cardTitle: { color: "#f2f3f7", fontFamily: FACES.BOLD, marginBottom: 2, fontSize: 15 },
   cardBody: { color: "#c9cdd8", fontSize: 13, lineHeight: 18 },
   resolveBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 9 },
   playBtn: { backgroundColor: "#1f7aec", borderWidth: 1, borderColor: "#2c86f0" },
   doneBtn: { backgroundColor: "#2c7a4b", borderWidth: 1, borderColor: "#338a56" },
-  resolveText: { color: "#fff", fontWeight: "800" },
+  resolveText: { color: "#fff", fontFamily: FACES.BOLD },
   listContent: { paddingBottom: 12 },
 })

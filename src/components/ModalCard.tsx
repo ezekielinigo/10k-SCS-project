@@ -1,5 +1,7 @@
 import React from "react"
 import { Modal, View, Pressable, StyleSheet, Text, ScrollView } from "react-native"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 
 export type ModalCardProps = {
   open: boolean
@@ -61,7 +63,7 @@ const styles = StyleSheet.create({
   title: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "800",
+    fontFamily: FACES.EXTRABOLD,
     marginBottom: 8,
   },
 })

@@ -1,11 +1,13 @@
 import React, { useMemo, useState, useEffect } from "react"
 import { View, Text, StyleSheet, Pressable, ScrollView, Platform } from "react-native"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 import { ChevronLeft, ChevronRight } from "lucide-react-native"
 import ModalCard from "./ModalCard"
 import manifest from "@shared/assets/characterManifest"
-import { GLPaletteSwap } from "../utils/glPaletteSwap"
-import type { Tone, PaletteCategory } from "@shared/utils/palettes"
-import { SKIN_PALETTES, PALETTE_VARIATIONS, BASE_PALETTE } from "@shared/utils/palettes"
+import { GLPaletteSwap } from "../utils/avatarPaletteSwapper"
+import type { Tone, PaletteCategory } from "@shared/utils/avatarPaletteConfig"
+import { SKIN_PALETTES, PALETTE_VARIATIONS, BASE_PALETTE } from "@shared/utils/avatarPaletteConfig"
 import { RENDER_ORDER, type RenderKey, CONTROL_ORDER, CONTROL_TO_CATEGORY, OUTER_KEYS, type ControlKey } from "@shared/utils/avatarConfig"
 import { StatusBar } from "expo-status-bar"
 import * as NavigationBar from "expo-navigation-bar"
@@ -217,17 +219,17 @@ const styles = StyleSheet.create({
   layer: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   controlsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   navBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: "#1b5cff", borderRadius: 8 },
-  navBtnText: { color: "#fff", fontWeight: "700" },
-  activeLabel: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  navBtnText: { color: "#fff", fontFamily: FACES.BOLD },
+  activeLabel: { color: "#fff", fontFamily: FACES.BOLD, fontSize: 16 },
   controlStrip: { marginBottom: 12 },
   controlChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: "#161620", borderWidth: 1, borderColor: "#1f2030" },
   controlChipActive: { borderColor: "#1b5cff" },
-  controlChipText: { color: "#fff", fontWeight: "700" },
+  controlChipText: { color: "#fff", fontFamily: FACES.BOLD },
   controlChipCount: { color: "#7d8299", fontSize: 12 },
   paletteHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  sectionLabel: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  sectionLabel: { color: "#fff", fontFamily: FACES.BOLD, fontSize: 15 },
   actionBtn: { backgroundColor: "#1b5cff", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-  actionBtnText: { color: "#fff", fontWeight: "700" },
+  actionBtnText: { color: "#fff", fontFamily: FACES.BOLD },
   paletteScroll: { maxHeight: 160 },
   paletteBtn: { flexDirection: "row", gap: 0, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 10, backgroundColor: "#161620", borderWidth: 1, borderColor: "#1f2030" },
   paletteBtnSelected: { borderColor: "#1b5cff" },

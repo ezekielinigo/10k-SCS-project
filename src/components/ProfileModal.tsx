@@ -1,6 +1,8 @@
 import React from "react"
 import { Feather } from "@expo/vector-icons"
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 import ModalCard from "./ModalCard"
 import { SKILL_COLORS, SKILL_DEFINITIONS, type VitalKey } from "@shared/utils/ui"
 import { getDistrictById } from "@shared/game/content/districts"
@@ -279,14 +281,14 @@ export default function ProfileModal({ open, onClose, profile, onRemoveAssignmen
 
 const styles = StyleSheet.create({
   section: { marginBottom: 12 },
-  sectionTitle: { color: "#fff", fontWeight: "800", marginBottom: 8, fontSize: 16 },
+  sectionTitle: { color: "#fff", fontFamily: FACES.EXTRABOLD, marginBottom: 8, fontSize: 16 },
   muted: { color: "#9fa3b5", marginBottom: 4 },
   vitalGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   // three columns layout for mobile modal: each ~32% width
   vitalItem: { width: "32%", marginBottom: 10 },
   vitalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
   vitalLabel: { flex: 1, color: "#ccc", marginLeft: 6, fontSize: 12 },
-  vitalValue: { color: "#9fa3b5", fontWeight: "600", fontSize: 12 },
+  vitalValue: { color: "#9fa3b5", fontFamily: FACES.BOLD, fontSize: 12 },
   progressBg: { width: "100%", height: 6, borderRadius: 6, backgroundColor: "#1d1e2b", position: "relative", overflow: "hidden", minWidth: 80 },
   progressFill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 6 },
   skillRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
@@ -294,17 +296,17 @@ const styles = StyleSheet.create({
   skillColumn: { width: "48%", padding: 8, marginBottom: 10 },
   skillInnerRow: { flexDirection: "row", alignItems: "flex-start" },
   skillMeter: { marginBottom: 8, alignItems: "center" },
-  skillTitle: { color: "#9fa3b5", fontWeight: "400", marginBottom: 6, textAlign: "left", fontSize: 12 },
+  skillTitle: { color: "#9fa3b5", fontFamily: FACES.REGULAR, marginBottom: 6, textAlign: "left", fontSize: 12 },
   segmentedColumn: { width: 28, justifyContent: "flex-end", alignItems: "center", marginRight: 4 },
   segmentedBlock: { width: 14, borderRadius: 4 },
   subSkillsList: { flex: 1, paddingLeft: 4, minWidth: 100 },
   subSkillRow: { flexDirection: "column", alignItems: "flex-start", marginBottom: 1 },
   subSkillHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 2 },
   subSkillLabel: { color: "#9fa3b5", fontSize: 12 },
-  subSkillValue: { color: "#9fa3b5", fontSize: 12, fontWeight: "400" },
+  subSkillValue: { color: "#9fa3b5", fontSize: 12, fontFamily: FACES.REGULAR },
   occupationRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 10, borderBottomWidth: 1, borderColor: "#1c1c28" },
-  occupationTitle: { color: "#fff", fontWeight: "700" },
+  occupationTitle: { color: "#fff", fontFamily: FACES.BOLD },
   occupationAffiliation: { color: "#9fa3b5", fontSize: 12 },
-  remove: { color: "#ff7b7b", fontWeight: "700" },
+  remove: { color: "#ff7b7b", fontFamily: FACES.BOLD },
   vitalsCard: { padding: 8 },
 })

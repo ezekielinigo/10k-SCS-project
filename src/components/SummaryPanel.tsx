@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react"
 import { StyleSheet, Text, TouchableOpacity, View, Image } from "react-native"
+import fontConfig from "@shared/utils/fontConfig"
+const FACES = fontConfig.fontFaceNames()
 import { Feather } from "@expo/vector-icons"
 import ProfileViewHandler from "./ProfileViewHandler"
 import { useGame } from "@shared/game/GameContext"
@@ -275,13 +277,13 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "center" },
   headerColumn: { flex: 1, justifyContent: "center" },
   avatar: { width: 56, height: 56, marginRight: 10, borderRadius: 6, backgroundColor: "#0b0c12" },
-  name: { color: "#f5f6fb", fontSize: 18, fontWeight: "700" },
+  name: { color: "#f5f6fb", fontSize: 18, fontFamily: FACES.BOLD },
   ageLabel: { color: "#9fa3b5", fontSize: 12, marginTop: 4 },
   vitalsList: {  },
   vitalRow: {  },
   vitalTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   vitalIconWrapper: { flexDirection: "row", alignItems: "center" },
-  vitalValue: { color: "#9fa3b5", fontWeight: "600", marginLeft: 6, fontSize: 10, width: 25, textAlign: "left" },
+  vitalValue: { color: "#9fa3b5", fontFamily: FACES.BOLD, marginLeft: 6, fontSize: 10, width: 25, textAlign: "left" },
   inlineProgressBg: { flex: 1, backgroundColor: "#141826", borderRadius: 6, overflow: "hidden", marginLeft: 6 },
   inlineProgressFill: { height: "100%", borderRadius: 6 },
   occupationText: { marginTop: 8, color: "#9fa3b5", fontSize: 12 },
