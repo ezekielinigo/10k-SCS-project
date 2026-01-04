@@ -1,6 +1,6 @@
 import React, { useMemo } from "react"
 import { View, Text, StyleSheet } from "react-native"
-import { useGame } from "@shared/game/GameContext"
+import { useGame } from "@shared/game/engine/GameContext"
 import { listAffiliations, getAffiliationById } from "@shared/game/content/affiliations"
 import { getCareerForJobId, getJobById } from "@shared/game/content/careers"
 import fontConfig from "@shared/utils/fontConfig"

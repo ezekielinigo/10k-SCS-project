@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from "react"
 import { View, Text, StyleSheet, ScrollView } from "react-native"
 import { renderDeltaPills } from "@shared/utils/ui"
-import { useGame } from "@shared/game/GameContext"
+import { useGame } from "@shared/game/engine/GameContext"
 import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()
 

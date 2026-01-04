@@ -1,9 +1,9 @@
-import type { TaskState, Job } from "./types"
-import { getJobById } from "./content/careers"
+import type { TaskState, Job } from "../types"
+import { getJobById } from "../content/careers"
 import {
   getRandomEventTemplateById,
   type RandomEventTemplate,
-} from "./content/randomEvents"
+} from "../content/randomEvents"
 
 export type TaskTemplate = Job | RandomEventTemplate
 

@@ -1,4 +1,4 @@
-import type { DistrictStateTemplate } from "./content/districts"
+import type { DistrictStateTemplate } from "../content/districts"
 
 // A minimal shape of districts for routing; accepts any record with adjacency/name.
 export type DistrictGraph = Record<string, Partial<Pick<DistrictStateTemplate, "id" | "name" | "adjacency">> & Record<string, any>>

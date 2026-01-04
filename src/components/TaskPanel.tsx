@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native"
-import { useGame } from "@shared/game/GameContext"
-import { describeTask } from "@shared/game/taskLookup"
+import { useGame } from "@shared/game/engine/GameContext"
+import { describeTask } from "@shared/game/generators/taskLookup"
 import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()
 

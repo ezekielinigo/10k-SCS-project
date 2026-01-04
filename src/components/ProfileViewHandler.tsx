@@ -1,6 +1,6 @@
 import React, { useMemo } from "react"
 import ProfileModal, { type ProfileData, type ProfileOccupation } from "./ProfileModal"
-import { useGame } from "@shared/game/GameContext"
+import { useGame } from "@shared/game/engine/GameContext"
 import { getAffiliationById } from "@shared/game/content/affiliations"
 import { getCareerForJobId, getJobById } from "@shared/game/content/careers"
 

@@ -2,7 +2,7 @@ import React, { useMemo } from "react"
 import { Modal, View, Text, StyleSheet, ScrollView, Pressable } from "react-native"
 import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()
-import type { InkFrame, InkStatCheckEvent } from "@shared/game/ink"
+import type { InkFrame, InkStatCheckEvent } from "@shared/game/services/inkService"
 
 const extractDeltas = (vars?: Record<string, any>) => {
   const deltas: Record<string, number> = {}

@@ -1,11 +1,11 @@
-import type { GameState, TaskState, PendingTaskRun } from "./types"
-import { getJobById, getCareerForJobId } from "./content/careers"
-import { getAffiliationById } from "./content/affiliations"
+import type { GameState, TaskState, PendingTaskRun } from "../types"
+import { getJobById, getCareerForJobId } from "../content/careers"
+import { getAffiliationById } from "../content/affiliations"
 import { findRoute, formatRoute, buildTravelLogText } from "./map"
-import { generateMonthlyTasks } from "./taskGenerator"
-import { chooseIndefiniteArticle } from "../utils/ui"
-import { getTaskGraphById, OUTCOME_DEFINITIONS, TASK_OUTCOME_OVERRIDES } from "./content/tasks"
-import { selectEventForDistrictTags, createRandomEventTaskFromTemplate } from "./content/randomEvents"
+import { generateMonthlyTasks } from "../generators/taskGenerator"
+import { chooseIndefiniteArticle } from "../../utils/ui"
+import { getTaskGraphById, OUTCOME_DEFINITIONS, TASK_OUTCOME_OVERRIDES } from "../content/tasks"
+import { selectEventForDistrictTags, createRandomEventTaskFromTemplate } from "../content/randomEvents"
 // random event helpers moved to content; reducer no longer imports them here
 
 export type GameAction =

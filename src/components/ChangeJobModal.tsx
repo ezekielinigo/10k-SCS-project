@@ -2,7 +2,7 @@ import React from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()
-import { useGame } from "@shared/game/GameContext"
+import { useGame } from "@shared/game/engine/GameContext"
 import { listCareers, getJobById, getCareerForJobId } from "@shared/game/content/careers"
 import { getAffiliationById } from "@shared/game/content/affiliations"
 import ModalCard from "./ModalCard"

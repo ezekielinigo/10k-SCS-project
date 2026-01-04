@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react"
-import { listCareers } from "./content/careers"
-import { getRandomEventTemplateById } from "./content/randomEvents"
-import { describeTask } from "./taskLookup"
-import type { GameState } from "./types"
-import type { GameAction } from "./gameReducer"
-import { createInkStory, onInkStatCheck, resolveInkFrames, revealRandomOptionsForEncounter, type InkFrame, type InkStatCheckEvent } from "./ink"
+import { listCareers } from "../content/careers"
+import { getRandomEventTemplateById } from "../content/randomEvents"
+import { describeTask } from "../generators/taskLookup"
+import type { GameState } from "../types"
+import type { GameAction } from "../engine/gameReducer"
+import { createInkStory, onInkStatCheck, resolveInkFrames, revealRandomOptionsForEncounter, type InkFrame, type InkStatCheckEvent } from "../services/inkService"
 
 type UseInkArgs = {
   state: GameState

@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 import { useFonts } from "expo-font"
 import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()
-import { useGame } from "@shared/game/GameContext"
-import { performStatCheck, makeRng, type MainStatKey, type SubSkillKey, type StatCheckResult } from "@shared/game/statCheck"
+import { useGame } from "@shared/game/engine/GameContext"
+import { performStatCheck, makeRng, type MainStatKey, type SubSkillKey, type StatCheckResult } from "@shared/game/engine/statCheck"
 import ModalCard from "./ModalCard"
 
 export default function DebugControlsModal({ open, onClose, onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs, onOpenInk, onOpenDistrict, onOpenStatCheck, onOpenAvatarMixer }: { open: boolean; onClose: () => void; onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void; onOpenInk?: () => void; onOpenDistrict?: () => void; onOpenStatCheck?: (config: { dc: number; mainStatKey: MainStatKey; subSkillKey: SubSkillKey }, result: StatCheckResult) => void; onOpenAvatarMixer?: () => void }) {

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react"
 import { View, Text, StyleSheet, Pressable } from "react-native"
-import { useGame } from "@shared/game/GameContext"
+import { useGame } from "@shared/game/engine/GameContext"
 import ProfileViewHandler from "./ProfileViewHandler"
 import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()

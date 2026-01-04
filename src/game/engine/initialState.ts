@@ -1,10 +1,10 @@
-import type { GameState, JobAssignment } from "./types"
-import { getJobById, getCareerForJobId } from "./content/careers"
-import { getProfileById, getRandomProfile } from "./content/playerProfiles"
-import DISTRICTS from "./content/districts"
-import { generateRandomNpc } from "./generators/npcGenerator"
-import { generateMonthlyTasks } from "./taskGenerator"
-import { generateJobInstances } from "./generators/jobInstanceGenerator"
+import type { GameState, JobAssignment } from "../types"
+import { getJobById, getCareerForJobId } from "../content/careers"
+import { getProfileById, getRandomProfile } from "../content/playerProfiles"
+import DISTRICTS from "../content/districts"
+import { generateRandomNpc } from "../generators/npcGenerator"
+import { generateMonthlyTasks } from "../generators/taskGenerator"
+import { generateJobInstances } from "../generators/jobInstanceGenerator"
 
 const randId = () => Math.random().toString(36).slice(2)
 

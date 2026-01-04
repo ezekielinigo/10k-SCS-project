@@ -3,7 +3,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-nativ
 import { FontAwesome5 } from "@expo/vector-icons"
 import ModalCard from "./ModalCard"
 import { renderDeltaPills } from "@shared/utils/ui"
-import { makeRng, performStatCheck, type StatCheckMapping, type StatCheckResult } from "@shared/game/statCheck"
+import { makeRng, performStatCheck, type StatCheckMapping, type StatCheckResult } from "@shared/game/engine/statCheck"
 import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()
 

@@ -1,4 +1,4 @@
-import type { SkillBlock } from "./types"
+import type { SkillBlock } from "../types"
 
 export type StatCheckMapping = "quintile" | "scaled" | ((skill: number) => number)
 

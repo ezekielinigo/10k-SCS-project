@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer } from "react"
 import type { ReactNode } from "react"
-import type { GameState } from "./types"
+import type { GameState } from "../types"
 import { createInitialGameState } from "./initialState"
 import { gameReducer, type GameAction } from "./gameReducer"
 

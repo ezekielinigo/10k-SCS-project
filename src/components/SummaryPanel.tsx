@@ -4,7 +4,7 @@ import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()
 import { Feather } from "@expo/vector-icons"
 import ProfileViewHandler from "./ProfileViewHandler"
-import { useGame } from "@shared/game/GameContext"
+import { useGame } from "@shared/game/engine/GameContext"
 import { getJobById } from "@shared/game/content/careers"
 import type { PlayerState } from "@shared/game/types"
 import { PLAYER_VITAL_KEYS, SKILL_COLORS, VITAL_DEFINITIONS, SKILL_DEFINITIONS, type VitalKey } from "@shared/utils/ui"

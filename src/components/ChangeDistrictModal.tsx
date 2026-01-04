@@ -1,6 +1,6 @@
 import React, { useMemo } from "react"
 import { View, Text, StyleSheet, Pressable } from "react-native"
-import { useGame } from "@shared/game/GameContext"
+import { useGame } from "@shared/game/engine/GameContext"
 import DISTRICTS, { getDistrictById } from "@shared/game/content/districts"
 import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()

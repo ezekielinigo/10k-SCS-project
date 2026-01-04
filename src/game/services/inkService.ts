@@ -1,5 +1,5 @@
-import type { PlayerState } from "./types"
-import { makeRng, performStatCheck, type MainStatKey, type StatCheckResult, type SubSkillKey } from "./statCheck"
+import type { PlayerState } from "../types"
+import { makeRng, performStatCheck, type MainStatKey, type StatCheckResult, type SubSkillKey } from "../engine/statCheck"
 
 const isReactNative = typeof navigator !== "undefined" && navigator.product === "ReactNative"
 
@@ -208,20 +208,20 @@ const loadInkContent = async (inkSource?: string) => {
   if (isReactNative) {
     switch (sourceId) {
       case "career_courier":
-        return require("../ink/career_courier.json")
+        return require("../../ink/career_courier.json")
       case "career_mechanic":
-        return require("../ink/career_mechanic.json")
+        return require("../../ink/career_mechanic.json")
       case "event_world":
-        return require("../ink/event_world.json")
+        return require("../../ink/event_world.json")
       default:
-        return require("../ink/career_mechanic.json")
+        return require("../../ink/career_mechanic.json")
     }
   }
 
   const loaders: Record<string, () => Promise<any>> = {
-    career_courier: () => import("../ink/career_courier.json"),
-    career_mechanic: () => import("../ink/career_mechanic.json"),
-    event_world: () => import("../ink/event_world.json"),
+    career_courier: () => import("../../ink/career_courier.json"),
+    career_mechanic: () => import("../../ink/career_mechanic.json"),
+    event_world: () => import("../../ink/event_world.json"),
   }
 
   const load = loaders[sourceId] ?? loaders.career_mechanic

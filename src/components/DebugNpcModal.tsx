@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react"
 import { View, Text, StyleSheet, Pressable } from "react-native"
-import { useGame } from "@shared/game/GameContext"
+import { useGame } from "@shared/game/engine/GameContext"
 import { generateNpcBatch } from "@shared/game/generators/npcGenerator"
 import { getAffiliationById } from "@shared/game/content/affiliations"
 import ProfileViewHandler from "./ProfileViewHandler"
