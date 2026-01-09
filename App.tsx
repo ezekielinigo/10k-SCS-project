@@ -8,6 +8,8 @@ import { useInk } from "@shared/game/hooks/useInk"
 import SummaryPanel from "@shared/components/SummaryPanel"
 import LogPanel from "@shared/components/LogPanel"
 import TaskPanel from "@shared/components/TaskPanel"
+import ProfilePanel from "@shared/components/ProfilePanel"
+import WorldPanel from "@shared/components/WorldPanel"
 import InkModal from "@shared/components/InkModal"
 import ProfileViewHandler from "@shared/components/ProfileViewHandler"
 import ChangeJobModal from "@shared/components/ChangeJobModal"
@@ -19,6 +21,7 @@ import DebugNpcModal from "@shared/components/DebugNpcModal"
 import StatCheckModal from "@shared/components/StatCheckModal"
 import AvatarMixerModal from "@shared/components/AvatarMixerModal"
 import fontConfig from "@shared/utils/fontConfig"
+import BottomNav from "@shared/components/BottomNav"
 const FACES = fontConfig.fontFaceNames()
 
 const extractDeltas = (vars?: Record<string, any>) => {
@@ -37,6 +40,7 @@ const extractDeltas = (vars?: Record<string, any>) => {
 function GameScreen() {
   const { state, dispatch } = useGame()
   const ink = useInk({ state, dispatch })
+  const [activeTab, setActiveTab] = React.useState<"settings" | "profile" | "log" | "tasks" | "world" | "none">("log")
   const [profileOpen, setProfileOpen] = React.useState(false)
   const [jobOpen, setJobOpen] = React.useState(false)
   const [districtOpen, setDistrictOpen] = React.useState(false)
@@ -57,18 +61,23 @@ function GameScreen() {
       <SummaryPanel />
 
       <View style={styles.row}>
-        <LogPanel />
-        <TaskPanel onOpenInk={ink.openInkForTask} />
+        {activeTab === "log" ? (
+          <LogPanel />
+        ) : activeTab === "tasks" ? (
+          <TaskPanel onOpenInk={ink.openInkForTask} />
+        ) : activeTab === "profile" ? (
+          <ProfilePanel />
+        ) : activeTab === "world" ? (
+          <WorldPanel />
+        ) : (
+          <>
+            <LogPanel />
+            <TaskPanel onOpenInk={ink.openInkForTask} />
+          </>
+        )}
       </View>
 
-      <View style={styles.fabs}>
-        <TouchableOpacity style={[styles.fab, styles.secondaryFab]} onPress={() => setDebugControlsOpen(true)}>
-          <Text style={styles.fabText}>≡</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.fab} onPress={() => dispatch({ type: "ADVANCE_MONTH" })}>
-          <Text style={styles.fabText}>+1M</Text>
-        </TouchableOpacity>
-      </View>
+      {/* floating FABs removed — navigation and advance are handled by BottomNav */}
 
       <InkModal
         open={ink.inkOpen && !ink.inkStatCheck}
@@ -145,6 +154,12 @@ function GameScreen() {
           dispatch({ type: "ADD_LOG", text })
         }}
       />
+      <BottomNav
+        active={activeTab}
+        onSelect={(t) => setActiveTab(t)}
+        onOpenDebug={() => setDebugControlsOpen(true)}
+        onAdvanceMonth={() => dispatch({ type: "ADVANCE_MONTH" })}
+      />
     </View>
   )
 }
@@ -178,21 +193,5 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#05050b" },
   screen: { flex: 1, padding: 14, gap: 12 },
   row: { flexDirection: "column", gap: 12, flex: 1 },
-  fabs: {
-    position: "absolute",
-    right: 16,
-    bottom: 24,
-    flexDirection: "row",
-    gap: 10,
-  },
-  fab: {
-    backgroundColor: "#1b5cff",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#295fff",
-  },
-  secondaryFab: { backgroundColor: "#161620", borderColor: "#252536" },
-  fabText: { color: "#fff", fontFamily: FACES.BOLD, letterSpacing: 0.5 },
+  /* FAB styles removed */
 })
