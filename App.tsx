@@ -24,6 +24,26 @@ import fontConfig from "@shared/utils/fontConfig"
 import BottomNav from "@shared/components/BottomNav"
 const FACES = fontConfig.fontFaceNames()
 
+import { Platform } from "react-native";
+
+let skiaOk = "unknown";
+try {
+  require("@shopify/react-native-skia");
+  skiaOk = "loaded";
+} catch (e) {
+  skiaOk = "FAILED: " + String(e?.message ?? e);
+}
+
+console.log(`[SKIA] ${Platform.OS} ${skiaOk}`);
+// expose a global flag so other modules can detect Skia availability reliably
+try {
+  // @ts-ignore
+  globalThis.__SKIA_AVAILABLE__ = skiaOk === "loaded"
+} catch (e) {
+  // ignore
+}
+
+
 const extractDeltas = (vars?: Record<string, any>) => {
   const deltas: Record<string, number> = {}
   if (!vars) return deltas

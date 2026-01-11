@@ -10,11 +10,19 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.x10kscsmobile"
     },
-    "android": {},
+    "android": {
+      "package": "com.anonymous.x10kscsmobile"
+    },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f1a4ebbd-0554-41d1-9374-830aaa35fdea"
+      }
+    }
   }
 }
