@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react"
 import { StyleSheet, Text, TouchableOpacity, View, Image } from "react-native"
+import { Canvas, Image as SkiaImage, useImage, Skia, FilterMode, MipmapMode } from "@shopify/react-native-skia"
 import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()
 import { Feather } from "@expo/vector-icons"
@@ -184,6 +185,8 @@ export default function SummaryPanel() {
   const [showProfile, setShowProfile] = useState(false)
   const subSkills = player.skills.subSkills
 
+  const avatarSkia = useImage(require("../assets/icon_default.png"))
+
   return (
     <View style={styles.container}>
       <TouchableOpacity
@@ -194,7 +197,9 @@ export default function SummaryPanel() {
         accessibilityLabel={`Open profile for ${player.name}`}
       >
         <View style={styles.headerRow}>
-          <Image source={require("../assets/icon_default.png")} style={styles.avatar} resizeMode="contain" />
+          <Canvas style={styles.avatar}>
+            <SkiaImage image={avatarSkia} x={0} y={0} width={56} height={56} fit="contain" sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }} />
+          </Canvas>
           <View style={styles.headerColumn}>
             <Text style={styles.name}>{player.name}</Text>
 

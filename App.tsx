@@ -1,4 +1,5 @@
 import React from "react"
+// Skia is used in other components; avoid importing here just for debug logs
 import { StatusBar, StyleSheet, View, TouchableOpacity, Text, TextInput } from "react-native"
 import * as SplashScreen from "expo-splash-screen"
 import useHideSystemBars from "@shared/utils/useHideSystemBars"
@@ -23,25 +24,6 @@ import AvatarMixerModal from "@shared/components/AvatarMixerModal"
 import fontConfig from "@shared/utils/fontConfig"
 import BottomNav from "@shared/components/BottomNav"
 const FACES = fontConfig.fontFaceNames()
-
-import { Platform } from "react-native";
-
-let skiaOk = "unknown";
-try {
-  require("@shopify/react-native-skia");
-  skiaOk = "loaded";
-} catch (e) {
-  skiaOk = "FAILED: " + String(e?.message ?? e);
-}
-
-console.log(`[SKIA] ${Platform.OS} ${skiaOk}`);
-// expose a global flag so other modules can detect Skia availability reliably
-try {
-  // @ts-ignore
-  globalThis.__SKIA_AVAILABLE__ = skiaOk === "loaded"
-} catch (e) {
-  // ignore
-}
 
 
 const extractDeltas = (vars?: Record<string, any>) => {
@@ -188,6 +170,8 @@ SplashScreen.preventAutoHideAsync().catch(() => undefined)
 
 export default function App() {
   useHideSystemBars(true)
+
+  // Skia debug logging removed — native module presence is validated during builds.
 
   const [fontsLoaded, fontError] = fontConfig.useLoadFonts()
 

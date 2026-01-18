@@ -128,7 +128,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "low",
     economyLevel: "poor",
 
-    adjacency: ["capital_c1", "fallen_blacklatticelabs"],
+    adjacency: ["capital_c1", "deadzone_centralsitezero"],
     description: "Warehousing sprawl. Camo workers, knockoff gear, street economies.",
 
     tags: [
@@ -154,7 +154,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "low",
     economyLevel: "poor",
 
-    adjacency: ["fallen_blacklatticelabs", "fallen_oldminingdistrict"],
+    adjacency: ["deadzone_centralsitezero", "fallen_oldminingdistrict"],
     description: "Ark headquarters. Crusade training grounds. Militant faith and discipline.",
 
     tags: [
@@ -278,7 +278,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "low",
     economyLevel: "collapsed",
 
-    adjacency: ["redlined_chodanshell", "deadzone_westborder"],
+    adjacency: ["redlined_chodanshell", "deadzone_centralsitezero", "redlined_sanctuary"],
     description: "Collapsed tunnels and rusted roads. Fast, cheap, and deadly smuggling route.",
 
     tags: [
@@ -379,7 +379,7 @@ export const DISTRICTS: Record<string, DistrictStateTemplate> = {
     securityLevel: "none",
     economyLevel: "collapsed",
 
-    adjacency: ["deadzone_southborder", "deadzone_westborder"],
+    adjacency: ["redlined_cliffcity", "redlined_sanctuary", "fallen_oldminingdistrict", "deadzone_southborder", "deadzone_westborder"],
     description: "The anomaly heart. Electronics die instantly. No signal. No return.",
 
     tags: [

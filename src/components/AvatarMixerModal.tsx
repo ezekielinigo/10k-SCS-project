@@ -5,7 +5,7 @@ const FACES = fontConfig.fontFaceNames()
 import { ChevronLeft, ChevronRight } from "lucide-react-native"
 import ModalCard from "./ModalCard"
 import manifest from "@shared/assets/characterManifest"
-import { GLPaletteSwap } from "../utils/avatarPaletteSwapper"
+import { SkiaPaletteSwap } from "../utils/avatarPaletteSwapper"
 import type { Tone, PaletteCategory } from "@shared/utils/avatarPaletteConfig"
 import { SKIN_PALETTES, PALETTE_VARIATIONS, BASE_PALETTE } from "@shared/utils/avatarPaletteConfig"
 import { RENDER_ORDER, type RenderKey, CONTROL_ORDER, CONTROL_TO_CATEGORY, OUTER_KEYS, type ControlKey } from "@shared/utils/avatarConfig"
@@ -154,7 +154,7 @@ export default function AvatarMixerModal({ open, onClose }: Props) {
             }
             return (
               <View key={`${layer.key}-${idx}`} style={styles.layer} pointerEvents="none">
-                <GLPaletteSwap
+                <SkiaPaletteSwap
                   source={layer.src}
                   baseTone={base}
                   targetTone={target ?? base}
