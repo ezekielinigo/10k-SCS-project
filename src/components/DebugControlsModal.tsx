@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 import { useFonts } from "expo-font"
 import fontConfig from "@shared/utils/fontConfig"
@@ -6,10 +6,12 @@ const FACES = fontConfig.fontFaceNames()
 import { useGame } from "@shared/game/engine/GameContext"
 import { performStatCheck, makeRng, type MainStatKey, type SubSkillKey, type StatCheckResult } from "@shared/game/engine/statCheck"
 import ModalCard from "./ModalCard"
+import DebugFilterASCIIModal from "./DebugFilterASCIIModal"
 
 export default function DebugControlsModal({ open, onClose, onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs, onOpenInk, onOpenDistrict, onOpenStatCheck, onOpenAvatarMixer }: { open: boolean; onClose: () => void; onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void; onOpenInk?: () => void; onOpenDistrict?: () => void; onOpenStatCheck?: (config: { dc: number; mainStatKey: MainStatKey; subSkillKey: SubSkillKey }, result: StatCheckResult) => void; onOpenAvatarMixer?: () => void }) {
   const { state, dispatch } = useGame()
   const [monoLoaded] = useFonts(fontConfig.fontAssetsFor("pt-mono"))
+  const [showAsciiModal, setShowAsciiModal] = useState(false)
 
   const launchRandomCheck = () => {
     const mainStatKey = pick(MAIN_KEYS)
@@ -49,8 +51,10 @@ export default function DebugControlsModal({ open, onClose, onShowProfile, onCha
         <Action monoLoaded={monoLoaded} label="Relationships" onPress={() => { onShowRelationships?.(); onClose() }} />
         <Action monoLoaded={monoLoaded} label="Generate NPCs" onPress={() => { onShowDebugNpcs?.(); onClose() }} />
         <Action monoLoaded={monoLoaded} label="Avatar Mixer" onPress={() => { onOpenAvatarMixer?.(); onClose() }} />
+        <Action monoLoaded={monoLoaded} label="ASCII Filter" onPress={() => { setShowAsciiModal(true) }} />
         <Action monoLoaded={monoLoaded} label="Random Stat Check" onPress={() => { launchRandomCheck(); onClose() }} />
       </View>
+      <DebugFilterASCIIModal open={showAsciiModal} onClose={() => setShowAsciiModal(false)} />
     </ModalCard>
   )
 }
