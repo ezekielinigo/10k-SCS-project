@@ -63,6 +63,15 @@ export const SKILL_COLORS: Record<SkillColorKey, string> = {
   CHR: "#F5E663",
 }
 
+type RarityColorKey = "common" | "uncommon" | "rare" | "unique"
+
+export const RARITY_COLORS: Record<RarityColorKey, string> = {
+  common: "#888888",
+  uncommon: "#47A8BD",
+  rare: "#ff1053",
+  unique: "#F5E663",
+}
+
 export const chooseIndefiniteArticle = (title?: string | null): string => {
   const jobTitle = (title ?? "").toLowerCase().trim()
   if (!jobTitle) return "a"

@@ -1,6 +1,11 @@
-import type { Gender, SkillBlock, VitalBlock } from "../types"
+import type { CyberSlot, EquipmentSlot, Gender, SkillBlock, VitalBlock, WeaponSlot } from "../types"
 
 // Seed data for creating a PlayerState plus some optional starting hooks
+export type StartingInventoryItem = {
+  templateId: string
+  slot?: EquipmentSlot | WeaponSlot | CyberSlot
+}
+
 export type PlayerProfile = {
   profileId: string
   avatarId: string
@@ -13,6 +18,7 @@ export type PlayerProfile = {
   tags: string[]
   startingJobId?: string
   startingAffiliationId?: string | null
+  startingInventory?: StartingInventoryItem[]
 }
 
 const zeroSubSkills: SkillBlock["subSkills"] = {
@@ -32,9 +38,9 @@ const zeroSubSkills: SkillBlock["subSkills"] = {
 
 const profiles: PlayerProfile[] = [
   {
-    profileId: "rook_grease",
+    profileId: "test_hero",
     avatarId: "avatar-hero",
-    name: "Rook Grease",
+    name: "AAAAAAAAAAA",
     ageMonths: 20 * 12,
     gender: "male",
     currentDistrict: "redlined_cliffcity",
@@ -66,6 +72,23 @@ const profiles: PlayerProfile[] = [
     startingJobId: "apprentice_mechanic",
     startingAffiliationId: "valkarna_auto",
     tags: ["runner", "mechanic", "industrial"],
+    startingInventory: [
+        { templateId: "pistol_basic"},
+        { templateId: "knife_rusty"},
+        { templateId: "smg_street" },
+        { templateId: "medkit_small" },
+        { templateId: "energy_snack" },
+        { templateId: "jacket_cloth" },
+        { templateId: "pants_reinforced" },
+        { templateId: "rig_utility" },
+        { templateId: "trinket_lucky_coin" },
+        { templateId: "neural_chip_mk1" },
+        { templateId: "ocular_hud_mk1" },
+        { templateId: "dermal_weave_i" },
+        { templateId: "skeletal_brace" },
+        { templateId: "systems_overclocker" },
+        { templateId: "external_drone_link" },
+    ],
   },
   {
     profileId: "maya_line",
@@ -87,6 +110,7 @@ const profiles: PlayerProfile[] = [
     startingJobId: "line_cook",
     startingAffiliationId: "instafood_collective",
     tags: ["lawful", "midlands", "people_person"],
+    startingInventory: [],
   },
   {
     profileId: "anton_shadow",
@@ -108,6 +132,7 @@ const profiles: PlayerProfile[] = [
     startingJobId: "courier",
     startingAffiliationId: null,
     tags: ["risky", "street", "runner"],
+    startingInventory: [],
   },
 ]
 

@@ -1,4 +1,11 @@
-import type { GameState, TaskState, PendingTaskRun } from "../types"
+import type {
+  GameState,
+  TaskState,
+  PendingTaskRun,
+  EquipmentSlot,
+  WeaponSlot,
+  CyberSlot,
+} from "../types"
 import { getJobById, getCareerForJobId } from "../content/careers"
 import { getAffiliationById } from "../content/affiliations"
 import { findRoute, formatRoute, buildTravelLogText } from "./map"
@@ -6,6 +13,12 @@ import { generateMonthlyTasks } from "../generators/taskGenerator"
 import { chooseIndefiniteArticle } from "../../utils/ui"
 import { getTaskGraphById, OUTCOME_DEFINITIONS, TASK_OUTCOME_OVERRIDES } from "../content/tasks"
 import { selectEventForDistrictTags, createRandomEventTaskFromTemplate } from "../content/randomEvents"
+import { grantItemToOwner, consumeItem, removeItemInstance } from "../services/inventoryService"
+import {
+  equipAndRecompute,
+  unequipAndRecompute,
+  recomputeDerivedLoadout,
+} from "../services/equipmentService"
 // random event helpers moved to content; reducer no longer imports them here
 
 export type GameAction =
@@ -24,6 +37,12 @@ export type GameAction =
   | { type: "REMOVE_JOB_ASSIGNMENT"; jobId: string }
   | { type: "TAKE_JOB_INSTANCE"; instanceId: string; replaceCareer?: boolean }
   | { type: "CONNECT_NPC"; npc: any; affiliations?: string[]; relationshipStrength?: number }
+  | { type: "GRANT_ITEM"; templateId: string; ownerId?: string; quantity?: number }
+  | { type: "CONSUME_ITEM"; instanceId: string; quantity?: number }
+  | { type: "REMOVE_ITEM"; instanceId: string }
+  | { type: "EQUIP_ITEM"; instanceId: string; slot: EquipmentSlot | WeaponSlot | CyberSlot }
+  | { type: "UNEQUIP_SLOT"; slot: EquipmentSlot | WeaponSlot | CyberSlot }
+  | { type: "RECOMPUTE_LOADOUT" }
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -566,6 +585,37 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           },
         ],
       }
+    }
+
+    case "GRANT_ITEM": {
+      const ownerId = action.ownerId ?? state.player.id
+      try {
+        return recomputeDerivedLoadout(grantItemToOwner(state, action.templateId, ownerId, action.quantity ?? 1))
+      } catch (e) {
+        return state
+      }
+    }
+
+    case "CONSUME_ITEM": {
+      const next = consumeItem(state, action.instanceId, action.quantity ?? 1)
+      return recomputeDerivedLoadout(next)
+    }
+
+    case "REMOVE_ITEM": {
+      const next = removeItemInstance(state, action.instanceId)
+      return recomputeDerivedLoadout(next)
+    }
+
+    case "EQUIP_ITEM": {
+      return equipAndRecompute(state, action.instanceId, action.slot)
+    }
+
+    case "UNEQUIP_SLOT": {
+      return unequipAndRecompute(state, action.slot)
+    }
+
+    case "RECOMPUTE_LOADOUT": {
+      return recomputeDerivedLoadout(state)
     }
 
     default:

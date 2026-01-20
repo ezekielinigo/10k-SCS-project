@@ -20,6 +20,48 @@ export type OutcomeTier =
 
 export type Gender = "male" | "female"
 
+/**
+ * ITEM SYSTEM
+ */
+
+// rarity tiers used for drop rates and flavor
+export type ItemRarity = "common" | "uncommon" | "rare" | "unique"
+
+// top-level item categories
+export type ItemKind = "equipment" | "cybernetic" | "weapon" | "consumable" | "misc"
+
+// slots for non-weapon equipment
+export type EquipmentSlot = "accessory" | "top" | "bottom" | "utility" | "trash"
+
+// slots for weapons
+export type WeaponSlot = "primary" | "secondary"
+
+// slots for cybernetics
+export type CyberSlot =
+  | "neural"
+  | "ocular"
+  | "skeletal"
+  | "dermal"
+  | "systems"
+  | "external"
+
+// weapon policy for slot eligibility
+export type WeaponSlotPolicy = "either" | "primaryOnly" | "secondaryOnly"
+
+// simple reference types
+export type CardRef = string
+export type EffectRef = string
+
+// flexible effect payload for items (can be replaced with a richer effect engine later)
+export type ItemEffect = {
+  kind: "stat" | "faction" | "custom"
+  // partial deltas applied when equipped or consumed
+  vitals?: Partial<VitalBlock>
+  skills?: Partial<Omit<SkillBlock, "subSkills">> & { subSkills?: Partial<SkillBlock["subSkills"]> }
+  factionTags?: string[]
+  data?: Record<string, any>
+}
+
 export type Gender = "male" | "female"
 
 export type Gender = "male" | "female"
@@ -362,8 +404,27 @@ export type JobInstance = {
 export type ItemTemplate = {
   id: string
   name: string
+  kind: ItemKind
+  rarity: ItemRarity
+  description?: string
+  value?: number
+  weight?: number
   stackable?: boolean
+  maxStack?: number
   tags?: Tag[]
+  factionTags?: string[]
+  // cards unlocked by equipping/owning
+  cardRefs?: CardRef[]
+  passiveCardRefs?: CardRef[]
+  // effects applied when equipped/consumed
+  effects?: ItemEffect[]
+  // slot binding for equipment/cybernetics
+  equipSlot?: EquipmentSlot | CyberSlot
+  // weapon-specific fields
+  weaponSlotPolicy?: WeaponSlotPolicy
+  weaponCards?: Partial<Record<WeaponSlot, CardRef[]>>
+  // consumable-specific
+  consumedOnUse?: boolean
 }
 
 // a concrete object created from a template
@@ -372,16 +433,33 @@ export type ItemInstance = {
   id: string
   templateId: string
   ownerId?: string
+  quantity: number
   durable?: number
   metadata?: Record<string, any>
 }
 
 // links owner to item instances and tracks quantity
+// slot is optional; loadout also keeps canonical slot assignments
 export type InventoryEntry = {
-  id: string // e.g. `${ownerId}__${templateId}`
+  id: string // e.g. `${ownerId}__${templateId}` or `${ownerId}__${instanceId}`
   ownerId: string
   templateId: string
+  instanceId: string
   quantity: number
+  slot?: WeaponSlot | EquipmentSlot | CyberSlot | null
+}
+
+// mapping of equipped instanceIds by slot category
+export type Loadout = {
+  equipment: Record<EquipmentSlot, string | null>
+  weapons: Record<WeaponSlot, string | null>
+  cyber: Record<CyberSlot, string | null>
+}
+
+export type DerivedLoadoutState = {
+  statDeltas: ItemEffect[]
+  equippedCards: CardRef[]
+  equippedFactionTags: string[]
 }
 
 export type DistrictState = {
@@ -485,4 +563,6 @@ export type GameState = {
   itemTemplates?: Record<string, ItemTemplate>
   itemInstances?: Record<string, ItemInstance>
   inventoryEntries?: Record<string, InventoryEntry>
+  loadout?: Loadout
+  derivedLoadout?: DerivedLoadoutState
 }

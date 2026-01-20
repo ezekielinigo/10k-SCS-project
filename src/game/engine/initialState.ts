@@ -1,6 +1,9 @@
 import type { GameState, JobAssignment } from "../types"
+import ITEMS from "../content/items"
+import { createLoadoutEntry, createEmptyDerivedLoadout, grantAndEquip } from "../services/equipmentService"
+import { grantItemToOwner } from "../services/inventoryService"
 import { getJobById, getCareerForJobId } from "../content/careers"
-import { getProfileById, getRandomProfile } from "../content/playerProfiles"
+import { getProfileById, getRandomProfile, DEFAULT_STARTING_INVENTORY } from "../content/playerProfiles"
 import DISTRICTS from "../content/districts"
 import { generateRandomNpc } from "../generators/npcGenerator"
 import { generateMonthlyTasks } from "../generators/taskGenerator"
@@ -11,7 +14,7 @@ const randId = () => Math.random().toString(36).slice(2)
 export const createInitialGameState = (): GameState => {
   const homeDistrictId = "downtown"
 
-  const profile = getProfileById("rook_grease") ?? getRandomProfile()
+  const profile = getProfileById("test_hero") ?? getRandomProfile()
 
   const playerId = randId()
 
@@ -75,7 +78,7 @@ export const createInitialGameState = (): GameState => {
     }
   }
 
-  const baseState: GameState = {
+  let baseState: GameState = {
     month: 0,
     player: {
       id: playerId,
@@ -107,12 +110,27 @@ export const createInitialGameState = (): GameState => {
     jobAssignments,
     jobInstances,
     memberships,
-    itemTemplates: {},
+    itemTemplates: { ...ITEMS },
     itemInstances: {},
     inventoryEntries: {},
+    loadout: createLoadoutEntry(),
+    derivedLoadout: createEmptyDerivedLoadout(),
     affiliations: {},
     // memberships already set above (avoid duplicate key)
   }
+
+  const starterItems = profile.startingInventory ?? DEFAULT_STARTING_INVENTORY
+  starterItems.forEach(({ templateId, slot }) => {
+    try {
+      if (slot) {
+        baseState = grantAndEquip(baseState, templateId, playerId, slot)
+      } else {
+        baseState = grantItemToOwner(baseState, templateId, playerId)
+      }
+    } catch (e) {
+      // missing templates or grant failures are non-fatal
+    }
+  })
 
   const starterTasks = generateMonthlyTasks(baseState)
 
