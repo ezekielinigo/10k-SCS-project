@@ -8,7 +8,7 @@ import { performStatCheck, makeRng, type MainStatKey, type SubSkillKey, type Sta
 import ModalCard from "./ModalCard"
 import DebugFilterASCIIModal from "./DebugFilterASCIIModal"
 
-export default function DebugControlsModal({ open, onClose, onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs, onOpenInk, onOpenDistrict, onOpenStatCheck, onOpenAvatarMixer, onOpenCombatDebug }: { open: boolean; onClose: () => void; onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void; onOpenInk?: () => void; onOpenDistrict?: () => void; onOpenStatCheck?: (config: { dc: number; mainStatKey: MainStatKey; subSkillKey: SubSkillKey }, result: StatCheckResult) => void; onOpenAvatarMixer?: () => void; onOpenCombatDebug?: () => void }) {
+export default function DebugControlsModal({ open, onClose, onShowProfile, onChangeJob, onShowAffiliationMap, onShowRelationships, onShowDebugNpcs, onOpenInk, onOpenDistrict, onOpenStatCheck, onOpenAvatarMixer, onOpenCombatDebug, onOpenCombatScreen }: { open: boolean; onClose: () => void; onShowProfile?: () => void; onChangeJob?: () => void; onShowAffiliationMap?: () => void; onShowRelationships?: () => void; onShowDebugNpcs?: () => void; onOpenInk?: () => void; onOpenDistrict?: () => void; onOpenStatCheck?: (config: { dc: number; mainStatKey: MainStatKey; subSkillKey: SubSkillKey }, result: StatCheckResult) => void; onOpenAvatarMixer?: () => void; onOpenCombatDebug?: () => void; onOpenCombatScreen?: () => void }) {
   const { state, dispatch } = useGame()
   const [monoLoaded] = useFonts(fontConfig.fontAssetsFor("pt-mono"))
   const [showAsciiModal, setShowAsciiModal] = useState(false)
@@ -52,6 +52,7 @@ export default function DebugControlsModal({ open, onClose, onShowProfile, onCha
         <Action monoLoaded={monoLoaded} label="Generate NPCs" onPress={() => { onShowDebugNpcs?.(); onClose() }} />
         <Action monoLoaded={monoLoaded} label="Avatar Mixer" onPress={() => { onOpenAvatarMixer?.(); onClose() }} />
         <Action monoLoaded={monoLoaded} label="Combat Debug" onPress={() => { onOpenCombatDebug?.(); onClose() }} />
+        <Action monoLoaded={monoLoaded} label="Combat Screen" onPress={() => { onOpenCombatScreen?.(); onClose() }} />
         <Action monoLoaded={monoLoaded} label="ASCII Filter" onPress={() => { setShowAsciiModal(true) }} />
         <Action monoLoaded={monoLoaded} label="Random Stat Check" onPress={() => { launchRandomCheck(); onClose() }} />
       </View>

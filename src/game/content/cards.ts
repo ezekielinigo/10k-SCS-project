@@ -124,7 +124,7 @@ const CARDS: CardDefinition[] = [
     description: "Power: stays in play and draws 1 card at each turn start.",
     keywords: [{ kind: "retain" }],
     persistent: true,
-    effects: [{ operation: { op: "applyStatus", status: STATUS_TURN_DRAW } }],
+    effects: [{ target: "self", operation: { op: "applyStatus", status: STATUS_TURN_DRAW } }],
   },
   {
     id: "echo_strike_setup",
@@ -133,7 +133,7 @@ const CARDS: CardDefinition[] = [
     rarity: "uncommon",
     cost: 1,
     tags: ["REF"],
-    description: "Your next attack this turn is repeated.",
+    description: "Your next attack this turn is repeated. Exhaust.",
     keywords: [{ kind: "exhaust" }],
     effects: [{ operation: { op: "applyStatus", status: STATUS_REPEAT_NEXT_ATTACK }, target: "self" }],
   },

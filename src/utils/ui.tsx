@@ -1,7 +1,20 @@
 import React from "react"
 import { View, Text, StyleSheet } from "react-native"
 import { Feather } from "@expo/vector-icons"
-import { BicepsFlexed, Brain, Aperture, MessageCircle } from "lucide-react-native"
+import {
+  Aperture,
+  BicepsFlexed,
+  Brain,
+  BatteryCharging,
+  Calendar,
+  Droplet,
+  MessageCircle,
+  Minimize2,
+  RefreshCw,
+  SkipForward,
+  Sparkles,
+  Zap,
+} from "lucide-react-native"
 
 export type VitalKey = "health" | "stress" | "humanity" | "looks" | "popularity" | "money"
 
@@ -34,6 +47,26 @@ export const SKILL_DEFINITIONS: Record<string, SkillDefinition> = {
   INT: { key: "INT", label: "Intelligence", Icon: (p) => <Brain size={p.size ?? 14} color={p.color ?? "#fff"} /> },
   REF: { key: "REF", label: "Reflexes", Icon: (p) => <Aperture size={p.size ?? 14} color={p.color ?? "#fff"} /> },
   CHR: { key: "CHR", label: "Charisma", Icon: (p) => <MessageCircle size={p.size ?? 14} color={p.color ?? "#fff"} /> },
+}
+
+export const STAT_ICONS = {
+  health: (p: { size?: number; color?: string }) => <Feather name="heart" size={p.size ?? 16} color={p.color ?? "#fff"} />,
+  shield: (p: { size?: number; color?: string }) => <Feather name="shield" size={p.size ?? 16} color={p.color ?? "#fff"} />,
+}
+
+type StatusIconDefinition = {
+  Icon: React.ComponentType<{ size?: number; color?: string }>
+}
+
+export const STATUS_ICON_MAP: Record<string, StatusIconDefinition> = {
+  power_turn_draw: { Icon: Sparkles },
+  repeat_next_attack: { Icon: RefreshCw },
+  draw_next_turn: { Icon: Calendar },
+  skip_next_turn: { Icon: SkipForward },
+  hand_size_minus_one: { Icon: Minimize2 },
+  energy_plus_one: { Icon: Zap },
+  energy_plus_three: { Icon: BatteryCharging },
+  blood_tax: { Icon: Droplet },
 }
 
 export const SUBSKILL_PARENT_ABBREV: Record<string, keyof typeof SKILL_DEFINITIONS> = {
@@ -71,6 +104,7 @@ export const RARITY_COLORS: Record<RarityColorKey, string> = {
   rare: "#ff1053",
   unique: "#F5E663",
 }
+
 
 export const chooseIndefiniteArticle = (title?: string | null): string => {
   const jobTitle = (title ?? "").toLowerCase().trim()

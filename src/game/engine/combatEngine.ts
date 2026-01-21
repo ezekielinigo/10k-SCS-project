@@ -93,7 +93,6 @@ const buildDeck = (
     }
     if (findKeyword(def, "prepared")) {
       prepared.push(cardId)
-      return
     }
     deck.push({ uid: `${cardId}__${counter++}`, cardId })
   })
@@ -141,17 +140,19 @@ export const createCombatState = ({ player, enemy, deckCardIds, cardLibrary, rng
   }
 }
 
-const drawCards = (state: CombatState, amount: number): CombatState => {
+type DrawOptions = { skipUids?: Set<string> }
+const drawCards = (state: CombatState, amount: number, options?: DrawOptions): CombatState => {
   if (amount <= 0) return state
   const zones = cloneZones(state.zones)
+  const { skipUids } = options ?? {}
   let remaining = amount
 
   const ensureDeck = () => {
     if (zones.deck.length > 0) return
-    if (zones.discard.length === 0) return
-    // reshuffle discard into deck when deck is empty
-    zones.deck = shuffle([...zones.discard], state.rng)
-    zones.discard = []
+    const available = skipUids ? zones.discard.filter((ci) => !skipUids.has(ci.uid)) : zones.discard
+    if (available.length === 0) return
+    zones.deck = shuffle([...available], state.rng)
+    zones.discard = skipUids ? zones.discard.filter((ci) => skipUids.has(ci.uid)) : []
   }
 
   while (remaining > 0) {
@@ -391,7 +392,11 @@ const resolveEffect = (
       return next
     }
     case "draw": {
-      return drawCards(state, op.amount)
+      const skipUids =
+        context.cardInstanceId && context.cardDef && cardHasKeyword(context.cardDef, "exhaust")
+          ? new Set([context.cardInstanceId])
+          : undefined
+      return drawCards(state, op.amount, { skipUids })
     }
     case "dealRandom": {
       const rolls = op.rolls ?? 1
@@ -579,17 +584,18 @@ export const startTurn = (state: CombatState): CombatState => {
       })
     })
 
-  // prepared cards spawn into hand at 0 cost
+  // prepared cards spawn into hand at 0 cost by drawing their deck copies
   if (next.preparedCardIds.length > 0) {
     const zones = cloneZones(next.zones)
     next.preparedCardIds.forEach((cardId, idx) => {
-      const def = next.cardLibrary[cardId]
-      if (!def) return
       const alreadyPresent = zones.hand.some((c) => c.cardId === cardId && c.ephemeral)
       if (alreadyPresent) return
+      const deckIndex = zones.deck.findIndex((ci) => ci.cardId === cardId)
+      if (deckIndex === -1) return
+      const [card] = zones.deck.splice(deckIndex, 1)
       const instance: CardInstance = {
+        ...card,
         uid: `${cardId}__prepared__${idx}__${next.turn}`,
-        cardId,
         temporaryCost: 0,
         ephemeral: true,
       }
@@ -608,6 +614,20 @@ export const startTurn = (state: CombatState): CombatState => {
   return next
 }
 
+const moveExhaustFromDiscard = (zones: CombatZones, cardLibrary: Record<string, CardDefinition>): CombatZones => {
+  const remainingDiscard: CardInstance[] = []
+  const exhaustPile = [...zones.exhaust]
+  zones.discard.forEach((card) => {
+    const def = cardLibrary[card.cardId]
+    if (def && cardHasKeyword(def, "exhaust")) {
+      exhaustPile.push(card)
+    } else {
+      remainingDiscard.push(card)
+    }
+  })
+  return { ...zones, discard: remainingDiscard, exhaust: exhaustPile }
+}
+
 const discardNonRetained = (state: CombatState): CombatState => {
   const zones = cloneZones(state.zones)
   const keepInHand: CardInstance[] = []
@@ -619,7 +639,9 @@ const discardNonRetained = (state: CombatState): CombatState => {
       zones.discard.push(card)
     }
   })
-  return { ...state, zones: { ...zones, hand: keepInHand } }
+  zones.hand = keepInHand
+  const finalZones = moveExhaustFromDiscard(zones, state.cardLibrary)
+  return { ...state, zones: finalZones }
 }
 
 const clearExpiredStatuses = (state: CombatState): CombatState => ({

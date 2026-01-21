@@ -22,6 +22,7 @@ import DebugNpcModal from "@shared/components/DebugNpcModal"
 import StatCheckModal from "@shared/components/StatCheckModal"
 import AvatarMixerModal from "@shared/components/AvatarMixerModal"
 import DebugCombatModal from "@shared/components/DebugCombatModal"
+import CombatScreen from "@shared/components/CombatScreen"
 import fontConfig from "@shared/utils/fontConfig"
 import BottomNav from "@shared/components/BottomNav"
 const FACES = fontConfig.fontFaceNames()
@@ -55,6 +56,7 @@ function GameScreen() {
   const [statCheckCfg, setStatCheckCfg] = React.useState<{ dc: number; mainStatKey: any; subSkillKey: any } | null>(null)
   const [statCheckResult, setStatCheckResult] = React.useState<any | null>(null)
   const [combatDebugOpen, setCombatDebugOpen] = React.useState(false)
+  const [combatScreenOpen, setCombatScreenOpen] = React.useState(false)
 
   const currentInkText = ink.inkFrames.length ? ink.inkFrames[ink.inkFrames.length - 1]?.text : undefined
   const inkDeltas = extractDeltas(ink.inkVars)
@@ -101,7 +103,7 @@ function GameScreen() {
           dc={ink.inkStatCheck.dc}
           mainStatKey={ink.inkStatCheck.mainStatKey}
           mainStatValue={ink.inkStatCheck.result.mainStat}
-          subSkillKey={ink.inkStatCheck.subSkillKey ?? undefined}
+          subSkillKey={typeof ink.inkStatCheck.subSkillKey === "string" ? ink.inkStatCheck.subSkillKey : undefined}
           subSkillValue={ink.inkStatCheck.result.subSkillBonus}
           initialResult={ink.inkStatCheck.result}
           autoRun={false}
@@ -123,6 +125,7 @@ function GameScreen() {
         onOpenStatCheck={(cfg, res) => { setStatCheckCfg(cfg); setStatCheckResult(res); }}
         onOpenAvatarMixer={() => setAvatarMixerOpen(true)}
         onOpenCombatDebug={() => setCombatDebugOpen(true)}
+        onOpenCombatScreen={() => setCombatScreenOpen(true)}
       />
 
       <ProfileViewHandler open={profileOpen} onClose={() => setProfileOpen(false)} target={{ mode: "player" }} />
@@ -133,15 +136,16 @@ function GameScreen() {
       <DebugNpcModal open={debugNpcsOpen} onClose={() => setDebugNpcsOpen(false)} />
       <AvatarMixerModal open={avatarMixerOpen} onClose={() => setAvatarMixerOpen(false)} />
       <DebugCombatModal open={combatDebugOpen} onClose={() => setCombatDebugOpen(false)} />
+      <CombatScreen open={combatScreenOpen} onClose={() => setCombatScreenOpen(false)} />
       <StatCheckModal
         open={!!statCheckCfg}
         onClose={() => { setStatCheckCfg(null); setStatCheckResult(null) }}
         title="Stat Check"
         dc={statCheckCfg?.dc ?? 10}
         mainStatKey={statCheckCfg?.mainStatKey ?? "str"}
-        mainStatValue={state.player?.skills?.[statCheckCfg?.mainStatKey ?? "str"] ?? 0}
+        mainStatValue={(state.player as any)?.skills?.[statCheckCfg?.mainStatKey ?? "str"] ?? 0}
         subSkillKey={statCheckCfg?.subSkillKey ?? undefined}
-        subSkillValue={state.player?.skills?.subSkills?.[statCheckCfg?.subSkillKey ?? "athletics"] ?? 0}
+        subSkillValue={(state.player as any)?.skills?.subSkills?.[statCheckCfg?.subSkillKey ?? "athletics"] ?? 0}
         initialResult={statCheckResult ?? undefined}
         autoRun={false}
         onResolve={(res) => {

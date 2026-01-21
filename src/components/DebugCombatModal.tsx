@@ -10,9 +10,10 @@ import {
   playCard,
   enemyPing,
 } from "@shared/game/engine/combatEngine"
-import type { CardDefinition, CardInstance, CombatState } from "@shared/game/engine/combatTypes"
+import type { CardDefinition, CardInstance, CombatState, StatusInstance } from "@shared/game/engine/combatTypes"
 import CARDS from "@shared/game/content/cards"
 import fontConfig from "@shared/utils/fontConfig"
+import { STATUS_ICON_MAP } from "@shared/utils/ui"
 const FACES = fontConfig.fontFaceNames()
 
 const STARTER_DECK = [
@@ -271,14 +272,31 @@ export default function DebugCombatModal({ open, onClose }: { open: boolean; onC
 
 function StatusList({ statuses }: { statuses: CombatState["player"]["statuses"] }) {
   if (!statuses?.length) return <Text style={styles.cardMeta}>No statuses</Text>
+  const [tooltip, setTooltip] = React.useState<StatusInstance | null>(null)
+  const DEBUFF_IDS = new Set(["skip_next_turn", "hand_size_minus_one", "blood_tax"])
   return (
     <View style={styles.statusRow}>
-      {statuses.map((s) => (
-        <View key={`${s.id}-${s.remaining}`} style={styles.statusChip}>
-          <Text style={styles.statusText}>{s.name}</Text>
-          <Text style={styles.statusTextSmall}>dur {typeof s.remaining === "number" ? s.remaining : "∞"}</Text>
-        </View>
-      ))}
+      {statuses.map((s) => {
+        const iconDef = STATUS_ICON_MAP[s.id]
+        const Icon = iconDef?.Icon
+        const isDebuff = DEBUFF_IDS.has(s.id)
+        const accent = isDebuff ? "#ff6b7a" : "#76e39c"
+        const remaining = typeof s.remaining === "number" ? String(s.remaining) : null
+        return (
+          <Pressable key={`${s.id}-${s.remaining}`} onPress={() => setTooltip(s)} style={[styles.statusChip, { borderColor: accent }]}>
+            {Icon ? <Icon size={14} color={accent} /> : <Text style={[styles.statusLabel, { color: accent }]}>{s.name}</Text>}
+            {remaining ? <Text style={[styles.statusValue, { color: accent }]}>{remaining}</Text> : null}
+          </Pressable>
+        )
+      })}
+      {tooltip ? (
+        <Pressable style={styles.tooltipOverlay} onPress={() => setTooltip(null)}>
+          <View style={styles.statusTooltip}>
+            <Text style={styles.tooltipName}>{tooltip.name}</Text>
+            {tooltip.description ? <Text style={styles.tooltipDesc}>{tooltip.description}</Text> : null}
+          </View>
+        </Pressable>
+      ) : null}
     </View>
   )
 }
@@ -313,10 +331,14 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: "#fff", fontFamily: FACES.BOLD, fontSize: 12 },
   smallButton: { paddingVertical: 7, paddingHorizontal: 8, backgroundColor: "#252c3d", borderRadius: 7, alignItems: "center" },
-  statusRow: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
-  statusChip: { paddingHorizontal: 7, paddingVertical: 3, backgroundColor: "#1f273a", borderRadius: 7 },
-  statusText: { color: "#cdd4e5", fontFamily: FACES.BOLD, fontSize: 11 },
-  statusTextSmall: { color: "#9aa1b5", fontFamily: FACES.REGULAR, fontSize: 10 },
+  statusRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  statusChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: "#1f273a", backgroundColor: "#0f1220", marginRight: 6 },
+  statusValue: { color: "#cdd4e5", fontFamily: FACES.BOLD, fontSize: 12 },
+  statusLabel: { color: "#9aa1b5", fontFamily: FACES.REGULAR, fontSize: 10 },
+  tooltipOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  statusTooltip: { minWidth: 220, maxWidth: 360, backgroundColor: "#0b0d16", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#1a1f2f" },
+  tooltipName: { color: "#fff", fontFamily: FACES.BOLD, fontSize: 13, marginBottom: 6 },
+  tooltipDesc: { color: "#cdd4e5", fontFamily: FACES.REGULAR, fontSize: 12 },
   logBox: { marginTop: 6, backgroundColor: "#0e111a", borderRadius: 8, borderWidth: 1, borderColor: "#1d2333", padding: 8, gap: 4 },
   logList: { maxHeight: 120 },
   logText: { color: "#cdd4e5", fontFamily: FACES.REGULAR, fontSize: 11 },
