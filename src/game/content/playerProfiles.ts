@@ -1,4 +1,5 @@
 import type { CyberSlot, EquipmentSlot, Gender, SkillBlock, VitalBlock, WeaponSlot } from "../types"
+import { listItems } from "./items"
 
 // Seed data for creating a PlayerState plus some optional starting hooks
 export type StartingInventoryItem = {
@@ -72,23 +73,7 @@ const profiles: PlayerProfile[] = [
     startingJobId: "apprentice_mechanic",
     startingAffiliationId: "valkarna_auto",
     tags: ["runner", "mechanic", "industrial"],
-    startingInventory: [
-        { templateId: "pistol_basic"},
-        { templateId: "knife_rusty"},
-        { templateId: "smg_street" },
-        { templateId: "medkit_small" },
-        { templateId: "energy_snack" },
-        { templateId: "jacket_cloth" },
-        { templateId: "pants_reinforced" },
-        { templateId: "rig_utility" },
-        { templateId: "trinket_lucky_coin" },
-        { templateId: "neural_chip_mk1" },
-        { templateId: "ocular_hud_mk1" },
-        { templateId: "dermal_weave_i" },
-        { templateId: "skeletal_brace" },
-        { templateId: "systems_overclocker" },
-        { templateId: "external_drone_link" },
-    ],
+    startingInventory: listItems().map(i => ({ templateId: i.id })),
   },
   {
     profileId: "maya_line",

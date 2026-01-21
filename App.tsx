@@ -21,6 +21,7 @@ import DebugControlsModal from "@shared/components/DebugControlsModal"
 import DebugNpcModal from "@shared/components/DebugNpcModal"
 import StatCheckModal from "@shared/components/StatCheckModal"
 import AvatarMixerModal from "@shared/components/AvatarMixerModal"
+import DebugCombatModal from "@shared/components/DebugCombatModal"
 import fontConfig from "@shared/utils/fontConfig"
 import BottomNav from "@shared/components/BottomNav"
 const FACES = fontConfig.fontFaceNames()
@@ -53,6 +54,7 @@ function GameScreen() {
   const [avatarMixerOpen, setAvatarMixerOpen] = React.useState(false)
   const [statCheckCfg, setStatCheckCfg] = React.useState<{ dc: number; mainStatKey: any; subSkillKey: any } | null>(null)
   const [statCheckResult, setStatCheckResult] = React.useState<any | null>(null)
+  const [combatDebugOpen, setCombatDebugOpen] = React.useState(false)
 
   const currentInkText = ink.inkFrames.length ? ink.inkFrames[ink.inkFrames.length - 1]?.text : undefined
   const inkDeltas = extractDeltas(ink.inkVars)
@@ -120,6 +122,7 @@ function GameScreen() {
         onOpenDistrict={() => setDistrictOpen(true)}
         onOpenStatCheck={(cfg, res) => { setStatCheckCfg(cfg); setStatCheckResult(res); }}
         onOpenAvatarMixer={() => setAvatarMixerOpen(true)}
+        onOpenCombatDebug={() => setCombatDebugOpen(true)}
       />
 
       <ProfileViewHandler open={profileOpen} onClose={() => setProfileOpen(false)} target={{ mode: "player" }} />
@@ -129,6 +132,7 @@ function GameScreen() {
       <AffiliationMapModal open={affiliationOpen} onClose={() => setAffiliationOpen(false)} />
       <DebugNpcModal open={debugNpcsOpen} onClose={() => setDebugNpcsOpen(false)} />
       <AvatarMixerModal open={avatarMixerOpen} onClose={() => setAvatarMixerOpen(false)} />
+      <DebugCombatModal open={combatDebugOpen} onClose={() => setCombatDebugOpen(false)} />
       <StatCheckModal
         open={!!statCheckCfg}
         onClose={() => { setStatCheckCfg(null); setStatCheckResult(null) }}
