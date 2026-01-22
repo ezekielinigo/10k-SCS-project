@@ -4,6 +4,7 @@ import { StatusBar, StyleSheet, View, TouchableOpacity, Text, TextInput } from "
 import * as SplashScreen from "expo-splash-screen"
 import useHideSystemBars from "@shared/utils/useHideSystemBars"
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"
+import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { GameProvider, useGame } from "@shared/game/engine/GameContext"
 import { useInk } from "@shared/game/hooks/useInk"
 import SummaryPanel from "@shared/components/SummaryPanel"
@@ -192,11 +193,13 @@ export default function App() {
 
   return (
     <GameProvider>
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.safe}>
-          <GameScreen />
-        </SafeAreaView>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={styles.safe}>
+        <SafeAreaProvider>
+          <SafeAreaView style={styles.safe}>
+            <GameScreen />
+          </SafeAreaView>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </GameProvider>
   )
 }

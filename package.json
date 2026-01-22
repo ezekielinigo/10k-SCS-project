@@ -13,6 +13,8 @@
   "dependencies": {
     "@expo-google-fonts/pt-mono": "^0.4.1",
     "@expo-google-fonts/roboto-mono": "^0.4.1",
+    "@gorhom/bottom-sheet": "^5.2.8",
+    "@gorhom/portal": "^1.0.14",
     "@react-native-community/slider": "^5.1.2",
     "@shopify/react-native-skia": "2.4.14",
     "expo": "^54.0.31",
@@ -26,6 +28,7 @@
     "lucide-react-native": "^0.562.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-gesture-handler": "^2.30.0",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-svg": "15.12.1",

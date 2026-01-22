@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Animated, PanResponder, Pressable, StyleSheet, Text, View, ScrollView } from "react-native"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
+import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { Feather } from "@expo/vector-icons"
 import fontConfig from "@shared/utils/fontConfig"
 import { RARITY_COLORS } from "@shared/utils/ui"
@@ -7,26 +7,72 @@ import iconDefault from "../assets/icon_default.png"
 import { useGame } from "@shared/game/engine/GameContext"
 import { listOwnerInventory } from "@shared/game/services/inventoryService"
 import { canEquip } from "@shared/game/services/equipmentService"
-import type { CyberSlot, EquipmentSlot, ItemTemplate, WeaponSlot } from "@shared/game/types"
+import type { CardRef, CyberSlot, EquipmentSlot, ItemTemplate, WeaponSlot } from "@shared/game/types"
 import { Canvas, Image as SkiaImage, FilterMode, MipmapMode, useImage } from "@shopify/react-native-skia"
+import type { CardDefinition } from "@shared/game/engine/combatTypes"
+import CARDS from "@shared/game/content/cards"
 
 const FACES = fontConfig.fontFaceNames()
-const CELL_SIZE = 48
-const MOVE_THRESHOLD = 6
-const EQUIP_SLOTS = ["accessory", "top", "bottom", "primary", "secondary", "utility", "trash"]
-const EQUIP_OFFSET = 100
-const CYBER_SLOTS = ["neural", "ocular", "skeletal", "dermal", "systems", "external", "trash"]
-const CYBER_OFFSET = 200
-const INVENTORY_ROWS = 6
-const INVENTORY_COLS = 7
-const INVENTORY_OFFSET = 0
-const MAX_GRID_SLOTS = INVENTORY_ROWS * INVENTORY_COLS
-const ITEM_ICON_SIZE = CELL_SIZE - 18
-const SELECTION_ICON_SIZE = 50
+const EQUIP_SLOTS = ["accessory", "top", "bottom", "primary", "secondary", "utility", "trash"] as const
+const CYBER_SLOTS = ["neural", "ocular", "skeletal", "dermal", "systems", "external", "trash"] as const
+const ITEM_ICON_SIZE = 34
+const SELECTION_ICON_SIZE = 56
+const MINI_CARD_SIZE = 44
+const SCREEN_WIDTH = Dimensions.get("window").width
+const GRID_COLUMNS = SCREEN_WIDTH > 420 ? 5 : 4
+const GRID_GAP = 10
+const GRID_WIDTH = SCREEN_WIDTH - 80
+const GRID_CARD_WIDTH = Math.max(72, Math.floor((GRID_WIDTH - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS))
+const GRID_CARD_HEIGHT = Math.floor(GRID_CARD_WIDTH * 1.35)
 
-type ItemState = {
-  id: string
-  slot: number
+type InventorySortMode = "name" | "rarity" | "type"
+type DeckSortMode = "name" | "rarity" | "type" | "cost" | "source"
+type DeckViewMode = "list" | "grid"
+type SelectionViewMode = "description" | "stats" | "cards"
+type SlotFilter = EquipmentSlot | WeaponSlot | CyberSlot | null
+
+/*
+
+TODO (BUGFIXING):
+
+- equipment tab should only show equipment, consumables, and misc items (no cyberware)
+  - during default filter (all), disable equip/unequip for weapons
+    - when browsing primary weapons, pressing equip button should put them in primary slot
+    - when browsing secondary weapons, pressing equip button should put them in secondary slot
+    - include handlers like:
+      - if item is currently equipped as secondary, equipping it again as primary should move (avoid duplication)
+      - description panel should show cards according to menu context
+        - all filter: default to primary cards
+        - primary filter: primary cards only
+        - secondary filter: secondary cards only
+        - I want to replace the format of the mini cards to be the same as deck view cards
+          - including cost and duplicate count (copy whole format from deck view cards)
+  - description panel in general (both equipment and cyberware tabs)
+    - move type text to be next to name as an icon
+    - format: "{icon} {name}"
+- cyberware tab should only show cyberware items
+
+- deck tab
+  - list view should be more compact
+    - instead of centered vertically, put the cost in top left corner
+    - also move duplicate count to the top right corner
+    - move the source item name below the source item icon
+    - card name and type should be on same line
+      - replace type text with icon (use feather or lucide icons)
+      - format: "{icon} {name}"
+    - keep 2 line description
+    - all cards should have a fixed height
+  - grid view should be centered (right now it is left aligned)
+    - move the duplicate count to top right corner
+    - move the cost to top left corner badge
+
+*/
+
+const rarityRank: Record<string, number> = {
+  common: 1,
+  uncommon: 2,
+  rare: 3,
+  unique: 4,
 }
 
 const capitalizeSlot = (slot?: string) => {
@@ -58,375 +104,207 @@ const formatItemKindLabel = (template: ItemTemplate) => {
   }
 }
 
+const resolveItemIcon = (template: ItemTemplate) => {
+  switch (template.kind) {
+    case "equipment": {
+      switch (template.equipSlot) {
+        case "accessory":
+          return "watch"
+        case "top":
+          return "layers"
+        case "bottom":
+          return "square"
+        case "utility":
+          return "tool"
+        default:
+          return "shield"
+      }
+    }
+    case "cybernetic":
+      return "cpu"
+    case "weapon":
+      return "crosshair"
+    case "consumable":
+      return "droplet"
+    default:
+      return "package"
+  }
+}
+
+const resolveCardTypeIcon = (type?: string) => {
+  switch (type) {
+    case "attack":
+      return "crosshair"
+    case "utility":
+      return "zap"
+    case "skill":
+      return "activity"
+    case "defense":
+      return "shield"
+    default:
+      return "layers"
+  }
+}
+
+const resolveSlotIcon = (slot: EquipmentSlot | WeaponSlot | CyberSlot) => {
+  switch (slot) {
+    case "accessory":
+      return "watch"
+    case "top":
+      return "layers"
+    case "bottom":
+      return "square"
+    case "utility":
+      return "tool"
+    case "primary":
+    case "secondary":
+      return "crosshair"
+    case "neural":
+      return "cpu"
+    case "ocular":
+      return "eye"
+    case "skeletal":
+      return "activity"
+    case "dermal":
+      return "shield"
+    case "systems":
+      return "hard-drive"
+    case "external":
+      return "wifi"
+    default:
+      return "box"
+  }
+}
+
+const collectCardRefs = (template?: ItemTemplate | null): CardRef[] => {
+  if (!template) return []
+  const refs = new Set<CardRef>()
+  template.cardRefs?.forEach((ref) => refs.add(ref))
+  template.passiveCardRefs?.forEach((ref) => refs.add(ref))
+  if (template.weaponCards) {
+    Object.values(template.weaponCards).forEach((list) => list?.forEach((ref) => refs.add(ref)))
+  }
+  return [...refs]
+}
+
+const describeEffect = (effect: any): string[] => {
+  if (!effect) return []
+  const lines: string[] = []
+  if (effect.kind === "stat") {
+    if (effect.vitals) {
+      Object.entries(effect.vitals).forEach(([key, val]) => {
+        lines.push(`${capitalizeSlot(key)} ${Number(val) >= 0 ? "+" : ""}${val}`)
+      })
+    }
+    if (effect.skills) {
+      Object.entries(effect.skills).forEach(([key, val]) => {
+        if (key === "subSkills" && val && typeof val === "object") {
+          Object.entries(val as Record<string, number>).forEach(([subKey, subVal]) => {
+            lines.push(`${capitalizeSlot(subKey)} ${Number(subVal) >= 0 ? "+" : ""}${subVal}`)
+          })
+        } else if (typeof val === "number") {
+          lines.push(`${capitalizeSlot(key)} ${Number(val) >= 0 ? "+" : ""}${val}`)
+        }
+      })
+    }
+  } else if (effect.kind === "faction") {
+    if (effect.factionTags?.length) lines.push(`Faction: ${effect.factionTags.join(", ")}`)
+  } else if (effect.kind === "custom") {
+    lines.push("Custom effect")
+  }
+  return lines
+}
+
 export default function ProfilePanel() {
   const { state, dispatch } = useGame()
+  const gameState = state as any
   const playerId = state.player.id
   const inventory = useMemo(() => listOwnerInventory(state, playerId), [state, playerId])
   const templateByInstance = useMemo(() => {
     const map = new Map<string, ItemTemplate>()
-    // prefer inventory entries (they include resolved templates)
     inventory.forEach(({ instance, template }) => {
       map.set(instance.id, template)
     })
-    // fallback to itemInstances -> itemTemplates if an entry/template was temporarily removed
-    Object.values(state.itemInstances ?? {}).forEach((inst) => {
+    Object.values((gameState.itemInstances ?? {}) as Record<string, any>).forEach((inst) => {
       if (inst.ownerId !== playerId) return
       if (map.has(inst.id)) return
-      const tpl = state.itemTemplates?.[inst.templateId]
+      const tpl = gameState.itemTemplates?.[inst.templateId]
       if (tpl) map.set(inst.id, tpl)
     })
     return map
-  }, [inventory, state.itemInstances, state.itemTemplates, playerId])
+  }, [gameState.itemInstances, gameState.itemTemplates, inventory, playerId])
 
-  const [items, setItems] = useState<ItemState[]>([])
-  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const cardMap = useMemo(() => CARDS.reduce<Record<string, CardDefinition>>((acc, c) => { acc[c.id] = c; return acc }, {}), [])
+  const cardSourceMap = useMemo(() => {
+    const map = new Map<string, { name: string; rarity?: string }>()
+    Object.values((gameState.itemTemplates ?? {}) as Record<string, ItemTemplate>).forEach((tpl) => {
+      collectCardRefs(tpl).forEach((ref) => {
+        if (!map.has(ref)) map.set(ref, { name: tpl.name, rarity: tpl.rarity })
+      })
+    })
+    return map
+  }, [gameState.itemTemplates])
+
   const [activeTab, setActiveTab] = useState<"equipment" | "cyberware" | "deck">("equipment")
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const dragOriginSlot = useRef<number | null>(null)
-  const hoveredSlotRef = useRef<number | null>(null)
-  const movedRef = useRef(false)
-  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current
-  const containerRef = useRef<View | null>(null)
-  const equipRef = useRef<View | null>(null)
-  const gridRef = useRef<View | null>(null)
-  const [containerLayout, setContainerLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
-  const [equipLayout, setEquipLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
-  const [gridLayout, setGridLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
-  const [selectionIconLayout, setSelectionIconLayout] = useState<{ width: number; height: number } | null>(null)
-
-  const equipIndexForSlotId = (slotId: EquipmentSlot | WeaponSlot): number => EQUIP_OFFSET + EQUIP_SLOTS.findIndex(s => s === slotId)
-  const cyberIndexForSlotId = (slotId: CyberSlot): number => CYBER_OFFSET + CYBER_SLOTS.findIndex(s => s.toLowerCase() === slotId)
-
-  const equipTrashSlotIndex = useMemo(() => equipIndexForSlotId("trash"), [])
+  const [inventorySortMode, setInventorySortMode] = useState<InventorySortMode>("name")
+  const [slotFilter, setSlotFilter] = useState<SlotFilter>(null)
+  const [selectionView, setSelectionView] = useState<SelectionViewMode>("description")
+  const [deckView, setDeckView] = useState<DeckViewMode>("list")
+  const [deckSortMode, setDeckSortMode] = useState<DeckSortMode>("name")
+  const [cardPreview, setCardPreview] = useState<CardDefinition | null>(null)
+  const isEquipmentTab = activeTab === "equipment"
+  const isCyberTab = activeTab === "cyberware"
+  const isDeckTab = activeTab === "deck"
 
   const itemIconSkia = useImage(iconDefault)
 
-  const slotItemMap = useMemo(() => {
-    const map = new Map<number, ItemState>()
-    items.forEach(item => {
-      map.set(item.slot, item)
+  const equippedBySlot = useMemo(() => {
+    const map = new Map<EquipmentSlot | WeaponSlot | CyberSlot, string>()
+    Object.entries(gameState.loadout?.equipment ?? {}).forEach(([slotId, instanceId]) => {
+      if (!instanceId) return
+      if (slotId === "trash") return
+      map.set(slotId as EquipmentSlot, instanceId as string)
+    })
+    Object.entries(gameState.loadout?.weapons ?? {}).forEach(([slotId, instanceId]) => {
+      if (!instanceId) return
+      map.set(slotId as WeaponSlot, instanceId as string)
+    })
+    Object.entries(gameState.loadout?.cyber ?? {}).forEach(([slotId, instanceId]) => {
+      if (!instanceId) return
+      map.set(slotId as CyberSlot, instanceId as string)
     })
     return map
-  }, [items])
+  }, [gameState.loadout])
 
-  const selectionIconOffset = useMemo(() => {
-    if (!selectionIconLayout) return { x: 0, y: 0 }
-    const x = Math.max((selectionIconLayout.width - SELECTION_ICON_SIZE) / 2, 0)
-    const y = Math.max((selectionIconLayout.height - SELECTION_ICON_SIZE) / 2, 0)
-    return { x, y }
-  }, [selectionIconLayout])
+  const equippedSlotByItem = useMemo(() => {
+    const map = new Map<string, EquipmentSlot | WeaponSlot | CyberSlot>()
+    equippedBySlot.forEach((instanceId, slotId) => {
+      map.set(instanceId, slotId)
+    })
+    return map
+  }, [equippedBySlot])
 
-  const scaleMapRef = useRef(new Map<string, Animated.Value>())
-  const ensureScaleForId = useCallback(
-    (id: string): Animated.Value => {
-      const existing = scaleMapRef.current.get(id)
-      if (existing) return existing
-      const val = new Animated.Value(selectedId === id ? 1.2 : 1)
-      scaleMapRef.current.set(id, val)
-      return val
-    },
-    [selectedId],
-  )
-
-  const slotInfoFromIndex = (slot: number): { kind: "equip" | "weapon" | "cyber" | "grid"; slotId?: EquipmentSlot | WeaponSlot | CyberSlot } => {
-    if (slot >= EQUIP_OFFSET && slot < EQUIP_OFFSET + EQUIP_SLOTS.length) {
-      const name = EQUIP_SLOTS[slot - EQUIP_OFFSET]
-      if (name === "primary" || name === "secondary") {
-        return { kind: "weapon", slotId: name as WeaponSlot }
-      }
-      return { kind: "equip", slotId: name as EquipmentSlot }
-    }
-    if (slot >= CYBER_OFFSET && slot < CYBER_OFFSET + CYBER_SLOTS.length) {
-        const name = CYBER_SLOTS[slot - CYBER_OFFSET].toLowerCase()
-        // treat 'trash' in the cyber row as the same equipment trash slot
-        if (name === "trash") return { kind: "equip", slotId: "trash" as EquipmentSlot }
-        return { kind: "cyber", slotId: name as CyberSlot }
-    }
-    return { kind: "grid" }
-  }
-
-  // rebuild visual slots from game state while preserving grid positions when possible
   useEffect(() => {
-    const equipped = new Set<string>()
-    const occupiedSlots = new Set<number>()
-    const nextItems: ItemState[] = []
-
-    const loadout = state.loadout ?? { equipment: {}, weapons: {}, cyber: {} }
-
-    // equipment slots
-    Object.entries(loadout.equipment ?? {}).forEach(([slotId, instanceId]) => {
-      if (!instanceId) return
-      const slotIdx = equipIndexForSlotId(slotId as EquipmentSlot)
-      nextItems.push({ id: instanceId, slot: slotIdx })
-      equipped.add(instanceId)
-      occupiedSlots.add(slotIdx)
-    })
-
-    // weapon slots
-    Object.entries(loadout.weapons ?? {}).forEach(([slotId, instanceId]) => {
-      if (!instanceId) return
-      const slotIdx = equipIndexForSlotId(slotId as WeaponSlot)
-      nextItems.push({ id: instanceId, slot: slotIdx })
-      equipped.add(instanceId)
-      occupiedSlots.add(slotIdx)
-    })
-
-    // cyber slots
-    Object.entries(loadout.cyber ?? {}).forEach(([slotId, instanceId]) => {
-      if (!instanceId) return
-      const slotIdx = cyberIndexForSlotId(slotId as CyberSlot)
-      nextItems.push({ id: instanceId, slot: slotIdx })
-      equipped.add(instanceId)
-      occupiedSlots.add(slotIdx)
-    })
-
-    // assign grid positions for unequipped items
-    const prevMap = new Map(items.map(i => [i.id, i.slot]))
-    const findNextFree = () => {
-      for (let i = 0; i < MAX_GRID_SLOTS; i++) {
-        if (!occupiedSlots.has(INVENTORY_OFFSET + i)) {
-          occupiedSlots.add(INVENTORY_OFFSET + i)
-          return INVENTORY_OFFSET + i
-        }
-      }
-      return INVENTORY_OFFSET
-    }
-
-    inventory.forEach(({ instance }) => {
-      if (equipped.has(instance.id)) return
-      const prevSlot = prevMap.get(instance.id)
-      const usePrev = prevSlot !== undefined && prevSlot < EQUIP_OFFSET && !occupiedSlots.has(prevSlot)
-      const slot = usePrev ? prevSlot! : findNextFree()
-      nextItems.push({ id: instance.id, slot })
-    })
-
-    setItems(nextItems)
-  }, [inventory, state.loadout])
-
-  const slotCoordinates = useCallback(
-    (slot: number) => {
-      if (slot >= EQUIP_OFFSET && slot < EQUIP_OFFSET + EQUIP_SLOTS.length) {
-        const idx = slot - EQUIP_OFFSET
-        if (equipLayout && containerLayout) {
-          const slotWidth = equipLayout.width / EQUIP_SLOTS.length
-          const x = equipLayout.x - containerLayout.x + idx * slotWidth + (slotWidth - CELL_SIZE) / 2
-          const y = equipLayout.y - containerLayout.y + (equipLayout.height - CELL_SIZE) / 2
-          return { x, y }
-        }
-      } else if (slot >= CYBER_OFFSET && slot < CYBER_OFFSET + CYBER_SLOTS.length) {
-        const idx = slot - CYBER_OFFSET
-        if (equipLayout && containerLayout) {
-          const slotWidth = equipLayout.width / CYBER_SLOTS.length
-          const x = equipLayout.x - containerLayout.x + idx * slotWidth + (slotWidth - CELL_SIZE) / 2
-          const y = equipLayout.y - containerLayout.y + (equipLayout.height - CELL_SIZE) / 2
-          return { x, y }
-        }
-      } else {
-        // inventory slot
-        const idx = slot - INVENTORY_OFFSET
-        if (gridLayout && containerLayout) {
-          const cellWidth = gridLayout.width / INVENTORY_COLS
-          const cellHeight = gridLayout.height / INVENTORY_ROWS
-          const col = idx % INVENTORY_COLS
-          const row = Math.floor(idx / INVENTORY_COLS)
-          const x = gridLayout.x - containerLayout.x + col * cellWidth + (cellWidth - CELL_SIZE) / 2
-          const y = gridLayout.y - containerLayout.y + row * cellHeight + (cellHeight - CELL_SIZE) / 2
-          return { x, y }
-        }
-      }
-      return { x: 0, y: 0 }
-    },
-    [containerLayout, equipLayout, gridLayout],
-  )
-
-  const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
-
-  // keep selection in sync with inventory changes; default to first item
-  useEffect(() => {
-    if (selectedId && items.some(i => i.id === selectedId)) return
-    const first = items[0]?.id ?? null
+    if (selectedId && inventory.some((item) => item.instance.id === selectedId)) return
+    const first = inventory[0]?.instance.id ?? null
     setSelectedId(first)
-  }, [items, selectedId])
+  }, [inventory, selectedId])
 
-  // animate selection scale changes
-  const prevSelectedRef = useRef<string | null>(null)
   useEffect(() => {
-    const prev = prevSelectedRef.current
-    if (prev && prev !== selectedId) {
-      const prevScale = ensureScaleForId(prev)
-      Animated.timing(prevScale, { toValue: 1, duration: 140, useNativeDriver: true }).start()
-    }
-    if (selectedId) {
-      const nextScale = ensureScaleForId(selectedId)
-      Animated.timing(nextScale, { toValue: 1.2, duration: 140, useNativeDriver: true }).start()
-    }
-    prevSelectedRef.current = selectedId ?? null
-  }, [ensureScaleForId, selectedId])
+    if (deckView === "grid" && deckSortMode === "source") setDeckSortMode("name")
+  }, [deckSortMode, deckView])
 
-  const finishDrag = useCallback(
-    (gesture: { dx: number; dy: number }) => {
-      if (!draggingId || dragOriginSlot.current === null) {
-        pan.setValue({ x: 0, y: 0 })
-        setDraggingId(null)
-        dragOriginSlot.current = null
-        hoveredSlotRef.current = null
-        movedRef.current = false
-        return
-      }
-
-      const originSlot = dragOriginSlot.current
-      const hovered = hoveredSlotRef.current
-      const targetSlot = hovered !== null ? hovered : originSlot
-
-      const originInfo = slotInfoFromIndex(originSlot)
-      const targetInfo = slotInfoFromIndex(targetSlot)
-
-      // compute a canonical numeric slot for the target so cyber 'trash' maps
-      // to the equipment trash canonical index rather than the cyber offset index
-      let canonicalTargetSlot = targetSlot
-      if (targetInfo.slotId) {
-        if (targetInfo.kind === "equip" || targetInfo.kind === "weapon") {
-          canonicalTargetSlot = equipIndexForSlotId(targetInfo.slotId as EquipmentSlot)
-        } else if (targetInfo.kind === "cyber") {
-          canonicalTargetSlot = cyberIndexForSlotId(targetInfo.slotId as CyberSlot)
-        }
-      }
-
-      const doSwapLocally = () => {
-        setItems(prevItems => {
-          const occupant = prevItems.find(item => item.slot === canonicalTargetSlot)
-          if (occupant) {
-            return prevItems.map(item => {
-              if (item.id === draggingId) return { ...item, slot: canonicalTargetSlot }
-              if (item.id === occupant.id) return { ...item, slot: originSlot! }
-              return item
-            })
-          }
-          return prevItems.map(item => (item.id === draggingId ? { ...item, slot: canonicalTargetSlot } : item))
-        })
-      }
-
-      // Grid drop: if dragged from equip/cyber/weapon, unequip that slot
-      if (targetInfo.kind === "grid") {
-        if (originInfo.kind !== "grid" && originInfo.slotId && originInfo.slotId !== "trash") {
-          dispatch({ type: "UNEQUIP_SLOT", slot: originInfo.slotId })
-        }
-        doSwapLocally()
-      } else {
-        // Equip attempt (including trash)
-        const slotId = targetInfo.slotId as any
-        if (slotId) {
-          // special-case trash: accept any item and remove previous occupant permanently
-          if (slotId === "trash") {
-            // equip into trash; equipmentService will remove previous occupant and
-            // ensure the instance is removed permanently. Rely on the reducer
-            // to update state, then perform the local swap for immediate feedback.
-            dispatch({ type: "EQUIP_ITEM", instanceId: draggingId, slot: "trash" })
-            doSwapLocally()
-          } else {
-            const validation = canEquip(state, draggingId, slotId)
-            if (!validation.ok) {
-              // invalid drop; revert
-              hoveredSlotRef.current = null
-              dragOriginSlot.current = null
-              setDraggingId(null)
-              pan.setValue({ x: 0, y: 0 })
-              movedRef.current = false
-              return
-            }
-            dispatch({ type: "EQUIP_ITEM", instanceId: draggingId, slot: slotId })
-            doSwapLocally()
-          }
-        }
-      }
-
-      // clear dragging state on the next frame to avoid snap-back while keeping latency minimal
-      requestAnimationFrame(() => {
-        dragOriginSlot.current = null
-        hoveredSlotRef.current = null
-        setDraggingId(null)
-        pan.setValue({ x: 0, y: 0 })
-        movedRef.current = false
-      })
-    },
-    [dispatch, draggingId, pan, slotInfoFromIndex, state],
-  )
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: () => draggingId !== null,
-        onPanResponderMove: (_, gestureState) => {
-          if (!draggingId) return
-          const dx = gestureState.dx
-          const dy = gestureState.dy
-          pan.setValue({ x: dx, y: dy })
-          // ignore tiny jitters until movement exceeds threshold
-          if (!movedRef.current) {
-            if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
-              movedRef.current = true
-            } else {
-              return
-            }
-          }
-          // use global touch coordinates to determine hovered equip slot or inventory cell
-          const { moveX, moveY } = gestureState
-          // if deck tab is active, treat equip area as non-interactive for equip-hover
-          if (activeTab !== "deck" && equipLayout && moveX >= equipLayout.x && moveX <= equipLayout.x + equipLayout.width && moveY >= equipLayout.y && moveY <= equipLayout.y + equipLayout.height) {
-            const relX = moveX - equipLayout.x
-            const visibleSlots = activeTab === "equipment" ? EQUIP_SLOTS : CYBER_SLOTS
-            const visibleOffset = activeTab === "equipment" ? EQUIP_OFFSET : CYBER_OFFSET
-            const slotWidth = equipLayout.width / visibleSlots.length
-            const idx = clamp(Math.floor(relX / slotWidth), 0, visibleSlots.length - 1)
-            const slot = visibleOffset + idx
-            hoveredSlotRef.current = slot
-            return
-          }
-
-          if (gridLayout && moveX >= gridLayout.x && moveX <= gridLayout.x + gridLayout.width && moveY >= gridLayout.y && moveY <= gridLayout.y + gridLayout.height) {
-            const relX = moveX - gridLayout.x
-            const relY = moveY - gridLayout.y
-            const cellWidth = gridLayout.width / INVENTORY_COLS
-            const cellHeight = gridLayout.height / INVENTORY_ROWS
-            const col = clamp(Math.floor(relX / cellWidth), 0, INVENTORY_COLS - 1)
-            const row = clamp(Math.floor(relY / cellHeight), 0, INVENTORY_ROWS - 1)
-            const slot = INVENTORY_OFFSET + row * INVENTORY_COLS + col
-            hoveredSlotRef.current = slot
-            return
-          }
-        },
-        onPanResponderRelease: (_, gestureState) => finishDrag(gestureState),
-        onPanResponderTerminate: (_, gestureState) => finishDrag(gestureState),
-        onPanResponderGrant: () => {
-          pan.setOffset({ x: 0, y: 0 })
-        },
-      }),
-    [activeTab, draggingId, equipLayout, finishDrag, gridLayout, pan],
-  )
-
-  const handleLongPress = useCallback(
-    (item: ItemState) => {
-      // select and immediately enable dragging to keep finger and icon aligned
-      setSelectedId(item.id)
-      dragOriginSlot.current = item.slot
-      hoveredSlotRef.current = item.slot
-      movedRef.current = false
-      setDraggingId(item.id)
-      pan.setValue({ x: 0, y: 0 })
-    },
-    [pan],
-  )
-
-  const deckCards = useMemo(() => {
-    return [...new Set(state.derivedLoadout?.equippedCards ?? [])]
-  }, [state.derivedLoadout])
+  useEffect(() => {
+    setSlotFilter(null)
+  }, [activeTab])
 
   const selectedTemplate = useMemo(() => {
     if (!selectedId) return null
-    const inst = state.itemInstances?.[selectedId]
+    const inst = gameState.itemInstances?.[selectedId]
     if (!inst) return null
-    return state.itemTemplates?.[inst.templateId] ?? null
-  }, [selectedId, state.itemInstances, state.itemTemplates])
+    return gameState.itemTemplates?.[inst.templateId] ?? null
+  }, [gameState.itemInstances, gameState.itemTemplates, selectedId])
 
   const selectedMeta = useMemo(() => {
     if (!selectedId) return null
@@ -439,59 +317,341 @@ export default function ProfilePanel() {
     }
   }, [selectedId, selectedTemplate, templateByInstance])
 
-  const selectionBorderColor = selectedMeta?.rarity ? RARITY_COLORS[selectedMeta.rarity as any] ?? styles.selectionPanel.borderColor : styles.selectionPanel.borderColor
+  const selectionBorderColor = selectedMeta?.rarity ? RARITY_COLORS[selectedMeta.rarity as keyof typeof RARITY_COLORS] ?? styles.selectionPanel.borderColor : styles.selectionPanel.borderColor
 
-  
+  const selectedEffects = useMemo((): string[] => {
+    if (!selectedTemplate?.effects?.length) return []
+    return selectedTemplate.effects.flatMap(describeEffect).filter(Boolean) as string[]
+  }, [selectedTemplate])
+
+  const selectedCards = useMemo<CardDefinition[]>(() => {
+    if (!selectedTemplate) return [] as CardDefinition[]
+    if (selectedTemplate.kind === "weapon") {
+      const primaryRefs = selectedTemplate.weaponCards?.primary ?? []
+      const secondaryRefs = selectedTemplate.weaponCards?.secondary ?? []
+      const useRefs = slotFilter === "secondary" ? secondaryRefs : primaryRefs
+      const resolved = (useRefs.length ? useRefs : primaryRefs).map((ref: string) => cardMap[ref]).filter(Boolean)
+      return resolved
+    }
+    return collectCardRefs(selectedTemplate).map((ref) => cardMap[ref]).filter(Boolean)
+  }, [cardMap, selectedTemplate, slotFilter])
+
+  const filteredInventory = useMemo(() => {
+    let next = [...inventory]
+    if (isEquipmentTab) {
+      next = next.filter(({ template }) => template.kind !== "cybernetic")
+    }
+    if (isCyberTab) {
+      next = next.filter(({ template }) => template.kind === "cybernetic")
+    }
+    if (slotFilter) {
+      next = next.filter(({ instance }) => canEquip(state, instance.id, slotFilter).ok)
+    }
+    next.sort((a, b) => {
+      const aTpl = a.template
+      const bTpl = b.template
+      if (inventorySortMode === "rarity") {
+        const aRank = rarityRank[aTpl.rarity] ?? 0
+        const bRank = rarityRank[bTpl.rarity] ?? 0
+        if (aRank !== bRank) return bRank - aRank
+      }
+      if (inventorySortMode === "type") {
+        const aType = formatItemKindLabel(aTpl)
+        const bType = formatItemKindLabel(bTpl)
+        if (aType !== bType) return aType.localeCompare(bType)
+      }
+      return aTpl.name.localeCompare(bTpl.name)
+    })
+    return next
+  }, [inventory, inventorySortMode, slotFilter, state])
+
+  const deckCards = useMemo<string[]>(() => gameState.derivedLoadout?.equippedCards ?? [], [gameState.derivedLoadout])
+  const deckCounts = useMemo(() => {
+    const map = new Map<string, number>()
+    deckCards.forEach((id: string) => map.set(id, (map.get(id) ?? 0) + 1))
+    return map
+  }, [deckCards])
+
+  const deckEntries = useMemo(() => {
+    const entries = Array.from(deckCounts.keys()).map((cardId) => {
+      const def = cardMap[cardId]
+      return {
+        cardId,
+        def,
+        count: deckCounts.get(cardId) ?? 1,
+        source: cardSourceMap.get(cardId),
+      }
+    }).filter((entry) => entry.def)
+    entries.sort((a, b) => {
+      if (deckSortMode === "rarity") {
+        const aRank = rarityRank[a.def?.rarity ?? ""] ?? 0
+        const bRank = rarityRank[b.def?.rarity ?? ""] ?? 0
+        if (aRank !== bRank) return bRank - aRank
+      }
+      if (deckSortMode === "type") {
+        const aType = a.def?.type ?? ""
+        const bType = b.def?.type ?? ""
+        if (aType !== bType) return aType.localeCompare(bType)
+      }
+      if (deckSortMode === "cost") {
+        const aCost = a.def?.cost ?? 0
+        const bCost = b.def?.cost ?? 0
+        if (aCost !== bCost) return aCost - bCost
+      }
+      if (deckSortMode === "source") {
+        const aSource = a.source?.name ?? ""
+        const bSource = b.source?.name ?? ""
+        if (aSource !== bSource) return aSource.localeCompare(bSource)
+      }
+      return (a.def?.name ?? "").localeCompare(b.def?.name ?? "")
+    })
+    return entries
+  }, [cardMap, cardSourceMap, deckCounts, deckSortMode])
+
+  const cycleInventorySort = useCallback(() => {
+    const modes: InventorySortMode[] = ["name", "rarity", "type"]
+    const idx = modes.indexOf(inventorySortMode)
+    setInventorySortMode(modes[(idx + 1) % modes.length])
+  }, [inventorySortMode])
+
+  const cycleSelectionView = useCallback(() => {
+    const modes: SelectionViewMode[] = ["description", "stats", "cards"]
+    const idx = modes.indexOf(selectionView)
+    setSelectionView(modes[(idx + 1) % modes.length])
+  }, [selectionView])
+
+  const cycleDeckView = useCallback(() => {
+    setDeckView((prev) => (prev === "list" ? "grid" : "list"))
+  }, [])
+
+  const cycleDeckSort = useCallback(() => {
+    const modes: DeckSortMode[] = deckView === "grid" ? ["name", "rarity", "type", "cost"] : ["name", "rarity", "type", "cost", "source"]
+    const idx = modes.indexOf(deckSortMode)
+    setDeckSortMode(modes[(idx + 1) % modes.length])
+  }, [deckSortMode, deckView])
+
+  const handleTrashPress = useCallback(() => {
+    if (!selectedId) return
+    Alert.alert("Delete item?", "This will permanently remove the selected item.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => dispatch({ type: "REMOVE_ITEM", instanceId: selectedId }),
+      },
+    ])
+  }, [dispatch, selectedId])
+
+  const handleSlotPress = useCallback((slotId: EquipmentSlot | WeaponSlot | CyberSlot | "trash") => {
+    if (slotId === "trash") {
+      handleTrashPress()
+      return
+    }
+    if (slotFilter === slotId) {
+      setSlotFilter(null)
+      return
+    }
+    setSlotFilter(slotId)
+    const equippedId = equippedBySlot.get(slotId) ?? null
+    if (equippedId) {
+      setSelectedId(equippedId)
+      return
+    }
+    const candidate = inventory.find(({ instance }) => canEquip(state, instance.id, slotId).ok)
+    if (candidate) setSelectedId(candidate.instance.id)
+  }, [equippedBySlot, handleTrashPress, inventory, slotFilter, state])
+
+  const handleItemSelect = useCallback((itemId: string) => {
+    setSelectedId(itemId)
+  }, [])
+
+  const handleEquipToggle = useCallback((itemId: string, template?: ItemTemplate | null) => {
+    setSelectedId(itemId)
+    const equippedSlot = equippedSlotByItem.get(itemId)
+    if (equippedSlot) {
+      if (template?.kind === "weapon" && !slotFilter) return
+      dispatch({ type: "UNEQUIP_SLOT", slot: equippedSlot })
+      return
+    }
+    if (!template) return
+
+    const tryEquip = (slot?: EquipmentSlot | WeaponSlot | CyberSlot | null) => {
+      if (!slot || slot === "trash") return false
+      const validation = canEquip(state, itemId, slot)
+      if (!validation.ok) return false
+      dispatch({ type: "EQUIP_ITEM", instanceId: itemId, slot })
+      return true
+    }
+
+    if (template.kind === "equipment") {
+      tryEquip(template.equipSlot as EquipmentSlot)
+      return
+    }
+    if (template.kind === "cybernetic") {
+      tryEquip(template.equipSlot as CyberSlot)
+      return
+    }
+    if (template.kind === "weapon") {
+      if (!slotFilter) return
+      const forcedSlot = slotFilter === "primary" || slotFilter === "secondary" ? slotFilter : null
+      if (!forcedSlot) return
+      tryEquip(forcedSlot)
+      return
+    }
+  }, [dispatch, equippedSlotByItem, slotFilter, state])
 
   if (activeTab === "deck") {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Deck</Text>
-        <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-          {deckCards.length === 0 && <Text style={styles.empty}>No cards in your deck.</Text>}
-          {deckCards.map((c) => (
-            <View key={c} style={styles.card}>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text numberOfLines={1} style={styles.cardTitle}>{c}</Text>
-                <Text style={styles.cardBody}>{""}</Text>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-        <View style={styles.toggleRow}>
-          <Pressable onPress={() => setActiveTab("equipment")} style={[styles.toggleButton, activeTab === "equipment" ? styles.toggleActive : null, { marginRight: 8 }]}> 
-            <Text style={[styles.toggleText, activeTab === "equipment" ? styles.toggleTextActive : null]}>Equipment</Text>
+        <View style={styles.deckControls}>
+          <Pressable style={styles.deckToggleButton} onPress={cycleDeckView}>
+            <Feather name={deckView === "list" ? "grid" : "list"} size={16} color="#cfe1ff" />
           </Pressable>
-          <Pressable onPress={() => setActiveTab("cyberware")} style={[styles.toggleButton, activeTab === "cyberware" ? styles.toggleActive : null, { marginRight: 8 }]}> 
-            <Text style={[styles.toggleText, activeTab === "cyberware" ? styles.toggleTextActive : null]}>Cybernetics</Text>
-          </Pressable>
-          <Pressable onPress={() => setActiveTab("deck")} style={[styles.toggleButton, activeTab === "deck" ? styles.toggleActive : null]}>
-            <Text style={[styles.toggleText, activeTab === "deck" ? styles.toggleTextActive : null]}>Deck</Text>
+          <Pressable style={styles.deckSortButton} onPress={cycleDeckSort}>
+            <Feather name="filter" size={14} color="#cfe1ff" />
+            <Text style={styles.deckSortText}>Sort: {deckSortMode}</Text>
           </Pressable>
         </View>
+
+        {deckEntries.length === 0 ? (
+          <Text style={styles.empty}>No cards in your deck.</Text>
+        ) : deckView === "list" ? (
+          <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+            {deckEntries.map((entry) => {
+              const def = entry.def as CardDefinition
+              const rarityColor = def?.rarity ? RARITY_COLORS[def.rarity as keyof typeof RARITY_COLORS] ?? "#253146" : "#253146"
+              const sourceBorder = entry.source?.rarity ? RARITY_COLORS[entry.source.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
+              return (
+                <Pressable key={entry.cardId} style={[styles.deckListRow, { borderColor: rarityColor }]} onPress={() => setCardPreview(def)}>
+                  <View style={styles.deckListCostBadge}>
+                    <Text style={styles.deckCostText}>{def?.cost ?? 0}</Text>
+                  </View>
+                  {entry.count > 1 ? (
+                    <View style={styles.deckListCountBadge}>
+                      <Text style={styles.countBadgeText}>x{entry.count}</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.deckSourceColumn}>
+                    <View style={[styles.sourceIconWrap, { borderColor: sourceBorder }]}>
+                      <Canvas style={styles.sourceIconCanvas}>
+                        {itemIconSkia ? (
+                          <SkiaImage
+                            image={itemIconSkia}
+                            x={2}
+                            y={2}
+                            width={ITEM_ICON_SIZE - 6}
+                            height={ITEM_ICON_SIZE - 6}
+                            fit="contain"
+                            sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
+                          />
+                        ) : null}
+                      </Canvas>
+                    </View>
+                    <Text numberOfLines={1} style={styles.deckSourceName}>{entry.source?.name ?? "Unknown"}</Text>
+                  </View>
+                  <View style={styles.deckTextWrap}>
+                    <View style={styles.deckTitleRow}>
+                      <Feather name={resolveCardTypeIcon(def?.type)} size={12} color="#9aa6bf" />
+                      <Text numberOfLines={1} style={styles.deckCardTitle}>{def?.name ?? entry.cardId}</Text>
+                    </View>
+                    <Text numberOfLines={2} style={styles.deckCardDesc}>{def?.description ?? ""}</Text>
+                  </View>
+                </Pressable>
+              )
+            })}
+          </ScrollView>
+        ) : (
+          <ScrollView contentContainerStyle={styles.deckGrid}>
+            {deckEntries.map((entry) => {
+              const def = entry.def as CardDefinition
+              const rarityColor = def?.rarity ? RARITY_COLORS[def.rarity as keyof typeof RARITY_COLORS] ?? "#253146" : "#253146"
+              return (
+                <Pressable key={entry.cardId} style={[styles.deckGridCard, { width: GRID_CARD_WIDTH, height: GRID_CARD_HEIGHT, borderColor: rarityColor }]} onPress={() => setCardPreview(def)}>
+                  <View style={styles.gridCostBadge}>
+                    <Text style={styles.gridCostText}>{def?.cost ?? 0}</Text>
+                  </View>
+                  {entry.count > 1 ? (
+                    <View style={styles.gridCountBadge}>
+                      <Text style={styles.gridCountText}>x{entry.count}</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.gridCardArt}>
+                    <Canvas style={styles.gridCardCanvas}>
+                      {itemIconSkia ? (
+                        <SkiaImage
+                          image={itemIconSkia}
+                          x={8}
+                          y={8}
+                          width={GRID_CARD_WIDTH - 16}
+                          height={GRID_CARD_HEIGHT - 40}
+                          fit="contain"
+                          sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
+                        />
+                      ) : null}
+                    </Canvas>
+                  </View>
+                  <View style={styles.gridCardFooter}>
+                    <Text numberOfLines={1} style={styles.gridCardTitle}>{def?.name ?? entry.cardId}</Text>
+                    <Text style={styles.gridCardMeta}>{def?.type ?? "?"}</Text>
+                  </View>
+                </Pressable>
+              )
+            })}
+          </ScrollView>
+        )}
+
+        <View style={styles.toggleRow}>
+          <Pressable onPress={() => setActiveTab("equipment")} style={[styles.toggleButton, isEquipmentTab ? styles.toggleActive : null, { marginRight: 8 }]}> 
+            <Text style={[styles.toggleText, isEquipmentTab ? styles.toggleTextActive : null]}>Equipment</Text>
+          </Pressable>
+          <Pressable onPress={() => setActiveTab("cyberware")} style={[styles.toggleButton, isCyberTab ? styles.toggleActive : null, { marginRight: 8 }]}> 
+            <Text style={[styles.toggleText, isCyberTab ? styles.toggleTextActive : null]}>Cybernetics</Text>
+          </Pressable>
+          <Pressable onPress={() => setActiveTab("deck")} style={[styles.toggleButton, isDeckTab ? styles.toggleActive : null]}>
+            <Text style={[styles.toggleText, isDeckTab ? styles.toggleTextActive : null]}>Deck</Text>
+          </Pressable>
+        </View>
+
+        <Modal transparent visible={!!cardPreview} animationType="fade" onRequestClose={() => setCardPreview(null)}>
+          <Pressable style={styles.cardModalOverlay} onPress={() => setCardPreview(null)}>
+            <View style={styles.cardModal}>
+              <View style={styles.cardModalArt}>
+                <Canvas style={styles.cardModalCanvas}>
+                  {itemIconSkia ? (
+                    <SkiaImage
+                      image={itemIconSkia}
+                      x={12}
+                      y={12}
+                      width={140}
+                      height={140}
+                      fit="contain"
+                      sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
+                    />
+                  ) : null}
+                </Canvas>
+              </View>
+              <Text style={styles.cardModalTitle}>{cardPreview?.name}</Text>
+              <Text style={styles.cardModalMeta}>{cardPreview?.type ?? "?"} · Cost {cardPreview?.cost ?? 0}</Text>
+              <Text style={styles.cardModalDesc}>{cardPreview?.description ?? ""}</Text>
+            </View>
+          </Pressable>
+        </Modal>
       </View>
     )
   }
 
   return (
-    <View
-      ref={containerRef}
-      onLayout={() => containerRef.current?.measureInWindow((x, y, width, height) => setContainerLayout({ x, y, width, height }))}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <View style={styles.content}>
         <View style={[styles.selectionPanel, { borderColor: selectionBorderColor }]}>
           <View style={styles.selectionSideColumn}>
-            <View
-              style={styles.selectionIconWrap}
-              onLayout={(event) => setSelectionIconLayout({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}
-            >
+            <View style={styles.selectionIconWrap}>
               <Canvas style={styles.selectionIconCanvas}>
                 {itemIconSkia ? (
                   <SkiaImage
                     image={itemIconSkia}
-                    x={selectionIconOffset.x}
-                    y={selectionIconOffset.y}
+                    x={(SELECTION_ICON_SIZE - 8) * 0.1}
+                    y={(SELECTION_ICON_SIZE - 8) * 0.1}
                     width={SELECTION_ICON_SIZE}
                     height={SELECTION_ICON_SIZE}
                     fit="contain"
@@ -500,189 +660,211 @@ export default function ProfilePanel() {
                 ) : null}
               </Canvas>
             </View>
-            <View style={styles.selectionButtonColumn}>
-              <Pressable style={styles.selectionButton} android_ripple={{ color: "#1f2a3f" }}>
-                <Feather name="align-center" size={16} color="#cfe1ff" />
-              </Pressable>
-              <Pressable style={styles.selectionButton} android_ripple={{ color: "#1f2a3f" }}>
-                <Feather name="bar-chart-2" size={16} color="#cfe1ff" />
-              </Pressable>
-            </View>
+            <Pressable style={styles.selectionButton} onPress={cycleSelectionView}>
+              <Feather
+                name={selectionView === "description" ? "align-left" : selectionView === "stats" ? "bar-chart-2" : "image"}
+                size={16}
+                color="#cfe1ff"
+              />
+            </Pressable>
           </View>
           <View style={styles.selectionTextWrap}>
-            <Text style={styles.selectionTitle} numberOfLines={1}>{selectedMeta?.name ?? "Loading items..."}</Text>
-            <Text style={styles.selectionMeta} numberOfLines={1}>{selectedMeta?.kind ?? ""}</Text>
-            {selectedTemplate?.description ? <Text style={styles.selectionDesc} numberOfLines={3}>{selectedTemplate.description}</Text> : null}
-            {selectedTemplate?.effects && selectedTemplate.effects.length > 0 ? (
-              <Text style={styles.selectionEffects} numberOfLines={2}>{selectedTemplate.effects.map(e => e.tag ?? e.kind ?? "effect").join(", ")}</Text>
+            <View style={styles.selectionTitleRow}>
+              <Feather name={selectedTemplate ? resolveItemIcon(selectedTemplate) : "box"} size={14} color="#9aa6bf" />
+              <Text style={styles.selectionTitle} numberOfLines={1}>{selectedMeta?.name ?? "Loading items..."}</Text>
+            </View>
+            {selectionView === "description" ? (
+              <Text style={styles.selectionDesc} numberOfLines={4}>{selectedTemplate?.description ?? "No description."}</Text>
+            ) : null}
+            {selectionView === "stats" ? (
+              <View style={styles.selectionStats}>
+                {selectedEffects.length ? (
+                  selectedEffects.map((line, idx) => (
+                    <Text key={`${line}-${idx}`} style={styles.selectionStatText}>{line}</Text>
+                  ))
+                ) : (
+                  <Text style={styles.selectionDesc}>No stats.</Text>
+                )}
+              </View>
+            ) : null}
+            {selectionView === "cards" ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.deckGrid, { flexWrap: "nowrap", paddingVertical: 6 }] }>
+                {selectedCards.length ? selectedCards.map((card: CardDefinition) => {
+                  const borderColor = card.rarity ? RARITY_COLORS[card.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
+                  const count = deckCounts.get(card.id) ?? 0
+                  return (
+                    <Pressable key={card.id} style={[styles.deckGridCard, { width: GRID_CARD_WIDTH, height: GRID_CARD_HEIGHT, borderColor }]} onPress={() => setCardPreview(card)}>
+                      <View style={styles.gridCostBadge}>
+                        <Text style={styles.gridCostText}>{card.cost ?? 0}</Text>
+                      </View>
+                      {count > 1 ? (
+                        <View style={styles.gridCountBadge}>
+                          <Text style={styles.gridCountText}>x{count}</Text>
+                        </View>
+                      ) : null}
+                      <View style={[styles.gridCardArt, { height: GRID_CARD_HEIGHT - 48 }] }>
+                        <Canvas style={styles.gridCardCanvas}>
+                          {itemIconSkia ? (
+                            <SkiaImage
+                              image={itemIconSkia}
+                              x={8}
+                              y={8}
+                              width={GRID_CARD_WIDTH - 16}
+                              height={GRID_CARD_HEIGHT - 40}
+                              fit="contain"
+                              sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
+                            />
+                          ) : null}
+                        </Canvas>
+                      </View>
+                      <View style={styles.gridCardFooter}>
+                        <View style={styles.deckTitleRow}>
+                          <Text numberOfLines={1} style={styles.gridCardTitle}>{card.name}</Text>
+                        </View>
+                        <Text style={styles.gridCardMeta}>{card.type ?? "?"}</Text>
+                        
+                      </View>
+                    </Pressable>
+                  )
+                }) : (
+                  <Text style={styles.selectionDesc}>No cards.</Text>
+                )}
+              </ScrollView>
             ) : null}
           </View>
         </View>
-        <View
-          style={styles.gridContainer}
-          ref={gridRef}
-          onLayout={() => gridRef.current?.measureInWindow((x, y, width, height) => setGridLayout({ x, y, width, height }))}
-        >
-        {Array.from({ length: INVENTORY_ROWS }).map((_, r) => (
-          <View key={r} style={styles.gridRow}>
-            {Array.from({ length: INVENTORY_COLS }).map((__, c) => {
-              const slotIndex = INVENTORY_OFFSET + r * INVENTORY_COLS + c
-              const occupant = slotItemMap.get(slotIndex)
-              const isDragging = occupant && occupant.id === draggingId
-              return (
-                <View key={c} style={styles.equipSlotWrap}>
-                  <View style={styles.equipSlot}>
-                    {occupant ? (
-                      (() => {
-                        const tpl = templateByInstance.get(occupant.id)
-                        const borderColor = tpl?.rarity ? RARITY_COLORS[tpl.rarity as any] ?? undefined : undefined
-                        return (
-                          <Animated.View
-                            style={[
-                              styles.item,
-                              { borderColor: borderColor ?? styles.item.borderColor },
-                              isDragging ? styles.dragging : null,
-                              {
-                                transform: [
-                                  ...(isDragging ? [{ translateX: pan.x }, { translateY: pan.y }] : []),
-                                  { scale: ensureScaleForId(occupant.id) },
-                                ],
-                              },
-                            ]}
-                            {...(isDragging ? panResponder.panHandlers : {})}
-                          >
-                            <Pressable onPress={() => setSelectedId(occupant.id)} onLongPress={() => handleLongPress(occupant)} delayLongPress={200} android_ripple={false}>
-                              <Canvas style={styles.iconCanvas}>
-                                {itemIconSkia ? (
-                                  <SkiaImage
-                                    image={itemIconSkia}
-                                    x={0}
-                                    y={0}
-                                    width={ITEM_ICON_SIZE}
-                                    height={ITEM_ICON_SIZE}
-                                    fit="contain"
-                                    sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
-                                  />
-                                ) : null}
-                              </Canvas>
-                            </Pressable>
-                          </Animated.View>
-                        )
-                      })()
-                    ) : null}
-                  </View>
-                </View>
-              )
-            })}
-          </View>
-        ))}
-      </View>
-        {activeTab === "deck" ? (
-          <View
-            style={styles.deckContainer}
-            ref={equipRef}
-            onLayout={() => equipRef.current?.measureInWindow((x, y, width, height) => setEquipLayout({ x, y, width, height }))}
-          >
-            <Text style={styles.deckTitle}>Deck ({deckCards.length})</Text>
-            <View style={styles.deckList}>
-              {deckCards.length === 0 ? <Text style={styles.deckEmpty}>No cards</Text> : deckCards.map((c) => (
-                <View key={c} style={styles.cardBox}>
-                  <Text style={styles.cardText}>{c}</Text>
-                </View>
-              ))}
+
+        <View style={styles.sortRow}>
+          <Pressable style={styles.sortButton} onPress={cycleInventorySort}>
+            <Feather name="filter" size={14} color="#cfe1ff" />
+            <Text style={styles.sortText}>Sort: {inventorySortMode}</Text>
+          </Pressable>
+          {slotFilter ? (
+            <View style={styles.filterChip}>
+              <Feather name={resolveSlotIcon(slotFilter as any)} size={12} color="#cfe1ff" />
+              <Text style={styles.filterText}>{slotFilter}</Text>
             </View>
-          </View>
-        ) : (
-          <View
-            style={styles.equipRow}
-            ref={equipRef}
-            onLayout={() => equipRef.current?.measureInWindow((x, y, width, height) => setEquipLayout({ x, y, width, height }))}
-          >
-          {(() => {
-            const visibleSlots = activeTab === "equipment" ? EQUIP_SLOTS : CYBER_SLOTS
-            const visibleOffset = activeTab === "equipment" ? EQUIP_OFFSET : CYBER_OFFSET
-            return visibleSlots.map((label, i) => {
-              const slotIndex = visibleOffset + i
-              // default occupant from items (grid/equip canonical mapping)
-              let occupant = slotItemMap.get(slotIndex)
-              // mirror equipment.trash into the cyber 'trash' visual so both sides show same item
-              // use the canonical equipment slot for the underlying item, but keep slotIndex
-              // for tooltip positioning and visual layout
-              if (label === "trash" && activeTab === "cyberware") {
-                const found = slotItemMap.get(equipTrashSlotIndex)
-                if (found) occupant = found
-              }
-              const isDragging = occupant && occupant.id === draggingId
-              return (
-                <View key={label} style={styles.equipSlotWrap}>
-                  <Text style={styles.equipLabel}>{label.toUpperCase()}</Text>
-                  <View style={[styles.equipSlot, label === "trash" ? styles.trashSlot : null]}>
-                    {occupant ? (
-                      (() => {
-                        const tpl = templateByInstance.get(occupant.id)
-                        const borderColor = tpl?.rarity ? RARITY_COLORS[tpl.rarity as any] ?? undefined : undefined
-                        return (
-                          <Animated.View
-                            style={[
-                              styles.item,
-                              { borderColor: borderColor ?? (styles.item as any).borderColor },
-                              isDragging ? styles.dragging : null,
-                              {
-                                transform: [
-                                  ...(isDragging ? [{ translateX: pan.x }, { translateY: pan.y }] : []),
-                                  { scale: ensureScaleForId(occupant.id) },
-                                ],
-                              },
-                            ]}
-                            {...(isDragging ? panResponder.panHandlers : {})}
-                          >
-                            <Pressable onPress={() => setSelectedId(occupant.id)} onLongPress={() => handleLongPress({ id: occupant.id, slot: label === "trash" && activeTab === "cyberware" ? equipTrashSlotIndex : occupant.slot })} delayLongPress={200} android_ripple={false}>
-                              <Canvas style={styles.iconCanvas}>
-                                {itemIconSkia ? (
-                                  <SkiaImage
-                                    image={itemIconSkia}
-                                    x={0}
-                                    y={0}
-                                    width={ITEM_ICON_SIZE}
-                                    height={ITEM_ICON_SIZE}
-                                    fit="contain"
-                                    sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
-                                  />
-                                ) : null}
-                              </Canvas>
-                            </Pressable>
-                          </Animated.View>
-                        )
-                      })()
-                    ) : (
-                      label === "trash" ? (
-                        <View style={styles.trashEmptySlot}>
-                          <Feather name="trash" size={20} color="#ff6b6b" />
-                        </View>
-                      ) : (
-                        <Text></Text>
-                      )
-                    )}
-                  </View>
+          ) : null}
+        </View>
+
+        <ScrollView style={styles.inventoryList} contentContainerStyle={styles.inventoryListContent}>
+          {filteredInventory.length === 0 ? (
+            <Text style={styles.empty}>No items found.</Text>
+          ) : filteredInventory.map(({ instance, template }) => {
+            const borderColor = template.rarity ? RARITY_COLORS[template.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
+            const isSelected = selectedId === instance.id
+            const equippedSlot = equippedSlotByItem.get(instance.id)
+            const isWeapon = template.kind === "weapon"
+            const canEquipSlot = (template.kind === "equipment" || template.kind === "weapon" || template.kind === "cybernetic") && (!isWeapon || !!slotFilter)
+            return (
+              <Pressable key={instance.id} style={[styles.inventoryRow, isSelected ? styles.inventoryRowSelected : null]} onPress={() => handleItemSelect(instance.id)}>
+                <View style={[styles.inventoryIconWrap, { borderColor }]}>
+                  <Canvas style={styles.inventoryIconCanvas}>
+                    {itemIconSkia ? (
+                      <SkiaImage
+                        image={itemIconSkia}
+                        x={3}
+                        y={3}
+                        width={ITEM_ICON_SIZE - 6}
+                        height={ITEM_ICON_SIZE - 6}
+                        fit="contain"
+                        sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
+                      />
+                    ) : null}
+                  </Canvas>
                 </View>
-              )
-            })
-          })()}
-          </View>
-        )}
+                <View style={styles.inventoryTypeIcon}>
+                  <Feather name={resolveItemIcon(template) as any} size={16} color="#cfe1ff" />
+                </View>
+                <View style={styles.inventoryTextWrap}>
+                  <Text numberOfLines={1} style={styles.inventoryName}>{template.name}</Text>
+                  <Text style={styles.inventoryMeta}>{formatItemKindLabel(template)}</Text>
+                </View>
+                <Pressable
+                  style={[styles.equipButton, equippedSlot ? styles.equipButtonActive : null, !canEquipSlot ? styles.equipButtonDisabled : null]}
+                  onPress={() => handleEquipToggle(instance.id, template)}
+                  disabled={!canEquipSlot}
+                >
+                  <Feather name={equippedSlot ? "x" : "arrow-up"} size={14} color="#cfe1ff" />
+                </Pressable>
+              </Pressable>
+            )
+          })}
+        </ScrollView>
+
+        <View style={styles.equipRow}>
+          {(activeTab === "equipment" ? EQUIP_SLOTS : CYBER_SLOTS).map((label) => {
+            const isTrash = label === "trash"
+            const slotId = label as EquipmentSlot | WeaponSlot | CyberSlot
+            const equippedId = !isTrash ? equippedBySlot.get(slotId) : null
+            const template = equippedId ? templateByInstance.get(equippedId) : null
+            const borderColor = template?.rarity ? RARITY_COLORS[template.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
+            return (
+              <Pressable key={label} style={styles.equipSlotWrap} onPress={() => handleSlotPress(isTrash ? "trash" : slotId)}>
+                <Text style={styles.equipLabel}>{label.toUpperCase()}</Text>
+                <View style={[styles.equipSlot, isTrash ? styles.trashSlot : null, slotFilter === slotId ? styles.equipSlotActive : null]}>
+                  {isTrash ? (
+                    <Feather name="trash" size={18} color="#ff6b6b" />
+                  ) : equippedId && itemIconSkia ? (
+                    <View style={[styles.slotIconWrap, { borderColor }]}>
+                      <Canvas style={styles.slotIconCanvas}>
+                        <SkiaImage
+                          image={itemIconSkia}
+                          x={4}
+                          y={4}
+                          width={ITEM_ICON_SIZE - 8}
+                          height={ITEM_ICON_SIZE - 8}
+                          fit="contain"
+                          sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
+                        />
+                      </Canvas>
+                    </View>
+                  ) : (
+                    <Feather name={resolveSlotIcon(slotId)} size={16} color="#44506b" />
+                  )}
+                </View>
+              </Pressable>
+            )
+          })}
+        </View>
       </View>
 
       <View style={styles.toggleRow}>
-        <Pressable onPress={() => setActiveTab("equipment")} style={[styles.toggleButton, activeTab === "equipment" ? styles.toggleActive : null, { marginRight: 8 }]}> 
-          <Text style={[styles.toggleText, activeTab === "equipment" ? styles.toggleTextActive : null]}>Equipment</Text>
+        <Pressable onPress={() => setActiveTab("equipment")} style={[styles.toggleButton, isEquipmentTab ? styles.toggleActive : null, { marginRight: 8 }]}> 
+          <Text style={[styles.toggleText, isEquipmentTab ? styles.toggleTextActive : null]}>Equipment</Text>
         </Pressable>
-        <Pressable onPress={() => setActiveTab("cyberware")} style={[styles.toggleButton, activeTab === "cyberware" ? styles.toggleActive : null, { marginRight: 8 }]}>
-          <Text style={[styles.toggleText, activeTab === "cyberware" ? styles.toggleTextActive : null]}>Cybernetics</Text>
+        <Pressable onPress={() => setActiveTab("cyberware")} style={[styles.toggleButton, isCyberTab ? styles.toggleActive : null, { marginRight: 8 }]}>
+          <Text style={[styles.toggleText, isCyberTab ? styles.toggleTextActive : null]}>Cybernetics</Text>
         </Pressable>
-        <Pressable onPress={() => setActiveTab("deck")} style={[styles.toggleButton, activeTab === "deck" ? styles.toggleActive : null]}>
-          <Text style={[styles.toggleText, activeTab === "deck" ? styles.toggleTextActive : null]}>Deck</Text>
+        <Pressable onPress={() => setActiveTab("deck")} style={[styles.toggleButton, isDeckTab ? styles.toggleActive : null]}>
+          <Text style={[styles.toggleText, isDeckTab ? styles.toggleTextActive : null]}>Deck</Text>
         </Pressable>
       </View>
+
+      <Modal transparent visible={!!cardPreview} animationType="fade" onRequestClose={() => setCardPreview(null)}>
+        <Pressable style={styles.cardModalOverlay} onPress={() => setCardPreview(null)}>
+          <View style={styles.cardModal}>
+            <View style={styles.cardModalArt}>
+              <Canvas style={styles.cardModalCanvas}>
+                {itemIconSkia ? (
+                  <SkiaImage
+                    image={itemIconSkia}
+                    x={12}
+                    y={12}
+                    width={140}
+                    height={140}
+                    fit="contain"
+                    sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
+                  />
+                ) : null}
+              </Canvas>
+            </View>
+            <Text style={styles.cardModalTitle}>{cardPreview?.name}</Text>
+            <Text style={styles.cardModalMeta}>{cardPreview?.type ?? "?"} · Cost {cardPreview?.cost ?? 0}</Text>
+            <Text style={styles.cardModalDesc}>{cardPreview?.description ?? ""}</Text>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   )
 }
@@ -697,79 +879,202 @@ const styles = StyleSheet.create({
     borderColor: "#1d2435",
     position: "relative",
   },
-  title: { color: "#f5f6fb", fontFamily: FACES.BOLD, fontSize: 16, marginBottom: 6 },
-  subhead: { color: "#a9b1c5", fontFamily: FACES.BOLD, fontSize: 13, marginBottom: 10 },
-  
-  item: {
-    width: CELL_SIZE - 10,
-    height: CELL_SIZE - 10,
-    borderRadius: 6,
+  content: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  selectionPanel: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+    backgroundColor: "#0f1722",
+    marginBottom: 8,
+    height: "30%",
+    width: "100%",
+  },
+  selectionSideColumn: {
+    alignItems: "center",
+    marginRight: 10,
+    gap: 8,
+  },
+  selectionIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
     backgroundColor: "#161e30",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#222c43",
   },
-  dragging: {
-    position: "absolute",
-    zIndex: 10,
-    elevation: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+  selectionIconCanvas: {
+    width: "100%",
+    height: "100%",
   },
-  iconCanvas: {
-    width: ITEM_ICON_SIZE,
-    height: ITEM_ICON_SIZE,
-  },
-  placeholder: {
-    position: "absolute",
-    width: CELL_SIZE,
-    height: CELL_SIZE,
+  selectionTextWrap: { flex: 1, justifyContent: "flex-start", gap: 4 },
+  selectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  selectionTitle: { color: "#f5f6fb", fontFamily: FACES.BOLD, fontSize: 14 },
+  selectionDesc: { color: "#c6cedd", fontSize: 11, lineHeight: 16, flexShrink: 1 },
+  selectionStats: { gap: 3 },
+  selectionStatText: { color: "#8eb6ff", fontSize: 11 },
+  selectionButton: {
+    width: 36,
+    height: 36,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#2d3950",
-    backgroundColor: "rgba(45,57,80,0.2)",
+    borderColor: "#2b3a55",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#131d2f",
   },
-  tooltip: {
+  cardStrip: { gap: 10, paddingVertical: 4 },
+  selectionCardRow: {
+    width: 220,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 8,
+    backgroundColor: "#111624",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    height: 78,
+  },
+  selectionCardBadgeLeft: {
     position: "absolute",
+    top: 6,
+    left: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: "#1a2336",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+  },
+  selectionCardBadgeRight: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: "#1a2336",
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+  },
+  selectionCardIcon: {
+    width: ITEM_ICON_SIZE + 6,
+    height: ITEM_ICON_SIZE + 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+    backgroundColor: "#121b2b",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectionCardText: { flex: 1, gap: 2 },
+  sortRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  sortButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: "#1f2a3f",
     borderWidth: 1,
-    borderColor: "#2f3b55",
+    borderColor: "#2b3a55",
+    backgroundColor: "#111827",
   },
-  tooltipText: {
-    color: "#f5f6fb",
-    fontFamily: FACES.BOLD,
-    fontSize: 12,
+  sortText: { color: "#cfe1ff", fontFamily: FACES.BOLD, fontSize: 11 },
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+    backgroundColor: "#0f1722",
   },
-  tooltipMeta: {
-    color: "#c6cedd",
-    fontFamily: FACES.MEDIUM,
-    fontSize: 11,
-    marginTop: 2,
+  filterText: { color: "#cfe1ff", fontSize: 10, fontFamily: FACES.REGULAR },
+  inventoryList: { flex: 1 },
+  inventoryListContent: { paddingBottom: 12, gap: 6 },
+  inventoryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#1f2a3f",
+    backgroundColor: "#0f1722",
   },
+  inventoryRowSelected: { borderColor: "#4ea1ff", backgroundColor: "#14233a" },
+  inventoryIconWrap: {
+    width: ITEM_ICON_SIZE + 6,
+    height: ITEM_ICON_SIZE + 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: "#121b2b",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inventoryIconCanvas: { width: ITEM_ICON_SIZE, height: ITEM_ICON_SIZE },
+  inventoryTypeIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#101827",
+  },
+  inventoryTextWrap: { flex: 1, gap: 2 },
+  inventoryName: { color: "#f5f6fb", fontFamily: FACES.BOLD, fontSize: 12 },
+  inventoryMeta: { color: "#9aa6bf", fontSize: 10, fontFamily: FACES.REGULAR },
+  equipButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#131d2f",
+  },
+  equipButtonActive: { borderColor: "#ff6b6b" },
+  equipButtonDisabled: { opacity: 0.4 },
   equipRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 8,
   },
   equipSlotWrap: {
     alignItems: "center",
-    width: CELL_SIZE,
+    width: 48,
   },
   equipSlot: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "#1e2637",
     backgroundColor: "#0f1722",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 3,
+  },
+  equipSlotActive: {
+    borderColor: "#4ea1ff",
+    backgroundColor: "#14233a",
   },
   equipLabel: {
     color: "#9aa6bf",
@@ -777,7 +1082,20 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
     marginBottom: 4,
   },
-  equipLabelShort: { color: "#cfe1ff", fontSize: 14, fontFamily: FACES.BOLD },
+  trashSlot: {
+    borderColor: "#ff4d4d",
+    backgroundColor: "#2d0b0b",
+  },
+  slotIconWrap: {
+    width: ITEM_ICON_SIZE + 4,
+    height: ITEM_ICON_SIZE + 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: "#121b2b",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  slotIconCanvas: { width: ITEM_ICON_SIZE, height: ITEM_ICON_SIZE },
   toggleRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -805,59 +1123,17 @@ const styles = StyleSheet.create({
   toggleTextActive: {
     color: "#cfe1ff",
   },
-  gridContainer: {
-    marginTop: 8,
-  },
-  gridRow: {
+  list: { gap: 10 },
+  listContent: { paddingBottom: 12, gap: 8 },
+  empty: { color: "#8e93a8" },
+  deckControls: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 8,
+    gap: 8,
   },
-  content: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  selectionPanel: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#2b3a55",
-    backgroundColor: "#0f1722",
-    marginBottom: 3,
-    height: "25%",
-    width: "100%",
-  },
-  selectionSideColumn: {
-    flexDirection: "column",
-    alignItems: "center",
-    marginRight: 10,
-    gap: 6,
-  },
-  selectionIconWrap: {
-    width: "100%",
-    height: "60%",
-    borderRadius: 8,
-    backgroundColor: "#161e30",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  selectionIconCanvas: {
-    width: "100%",
-    height: "100%",
-    alignContent: "center",
-    justifyContent: "center",
-  },
-  selectionTextWrap: { flex: 1, justifyContent: "flex-start", gap: 4 },
-  selectionTitle: { color: "#f5f6fb", fontFamily: FACES.BOLD, fontSize: 14 },
-  selectionMeta: { color: "#9aa6bf", fontFamily: FACES.MEDIUM, fontSize: 11 },
-  selectionDesc: { color: "#c6cedd", fontSize: 11, lineHeight: 16, flexShrink: 1 },
-  selectionEffects: { color: "#8eb6ff", fontSize: 11 },
-  selectionButtonColumn: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  selectionButton: {
+  deckToggleButton: {
     width: 36,
     height: 36,
     borderRadius: 8,
@@ -865,53 +1141,117 @@ const styles = StyleSheet.create({
     borderColor: "#2b3a55",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#131d2f",
-  },
-  deckContainer: {
-    marginTop: 8,
-    paddingVertical: 8,
-  },
-  deckTitle: { color: "#cfe1ff", fontFamily: FACES.BOLD, fontSize: 12, marginBottom: 6 },
-  deckList: { flexDirection: "row", flexWrap: "wrap" },
-  deckEmpty: { color: "#a9b1c5" },
-  cardBox: {
     backgroundColor: "#111827",
-    borderWidth: 1,
-    borderColor: "#253146",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginRight: 6,
-    marginBottom: 6,
   },
-  cardText: { color: "#dbe9ff", fontSize: 11 },
-  trashSlot: {
-    borderColor: "#ff4d4d",
-    backgroundColor: "#2d0b0b",
-  },
-  trashEmptySlot: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: CELL_SIZE - 10,
-    height: CELL_SIZE - 10,
-  },
-  list: { gap: 10 },
-  empty: { color: "#8e93a8" },
-  card: {
-    borderWidth: 1,
-    borderColor: "#252b3c",
-    borderRadius: 10,
-    padding: 6,
-    backgroundColor: "#111624",
+  deckSortButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+    backgroundColor: "#111827",
   },
-  cardExpanded: { backgroundColor: "#151c2c", borderColor: "#2f3a52" },
-  cardResolved: { opacity: 0.6 },
-  cardTitle: { color: "#f2f3f7", fontFamily: FACES.BOLD, marginBottom: 2, fontSize: 12 },
-  cardBody: { color: "#c9cdd8", fontSize: 13, lineHeight: 18 },
-  listContent: { paddingBottom: 12 },
-  
+  deckSortText: { color: "#cfe1ff", fontFamily: FACES.BOLD, fontSize: 11 },
+  deckListRow: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 8,
+    backgroundColor: "#111624",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    height: 86,
+  },
+  deckListCostBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+  },
+  deckListCountBadge: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+  },
+  deckCostText: { color: "#cfe1ff", fontFamily: FACES.BOLD, fontSize: 11 },
+  deckSourceColumn: { alignItems: "center", width: ITEM_ICON_SIZE + 10, gap: 4 },
+  deckSourceName: { color: "#9aa6bf", fontSize: 6, textAlign: "center" },
+  sourceIconWrap: {
+    width: ITEM_ICON_SIZE + 6,
+    height: ITEM_ICON_SIZE + 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: "#121b2b",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sourceIconCanvas: { width: ITEM_ICON_SIZE, height: ITEM_ICON_SIZE },
+  deckTextWrap: { flex: 1, gap: 2 },
+  deckTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  deckCardTitle: { color: "#f2f3f7", fontFamily: FACES.BOLD, fontSize: 12 },
+  deckCardDesc: { color: "#c9cdd8", fontSize: 10, lineHeight: 14 },
+  countBadgeText: { color: "#cfe1ff", fontSize: 10, fontFamily: FACES.BOLD },
+  deckGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: GRID_GAP,
+    paddingBottom: 12,
+    justifyContent: "center",
+  },
+  deckGridCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: "#0f1722",
+    overflow: "hidden",
+  },
+  gridCardArt: { flex: 1, alignItems: "center", justifyContent: "center" },
+  gridCardCanvas: { flex: 1 },
+  gridCardFooter: { paddingHorizontal: 6, paddingVertical: 4, borderTopWidth: 1, borderTopColor: "#1e2637" },
+  gridCardTitle: { color: "#f5f6fb", fontFamily: FACES.BOLD, fontSize: 10 },
+  gridCardMeta: { color: "#9aa6bf", fontSize: 9 },
+  gridCountBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+  },
+  gridCountText: { color: "#fff", fontSize: 9, fontFamily: FACES.BOLD },
+  gridCostBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderWidth: 1,
+    borderColor: "#2b3a55",
+  },
+  gridCostText: { color: "#fff", fontSize: 9, fontFamily: FACES.BOLD },
+  cardModalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center" },
+  cardModal: { width: SCREEN_WIDTH - 60, backgroundColor: "#0b0d16", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "#1f2738", gap: 8 },
+  cardModalArt: { alignItems: "center", justifyContent: "center", paddingVertical: 10 },
+  cardModalCanvas: { width: 180, height: 180 },
+  cardModalTitle: { color: "#fff", fontFamily: FACES.BOLD, fontSize: 16 },
+  cardModalMeta: { color: "#9aa1b5", fontFamily: FACES.REGULAR, fontSize: 12 },
+  cardModalDesc: { color: "#cdd4e5", fontFamily: FACES.REGULAR, fontSize: 12 },
 })
