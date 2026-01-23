@@ -2,7 +2,7 @@ import type { SkillBlock } from "../types"
 
 export type CombatSide = "player" | "enemy"
 
-export type CardType = "attack" | "defense" | "utility"
+export type CardType = "attack" | "defense" | "utility" | "DMG" | "DEF" | "SKL" | "ERR"
 
 export type CardTag = "STR" | "REF" | "INT" | "CHR"
 
@@ -12,22 +12,28 @@ export type KeywordKind =
   | { kind: "autoCast"; trigger: "CombatStart" | "TurnStart" }
   | { kind: "retain" }
   | { kind: "exhaust" }
+  | { kind: "fleeting" }
+  | { kind: "cursed" }
 
 export type Targeting = "self" | "enemySingle" | "enemiesAll"
 
 export type ScalingRef =
   | { type: "stat"; key: keyof SkillBlock }
   | { type: "counter"; key: keyof CombatCounters }
+  | { type: "counterTimes"; key: keyof CombatCounters; multiplier: number }
   | { type: "handSize" }
   | { type: "handCountByType"; cardType: CardType }
   | { type: "handCountByTag"; tag: CardTag }
   | { type: "constant"; value: number }
+  | { type: "shield"; side: CombatSide; divisor?: number }
 
 export type ConditionSpec =
   | { type: "statAtLeast"; key: keyof SkillBlock; value: number }
   | { type: "handEmpty" }
   | { type: "hasTagLock"; tag: CardTag }
   | { type: "hpBelowPct"; side: CombatSide; pct: number }
+  | { type: "shieldAtLeast"; side: CombatSide; value: number }
+  | { type: "shieldGainedThisTurnAtLeast"; value: number }
   | { type: "always" }
 
 export type EffectOperation =
@@ -36,6 +42,11 @@ export type EffectOperation =
   | { op: "heal"; amount: number | ScalingRef; target?: Targeting }
   | { op: "draw"; amount: number }
   | { op: "applyStatus"; status: StatusTemplate }
+  | { op: "backfire"; amount: number }
+  | { op: "addCardToDeck"; cardId?: string; count?: number; shuffle?: boolean; temporaryCost?: number; fleeting?: boolean }
+  | { op: "createCardsInHand"; cardId: string; count: number; temporaryCost?: number; fleeting?: boolean }
+  | { op: "convertShieldToHeal"; amount: number }
+  | { op: "applyElement"; element: "FIRE" | "PHYS" | "HACK" | "ELDR"; amount: number }
   | { op: "modifyCost"; delta: number; scope?: "self" }
   | { op: "modifyStat"; stat: "maxHP"; delta: number }
   | { op: "modifyHandLimit"; delta: number }
@@ -90,6 +101,7 @@ export type CardInstance = {
   temporaryCost?: number
   createdFrom?: string
   ephemeral?: boolean
+  fleeting?: boolean
 }
 
 export type ZoneName = "deck" | "hand" | "discard" | "exhaust" | "inPlay"
@@ -105,10 +117,12 @@ export type CombatZones = {
 export type CombatCounters = {
   damageDealtThisTurn: number
   damageDealtThisCombat: number
+  damageTicksThisTurn: number
   cardsPlayedThisTurn: number
   cardsPlayedThisCombat: number
   attackCardsPlayedThisTurn: number
   attackCardsPlayedThisCombat: number
+  shieldGainedThisTurn: number
 }
 
 export type CombatantState = {
@@ -116,6 +130,13 @@ export type CombatantState = {
   maxHP: number
   shield?: number
   statuses: StatusInstance[]
+  elements: {
+    fire: number
+    phys: number
+    hack: number
+    eldr: number
+    blueFire: number
+  }
 }
 
 export type CombatConfig = {

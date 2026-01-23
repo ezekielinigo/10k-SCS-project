@@ -1,399 +1,208 @@
 import type { CardDefinition, StatusTemplate } from "../engine/combatTypes"
 
-/***
+/* RULESET (DO NOT DELETE)
 
-implemented cards
+- Exhaust: When this card is played, put in exhaust pile. (cannot be reused)
+	- ex: "Deal 5 DMG. Exhaust."
+- Fleeting: On turn end, if this card is still in discard pile, Exhaust.
+	- Deal 5 DMG. Fleeting.
+- Prepared: If not on hand on combat start, draw the card from deck
+	- Deal 5 DMG. Prepared.
+- Backfire(X): shuffle X error cards in draw pile.
+- Cursed: This card is unplayable
+	- Each turn in hand, Backfire 1. Cursed.
+- Delay(X): This effect triggers after X turns
+	- Deal 5 DMG. Delay (1): Apply 4 burn.
 
-Field Uplink				Heal 5, +5 max HP at combat start
-Flash Focus					Prepared: draw 1, exhaust
-Data Loop					Power: draw 1 at turn start
-Echo Setup					Next attack this turn is repeated
-INT Overload				Deal damage = INT
-Stash						Gain: draw 1 next turn
-Survey Weakness				Deal 1 damage per attack card in hand
-Flurry Recall				Deal damage = attacks played this turn
-Attrition Count				Deal damage = attacks played this combat
-Static Net					All enemies skip next turn
-Blood Tax					Take 1 damage at start of next 5 turns
-Smash and Bleed				Deal 10 damage, -10 HP
-Last Stand					Deal 8 damage, if HP < 50% deal another 8
-Wild Barrage				Deal 1d20 damage, 1d20 times
-Tighten Focus				Hand size -1, energy per turn +1 for combat
-Last Resort Trigger			Win battle, item breaks
-Recall Echo					Recast top card of discard pile
-Archive Pull				Put a copy of a card from your discard into your deck
-Purge Surge					Exhaust 3 cards from top of discard pile, +3 max energy
+*/
 
+/*
 
+BUGS TO FIX:
 
-*****/
+- animations should not play if the cards cannot be played (ex: not enough energy)
+- I also want animations to be 2x faster than they are now
+- the moving card animation should be based on the actual position of the card in hand
+  - instead of "creating an instance" of the card to be used solely for animation, use the actual card themselves.
 
-const STATUS_TURN_DRAW: StatusTemplate = {
-  id: "power_turn_draw",
-  name: "Data Loop",
-  description: "Draw 1 card at the start of each turn.",
-  duration: "combat",
+*/
+
+const STATUS_SMOKE_SCREEN: StatusTemplate = {
+  id: "smoke_screen_next",
+  name: "Smoke Screen",
+  description: "Gain 10 DEF at start of next turn.",
+  duration: 1,
   stacking: "refresh",
   triggers: [{ kind: "TurnStart" }],
-  effects: [{ operation: { op: "draw", amount: 1 } }],
+  effects: [{ operation: { op: "gainShield", amount: 10 }, target: "self" }],
 }
 
-const STATUS_REPEAT_NEXT_ATTACK: StatusTemplate = {
-  id: "repeat_next_attack",
-  name: "Echo Strike",
-  description: "Your next attack card is repeated once.",
+const STATUS_COUNTER_TURN_END: StatusTemplate = {
+  id: "counter_turn_end",
+  name: "Counter",
+  description: "Deal damage based on remaining DEF at turn end.",
   duration: 1,
-  stacking: "stack",
-  triggers: [{ kind: "CardPlayed" }],
-  effects: [{ operation: { op: "repeatNext", targetType: "attack" } }],
-}
-
-const STATUS_DRAW_NEXT_TURN: StatusTemplate = {
-  id: "draw_next_turn",
-  name: "Plan Ahead",
-  description: "Draw 1 card at the start of next turn.",
-  duration: 1,
-  stacking: "stack",
-  triggers: [{ kind: "TurnStart" }],
-  effects: [{ operation: { op: "draw", amount: 1 } }],
-}
-
-const STATUS_SKIP_NEXT_TURN: StatusTemplate = {
-  id: "skip_next_turn",
-  name: "Lockdown",
-  description: "Skip your next turn.",
-  duration: 1,
-  stacking: "stack",
-  triggers: [{ kind: "TurnStart" }],
-  effects: [{ operation: { op: "skipTurn", side: "enemy" } }],
-}
-
-const STATUS_HAND_SIZE_MINUS_ONE: StatusTemplate = {
-  id: "hand_size_minus_one",
-  name: "Tight Grip",
-  description: "Hand size reduced by 1.",
-  duration: "combat",
-  stacking: "stack",
-  triggers: [],
-  effects: [{ operation: { op: "modifyHandLimit", delta: -1 } }],
-}
-
-const STATUS_ENERGY_PLUS_ONE: StatusTemplate = {
-  id: "energy_plus_one",
-  name: "Overcharge",
-  description: "Gain +1 energy per turn.",
-  duration: "combat",
-  stacking: "stack",
-  triggers: [],
-  effects: [{ operation: { op: "modifyEnergyPerTurn", delta: 1 } }],
+  stacking: "refresh",
+  triggers: [{ kind: "TurnEnd" }],
+  effects: [
+    { operation: { op: "dealDamage", amount: { type: "shield", side: "player", divisor: 10 } }, target: "enemySingle" },
+    { operation: { op: "backfire", amount: 5 }, condition: { type: "shieldAtLeast", side: "player", value: 50 } },
+  ],
 }
 
 const CARDS: CardDefinition[] = [
+
   {
-    id: "combat_start_boost",
-    name: "Field Uplink",
-    type: "utility",
-    rarity: "uncommon",
-    cost: 0,
-    tags: ["INT"],
-    description: "Auto-cast: increase max HP by 5 and heal 5 at combat start.",
-    keywords: [{ kind: "autoCast", trigger: "CombatStart" }],
-    effects: [
-      { operation: { op: "modifyStat", stat: "maxHP", delta: 5 } },
-      { operation: { op: "heal", amount: 5 }, target: "self" },
-    ],
-  },
-  {
-    id: "flash_focus",
-    name: "Flash Focus",
-    type: "utility",
+    id: "reboot",
+    name: "Reboot",
+    type: "ERR",
     rarity: "common",
-    cost: 0,
-    tags: ["INT"],
-    description: "Prepared: enters hand at turn start with 0 cost. Draw 1. Exhaust.",
-    keywords: [{ kind: "prepared" }, { kind: "exhaust" }],
-    effects: [{ operation: { op: "draw", amount: 1 } }],
-  },
-  {
-    id: "data_loop",
-    name: "Data Loop",
-    type: "utility",
-    rarity: "rare",
     cost: 1,
-    tags: ["INT"],
-    description: "Power: stays in play and draws 1 card at each turn start.",
-    keywords: [{ kind: "retain" }],
-    persistent: true,
-    effects: [{ target: "self", operation: { op: "applyStatus", status: STATUS_TURN_DRAW } }],
-  },
-  {
-    id: "echo_strike_setup",
-    name: "Echo Setup",
-    type: "utility",
-    rarity: "uncommon",
-    cost: 1,
-    tags: ["REF"],
-    description: "Your next attack this turn is repeated. Exhaust.",
+    tags: [],
+    description: "Exhaust.",
     keywords: [{ kind: "exhaust" }],
-    effects: [{ operation: { op: "applyStatus", status: STATUS_REPEAT_NEXT_ATTACK }, target: "self" }],
+    effects: [],
   },
   {
-    id: "int_overload",
-    name: "Overload",
-    type: "attack",
-    rarity: "common",
-    cost: 1,
-    tags: ["INT"],
-    description: "Deal damage equal to INT.",
-    effects: [{ operation: { op: "dealDamage", amount: { type: "stat", key: "int" } }, target: "enemySingle" }],
-  },
-  {
-    id: "next_turn_draw",
-    name: "Stash",
-    type: "utility",
-    rarity: "common",
-    cost: 0,
-    tags: ["INT"],
-    description: "Gain: Draw 1 at the start of next turn.",
-    effects: [{ operation: { op: "applyStatus", status: STATUS_DRAW_NEXT_TURN }, target: "self" }],
-  },
-  {
-    id: "hand_count_attack",
-    name: "Survey Weakness",
-    type: "attack",
+    id: "aimed_shot",
+    name: "Aimed Shot",
+    type: "DMG",
     rarity: "uncommon",
-    cost: 1,
-    tags: ["REF"],
-    description: "Deal 1 damage per attack card in hand.",
-    effects: [{ operation: { op: "dealDamage", amount: { type: "handCountByType", cardType: "attack" } }, target: "enemySingle" }],
+    cost: 3,
+    tags: [],
+    description: "Deal 40 DMG. If you gained DEF this turn, Backfire 3.",
+    effects: [
+      { operation: { op: "dealDamage", amount: 40 }, target: "enemySingle" },
+      { operation: { op: "backfire", amount: 3 }, condition: { type: "shieldGainedThisTurnAtLeast", value: 1 } },
+    ],
   },
   {
-    id: "attack_count_turn",
-    name: "Flurry Recall",
-    type: "attack",
+    id: "burst_fire",
+    name: "Burst Fire",
+    type: "DMG",
     rarity: "uncommon",
-    cost: 1,
-    tags: ["REF"],
-    description: "Deal damage equal to attacks played this turn.",
-    effects: [{ operation: { op: "dealDamage", amount: { type: "counter", key: "attackCardsPlayedThisTurn" } }, target: "enemySingle" }],
-  },
-  {
-    id: "attack_count_combat",
-    name: "Attrition Count",
-    type: "attack",
-    rarity: "rare",
     cost: 2,
-    tags: ["STR"],
-    description: "Deal damage equal to attacks played this combat.",
-    effects: [{ operation: { op: "dealDamage", amount: { type: "counter", key: "attackCardsPlayedThisCombat" } }, target: "enemySingle" }],
-  },
-  {
-    id: "skip_all_enemies",
-    name: "Static Net",
-    type: "utility",
-    rarity: "rare",
-    cost: 2,
-    tags: ["INT"],
-    description: "All enemies skip their next turn.",
-    effects: [{ operation: { op: "applyStatus", status: STATUS_SKIP_NEXT_TURN }, target: "enemiesAll" }],
-  },
-  {
-    id: "dot_self",
-    name: "Blood Tax",
-    type: "utility",
-    rarity: "common",
-    cost: 0,
-    tags: ["STR"],
-    description: "Enemy takes 1 damage at the start of their next 5 turns.",
+    tags: [],
+    description: "Deal 20 DMG. Add a copy of this card to deck. Fleeting.",
+    keywords: [{ kind: "fleeting" }],
     effects: [
-      {
-        operation: {
-          op: "applyStatus",
-          status: {
-            id: "blood_tax",
-            name: "Blood Tax",
-            description: "Lose 1 HP at turn start.",
-            duration: 5,
-            stacking: "stack",
-            triggers: [{ kind: "TurnStart" }],
-            effects: [{ operation: { op: "dealDamage", amount: 1 }, target: "self" }],
-          },
-        },
-        target: "enemySingle",
-      },
+      { operation: { op: "dealDamage", amount: 20 }, target: "enemySingle" },
+      { operation: { op: "addCardToDeck", cardId: "self", count: 1, shuffle: true } },
     ],
   },
   {
-    id: "smash_and_bleed",
-    name: "Smash and Bleed",
-    type: "attack",
+    id: "full_auto",
+    name: "Full Auto",
+    type: "DMG",
+    rarity: "uncommon",
+    cost: 3,
+    tags: [],
+    description: "Create 3 fleeting 0-cost Hip Fire cards in hand.",
+    effects: [{ operation: { op: "createCardsInHand", cardId: "hip_fire", count: 3, temporaryCost: 0, fleeting: true } }],
+  },
+  {
+    id: "counter",
+    name: "Counter",
+    type: "DMG",
+    rarity: "uncommon",
+    cost: 2,
+    tags: [],
+    description: "On turn end, deal 10 DMG per 10 DEF remaining. If this deals 50+ DMG, Backfire 5.",
+    effects: [{ operation: { op: "applyStatus", status: STATUS_COUNTER_TURN_END }, target: "self" }],
+  },
+  {
+    id: "hip_fire",
+    name: "Hip Fire",
+    type: "DMG",
     rarity: "common",
     cost: 1,
-    tags: ["STR"],
-    description: "Deal 10 damage. Lose 10 HP.",
-    effects: [
-      { operation: { op: "dealDamage", amount: 10 }, target: "enemySingle" },
-      { operation: { op: "dealDamage", amount: 10 }, target: "self" },
-    ],
+    tags: [],
+    description: "Deal 10 DMG. Exhaust.",
+    keywords: [{ kind: "exhaust" }],
+    effects: [{ operation: { op: "dealDamage", amount: 10 }, target: "enemySingle" }],
   },
   {
-    id: "under_50_double",
-    name: "Last Stand",
-    type: "attack",
+    id: "smoke_screen",
+    name: "Smoke Screen",
+    type: "DEF",
     rarity: "uncommon",
-    cost: 1,
-    tags: ["STR"],
-    description: "Deal 8 damage. If HP < 50%, deal another 8.",
-    effects: [
-      { operation: { op: "dealDamage", amount: 8 }, target: "enemySingle" },
-      { operation: { op: "dealDamage", amount: 8 }, target: "enemySingle", condition: { type: "hpBelowPct", side: "player", pct: 0.5 } },
-    ],
-  },
-  {
-    id: "wild_barrage",
-    name: "Wild Barrage",
-    type: "attack",
-    rarity: "rare",
     cost: 2,
-    tags: ["REF"],
-    description: "Deal 1d20 damage, 1d20 times (uses combat RNG).",
-    effects: [{ operation: { op: "dealRandom", min: 1, max: 20, rolls: 20 }, target: "enemySingle" }],
-  },
-  {
-    id: "tighten_focus",
-    name: "Tighten Focus",
-    type: "utility",
-    rarity: "rare",
-    cost: 1,
-    tags: ["INT"],
-    description: "Hand size -1, energy per turn +1 for combat.",
+    tags: [],
+    description: "Gain 20 DEF. Next turn, gain 10 DEF.",
     effects: [
-      { operation: { op: "applyStatus", status: STATUS_HAND_SIZE_MINUS_ONE }, target: "self" },
-      { operation: { op: "applyStatus", status: STATUS_ENERGY_PLUS_ONE }, target: "self" },
+      { operation: { op: "gainShield", amount: 20 }, target: "self" },
+      { operation: { op: "applyStatus", status: STATUS_SMOKE_SCREEN }, target: "self" },
     ],
   },
   {
-    id: "breaker_victory",
-    name: "Last Resort Trigger",
-    type: "unique",
-    rarity: "unique",
-    cost: 0,
-    tags: ["STR"],
-    description: "Immediately win this battle. (The source item would break after use.)",
-    effects: [
-      { operation: { op: "combatEnd" } },
-    ],
-  },
-  {
-    id: "recast_top_discard",
-    name: "Recall Echo",
-    type: "utility",
-    rarity: "rare",
-    cost: 1,
-    tags: ["INT"],
-    description: "Recast the top card of your discard pile.",
-    effects: [{ operation: { op: "recastDiscardTop", defaultTarget: "enemySingle" } }],
-  },
-  {
-    id: "copy_discard_to_deck",
-    name: "Archive Pull",
-    type: "utility",
+    id: "evasive_maneuvers",
+    name: "Evasive Maneuvers",
+    type: "DEF",
     rarity: "uncommon",
-    cost: 1,
-    tags: ["INT"],
-    description: "Copy the top card of your discard into your deck (top).",
-    effects: [{ operation: { op: "moveFromDiscardToDeck", mode: "copyTop" } }],
+    cost: 3,
+    tags: [],
+    description: "Create 3 fleeting 0-cost Dodge cards in hand.",
+    effects: [{ operation: { op: "createCardsInHand", cardId: "dodge", count: 3, temporaryCost: 0, fleeting: true } }],
   },
   {
-    id: "exhaust_three_energy",
-    name: "Purge Surge",
-    type: "utility",
-    rarity: "rare",
-    cost: 1,
-    tags: ["INT"],
-    description: "Exhaust top 3 of discard. Gain +3 energy per turn this combat.",
-    effects: [
-      { operation: { op: "exhaustFromDiscardTop", count: 3 } },
-      { operation: { op: "applyStatus", status: { ...STATUS_ENERGY_PLUS_ONE, id: "energy_plus_three", name: "Surge", effects: [{ operation: { op: "modifyEnergyPerTurn", delta: 3 } }] } }, target: "self" },
-    ],
-  },
-  {
-    id: "next_turn_draw",
-    name: "Stash",
-    type: "utility",
+    id: "dodge",
+    name: "Dodge",
+    type: "DEF",
     rarity: "common",
-    cost: 0,
-    tags: ["INT"],
-    description: "Gain: Draw 1 at the start of next turn.",
-    effects: [{ operation: { op: "applyStatus", status: STATUS_DRAW_NEXT_TURN }, target: "self" }],
-  },
-  {
-    id: "hand_count_attack",
-    name: "Survey Weakness",
-    type: "attack",
-    rarity: "uncommon",
     cost: 1,
-    tags: ["REF"],
-    description: "Deal 1 damage per attack card in hand.",
-    effects: [{ operation: { op: "dealDamage", amount: { type: "handCountByType", cardType: "attack" } }, target: "enemySingle" }],
+    tags: [],
+    description: "Gain 10 DEF. Exhaust.",
+    keywords: [{ kind: "exhaust" }],
+    effects: [{ operation: { op: "gainShield", amount: 10 }, target: "self" }],
   },
   {
-    id: "attack_count_turn",
-    name: "Flurry Recall",
-    type: "attack",
-    rarity: "uncommon",
-    cost: 1,
-    tags: ["REF"],
-    description: "Deal damage equal to attacks played this turn.",
-    effects: [{ operation: { op: "dealDamage", amount: { type: "counter", key: "attackCardsPlayedThisTurn" } }, target: "enemySingle" }],
-  },
-  {
-    id: "attack_count_combat",
-    name: "Attrition Count",
-    type: "attack",
-    rarity: "rare",
-    cost: 2,
-    tags: ["STR"],
-    description: "Deal damage equal to attacks played this combat.",
-    effects: [{ operation: { op: "dealDamage", amount: { type: "counter", key: "attackCardsPlayedThisCombat" } }, target: "enemySingle" }],
-  },
-  {
-    id: "skip_all_enemies",
-    name: "Static Net",
-    type: "utility",
-    rarity: "rare",
-    cost: 2,
-    tags: ["INT"],
-    description: "All enemies skip their next turn.",
-    effects: [{ operation: { op: "applyStatus", status: STATUS_SKIP_NEXT_TURN }, target: "enemiesAll" }],
-  },
-  {
-    id: "dot_self",
-    name: "Blood Tax",
-    type: "utility",
+    id: "recover",
+    name: "Recover",
+    type: "SKL",
     rarity: "common",
-    cost: 0,
-    tags: ["STR"],
-    description: "Take 1 damage at the start of your next 5 turns.",
+    cost: 1,
+    tags: [],
+    description: "Convert up to 10 DEF to 10 HP. Exhaust.",
+    keywords: [{ kind: "exhaust" }],
+    effects: [{ operation: { op: "convertShieldToHeal", amount: 10 }, target: "self" }],
+  },
+  {
+    id: "recover_plus",
+    name: "Recover+",
+    type: "SKL",
+    rarity: "uncommon",
+    cost: 2,
+    tags: [],
+    description: "Convert up to 30 DEF to 30 HP. Exhaust.",
+    keywords: [{ kind: "exhaust" }],
+    effects: [{ operation: { op: "convertShieldToHeal", amount: 30 }, target: "self" }],
+  },
+  {
+    id: "energy_surge",
+    name: "Energy Surge",
+    type: "DEF",
+    rarity: "uncommon",
+    cost: 2,
+    tags: [],
+    description: "Gain 10 DEF per DMG tick dealt. If this gains 50+ DEF, Backfire 5.",
     effects: [
-      {
-        operation: {
-          op: "applyStatus",
-          status: {
-            id: "blood_tax",
-            name: "Blood Tax",
-            description: "Lose 1 HP at turn start.",
-            duration: 5,
-            stacking: "stack",
-            triggers: [{ kind: "TurnStart" }],
-            effects: [{ operation: { op: "dealDamage", amount: 1 }, target: "self" }],
-          },
-        },
-        target: "self",
-      },
+      { operation: { op: "gainShield", amount: { type: "counterTimes", key: "damageTicksThisTurn", multiplier: 10 } }, target: "self" },
+      { operation: { op: "backfire", amount: 5 }, condition: { type: "shieldGainedThisTurnAtLeast", value: 50 } },
+    ],
+  },
+  {
+    id: "burn_away",
+    name: "Burn Away",
+    type: "DMG",
+    rarity: "rare",
+    cost: 0,
+    tags: [],
+    description: "Deal 4 FIRE. Take 20 DMG.",
+    effects: [
+      { operation: { op: "applyElement", element: "FIRE", amount: 4 }, target: "enemySingle" },
+      { operation: { op: "dealDamage", amount: 20 }, target: "self" },
     ],
   },
 ]
 
 export default CARDS
-export { STATUS_TURN_DRAW, STATUS_REPEAT_NEXT_ATTACK }

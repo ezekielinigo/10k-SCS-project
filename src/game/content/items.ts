@@ -3,6 +3,31 @@ import { type ItemTemplate, type WeaponSlotPolicy } from "../types"
 const asPolicy = (policy: WeaponSlotPolicy) => policy
 
 const ITEMS: Record<string, ItemTemplate> = {
+  debug_stick: {
+    id: "debug_stick",
+    name: "Debug Stick",
+    kind: "weapon",
+    rarity: "unique",
+    weaponSlotPolicy: asPolicy("primaryOnly"),
+    weaponCards: {
+      // for debugging, this weapon gets all cards from cards.ts
+      primary: [
+        "aimed_shot",
+        "burst_fire",
+        "full_auto",
+        "counter",
+        "hip_fire",
+        "smoke_screen",
+        "evasive_maneuvers",
+        "dodge",
+        "recover",
+        "recover_plus",
+        "energy_surge",
+        "burn_away"
+      ],
+      secondary: [],
+    },
+  },
   knife_rusty: {
     id: "knife_rusty",
     name: "Rusty Knife",
@@ -10,7 +35,7 @@ const ITEMS: Record<string, ItemTemplate> = {
     rarity: "common",
     weaponSlotPolicy: asPolicy("either"),
     weaponCards: {
-      primary: ["int_overload"],
+      primary: [],
       secondary: ["flash_focus"],
     },
     tags: ["melee", "blade"],

@@ -134,13 +134,18 @@ const resolveItemIcon = (template: ItemTemplate) => {
 const resolveCardTypeIcon = (type?: string) => {
   switch (type) {
     case "attack":
+    case "DMG":
       return "crosshair"
     case "utility":
+    case "SKL":
       return "zap"
     case "skill":
       return "activity"
     case "defense":
+    case "DEF":
       return "shield"
+    case "ERR":
+      return "alert-triangle"
     default:
       return "layers"
   }

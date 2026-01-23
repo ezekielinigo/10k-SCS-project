@@ -17,12 +17,13 @@ import { STATUS_ICON_MAP } from "@shared/utils/ui"
 const FACES = fontConfig.fontFaceNames()
 
 const STARTER_DECK = [
-  "combat_start_boost",
-  "flash_focus",
-  "data_loop",
-  "echo_strike_setup",
-  "int_overload",
-  "int_overload",
+  "hip_fire",
+  "hip_fire",
+  "dodge",
+  "smoke_screen",
+  "aimed_shot",
+  "recover",
+  "energy_surge",
 ]
 
 const DEFAULT_SKILLS = {
@@ -88,11 +89,12 @@ export default function DebugCombatModal({ open, onClose }: { open: boolean; onC
     const deckIds = deriveDeck()
     const cs = createCombatState(
       {
-        player: { hp: 30, maxHP: 30, skills },
-        enemy: { hp: 20, maxHP: 20, skills },
+        player: { hp: 100, maxHP: 100, skills },
+        enemy: { hp: 100, maxHP: 100, skills },
         deckCardIds: deckIds,
         cardLibrary: cardMap,
         rngSeed: "debug",
+        config: { handLimit: 5, energyPerTurn: 5 },
       },
     )
     let next = startCombat(cs)
