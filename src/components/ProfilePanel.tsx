@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { Alert, Dimensions, FlatList, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native"
 import { Feather } from "@expo/vector-icons"
 import fontConfig from "@shared/utils/fontConfig"
 import { RARITY_COLORS } from "@shared/utils/ui"
@@ -10,7 +10,7 @@ import { canEquip } from "@shared/game/services/equipmentService"
 import type { CardRef, CyberSlot, EquipmentSlot, ItemTemplate, WeaponSlot } from "@shared/game/types"
 import { Canvas, Image as SkiaImage, FilterMode, MipmapMode, useImage } from "@shopify/react-native-skia"
 import type { CardDefinition } from "@shared/game/engine/combatTypes"
-import CARDS from "@shared/game/content/cards"
+import { getCardLibraryMap } from "@shared/game/services/cardLibrary"
 
 const FACES = fontConfig.fontFaceNames()
 const EQUIP_SLOTS = ["accessory", "top", "bottom", "primary", "secondary", "utility", "trash"] as const
@@ -30,6 +30,7 @@ type DeckSortMode = "name" | "rarity" | "type" | "cost" | "source"
 type DeckViewMode = "list" | "grid"
 type SelectionViewMode = "description" | "stats" | "cards"
 type SlotFilter = EquipmentSlot | WeaponSlot | CyberSlot | null
+type DeckEntry = { cardId: string; def?: CardDefinition; count: number; source?: { name: string; rarity?: string } }
 
 /*
 
@@ -239,7 +240,7 @@ export default function ProfilePanel() {
     return map
   }, [gameState.itemInstances, gameState.itemTemplates, inventory, playerId])
 
-  const cardMap = useMemo(() => CARDS.reduce<Record<string, CardDefinition>>((acc, c) => { acc[c.id] = c; return acc }, {}), [])
+  const cardMap = useMemo(() => getCardLibraryMap(), [])
   const cardSourceMap = useMemo(() => {
     const map = new Map<string, { name: string; rarity?: string }>()
     Object.values((gameState.itemTemplates ?? {}) as Record<string, ItemTemplate>).forEach((tpl) => {
@@ -377,7 +378,7 @@ export default function ProfilePanel() {
     return map
   }, [deckCards])
 
-  const deckEntries = useMemo(() => {
+  const deckEntries = useMemo<DeckEntry[]>(() => {
     const entries = Array.from(deckCounts.keys()).map((cardId) => {
       const def = cardMap[cardId]
       return {
@@ -412,6 +413,117 @@ export default function ProfilePanel() {
     })
     return entries
   }, [cardMap, cardSourceMap, deckCounts, deckSortMode])
+
+  const renderDeckListItem = useCallback(({ item }: { item: DeckEntry }) => {
+    const def = item.def as CardDefinition
+    const rarityColor = def?.rarity ? RARITY_COLORS[def.rarity as keyof typeof RARITY_COLORS] ?? "#253146" : "#253146"
+    const sourceBorder = item.source?.rarity ? RARITY_COLORS[item.source.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
+    return (
+      <Pressable style={[styles.deckListRow, { borderColor: rarityColor }]} onPress={() => setCardPreview(def)}>
+        <View style={styles.deckListCostBadge}>
+          <Text style={styles.deckCostText}>{def?.cost ?? 0}</Text>
+        </View>
+        {item.count > 1 ? (
+          <View style={styles.deckListCountBadge}>
+            <Text style={styles.countBadgeText}>x{item.count}</Text>
+          </View>
+        ) : null}
+        <View style={styles.deckSourceColumn}>
+          <View style={[styles.sourceIconWrap, { borderColor: sourceBorder }]}>
+            <Image source={iconDefault} style={styles.sourceIconCanvas} resizeMode="contain" />
+          </View>
+          <Text numberOfLines={1} style={styles.deckSourceName}>{item.source?.name ?? "Unknown"}</Text>
+        </View>
+        <View style={styles.deckTextWrap}>
+          <View style={styles.deckTitleRow}>
+            <Feather name={resolveCardTypeIcon(def?.type)} size={12} color="#9aa6bf" />
+            <Text numberOfLines={1} style={styles.deckCardTitle}>{def?.name ?? item.cardId}</Text>
+          </View>
+          <Text numberOfLines={2} style={styles.deckCardDesc}>{def?.description ?? ""}</Text>
+        </View>
+      </Pressable>
+    )
+  }, [setCardPreview])
+
+  const renderDeckGridItem = useCallback(({ item }: { item: DeckEntry }) => {
+    const def = item.def as CardDefinition
+    const rarityColor = def?.rarity ? RARITY_COLORS[def.rarity as keyof typeof RARITY_COLORS] ?? "#253146" : "#253146"
+    return (
+      <Pressable style={[styles.deckGridCard, { width: GRID_CARD_WIDTH, height: GRID_CARD_HEIGHT, borderColor: rarityColor }]} onPress={() => setCardPreview(def)}>
+        <View style={styles.gridCostBadge}>
+          <Text style={styles.gridCostText}>{def?.cost ?? 0}</Text>
+        </View>
+        {item.count > 1 ? (
+          <View style={styles.gridCountBadge}>
+            <Text style={styles.gridCountText}>x{item.count}</Text>
+          </View>
+        ) : null}
+        <View style={styles.gridCardArt}>
+          <Image source={iconDefault} style={styles.gridCardCanvas} resizeMode="contain" />
+        </View>
+        <View style={styles.gridCardFooter}>
+          <Text numberOfLines={1} style={styles.gridCardTitle}>{def?.name ?? item.cardId}</Text>
+          <Text style={styles.gridCardMeta}>{def?.type ?? "?"}</Text>
+        </View>
+      </Pressable>
+    )
+  }, [setCardPreview])
+
+  const renderSelectionCard = useCallback(({ item }: { item: CardDefinition }) => {
+    const borderColor = item.rarity ? RARITY_COLORS[item.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
+    const count = deckCounts.get(item.id) ?? 0
+    return (
+      <Pressable style={[styles.deckGridCard, { width: GRID_CARD_WIDTH, height: GRID_CARD_HEIGHT, borderColor }]} onPress={() => setCardPreview(item)}>
+        <View style={styles.gridCostBadge}>
+          <Text style={styles.gridCostText}>{item.cost ?? 0}</Text>
+        </View>
+        {count > 1 ? (
+          <View style={styles.gridCountBadge}>
+            <Text style={styles.gridCountText}>x{count}</Text>
+          </View>
+        ) : null}
+        <View style={[styles.gridCardArt, { height: GRID_CARD_HEIGHT - 48 }] }>
+          <Image source={iconDefault} style={styles.gridCardCanvas} resizeMode="contain" />
+        </View>
+        <View style={styles.gridCardFooter}>
+          <View style={styles.deckTitleRow}>
+            <Text numberOfLines={1} style={styles.gridCardTitle}>{item.name}</Text>
+          </View>
+          <Text style={styles.gridCardMeta}>{item.type ?? "?"}</Text>
+        </View>
+      </Pressable>
+    )
+  }, [deckCounts, setCardPreview])
+
+  const renderInventoryItem = useCallback(({ item }: { item: { instance: any; template: ItemTemplate } }) => {
+    const { instance, template } = item
+    const borderColor = template.rarity ? RARITY_COLORS[template.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
+    const isSelected = selectedId === instance.id
+    const equippedSlot = equippedSlotByItem.get(instance.id)
+    const isWeapon = template.kind === "weapon"
+    const canEquipSlot = (template.kind === "equipment" || template.kind === "weapon" || template.kind === "cybernetic") && (!isWeapon || !!slotFilter)
+    return (
+      <Pressable style={[styles.inventoryRow, isSelected ? styles.inventoryRowSelected : null]} onPress={() => handleItemSelect(instance.id)}>
+        <View style={[styles.inventoryIconWrap, { borderColor }]}> 
+          <Image source={iconDefault} style={styles.inventoryIconCanvas} resizeMode="contain" />
+        </View>
+        <View style={styles.inventoryTypeIcon}>
+          <Feather name={resolveItemIcon(template) as any} size={16} color="#cfe1ff" />
+        </View>
+        <View style={styles.inventoryTextWrap}>
+          <Text numberOfLines={1} style={styles.inventoryName}>{template.name}</Text>
+          <Text style={styles.inventoryMeta}>{formatItemKindLabel(template)}</Text>
+        </View>
+        <Pressable
+          style={[styles.equipButton, equippedSlot ? styles.equipButtonActive : null, !canEquipSlot ? styles.equipButtonDisabled : null]}
+          onPress={() => handleEquipToggle(instance.id, template)}
+          disabled={!canEquipSlot}
+        >
+          <Feather name={equippedSlot ? "x" : "arrow-up"} size={14} color="#cfe1ff" />
+        </Pressable>
+      </Pressable>
+    )
+  }, [equippedSlotByItem, handleEquipToggle, handleItemSelect, selectedId, slotFilter])
 
   const cycleInventorySort = useCallback(() => {
     const modes: InventorySortMode[] = ["name", "rarity", "type"]
@@ -521,88 +633,28 @@ export default function ProfilePanel() {
         {deckEntries.length === 0 ? (
           <Text style={styles.empty}>No cards in your deck.</Text>
         ) : deckView === "list" ? (
-          <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-            {deckEntries.map((entry) => {
-              const def = entry.def as CardDefinition
-              const rarityColor = def?.rarity ? RARITY_COLORS[def.rarity as keyof typeof RARITY_COLORS] ?? "#253146" : "#253146"
-              const sourceBorder = entry.source?.rarity ? RARITY_COLORS[entry.source.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
-              return (
-                <Pressable key={entry.cardId} style={[styles.deckListRow, { borderColor: rarityColor }]} onPress={() => setCardPreview(def)}>
-                  <View style={styles.deckListCostBadge}>
-                    <Text style={styles.deckCostText}>{def?.cost ?? 0}</Text>
-                  </View>
-                  {entry.count > 1 ? (
-                    <View style={styles.deckListCountBadge}>
-                      <Text style={styles.countBadgeText}>x{entry.count}</Text>
-                    </View>
-                  ) : null}
-                  <View style={styles.deckSourceColumn}>
-                    <View style={[styles.sourceIconWrap, { borderColor: sourceBorder }]}>
-                      <Canvas style={styles.sourceIconCanvas}>
-                        {itemIconSkia ? (
-                          <SkiaImage
-                            image={itemIconSkia}
-                            x={2}
-                            y={2}
-                            width={ITEM_ICON_SIZE - 6}
-                            height={ITEM_ICON_SIZE - 6}
-                            fit="contain"
-                            sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
-                          />
-                        ) : null}
-                      </Canvas>
-                    </View>
-                    <Text numberOfLines={1} style={styles.deckSourceName}>{entry.source?.name ?? "Unknown"}</Text>
-                  </View>
-                  <View style={styles.deckTextWrap}>
-                    <View style={styles.deckTitleRow}>
-                      <Feather name={resolveCardTypeIcon(def?.type)} size={12} color="#9aa6bf" />
-                      <Text numberOfLines={1} style={styles.deckCardTitle}>{def?.name ?? entry.cardId}</Text>
-                    </View>
-                    <Text numberOfLines={2} style={styles.deckCardDesc}>{def?.description ?? ""}</Text>
-                  </View>
-                </Pressable>
-              )
-            })}
-          </ScrollView>
+          <FlatList
+            data={deckEntries}
+            renderItem={renderDeckListItem}
+            keyExtractor={(item) => item.cardId}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            removeClippedSubviews
+            initialNumToRender={14}
+            windowSize={7}
+          />
         ) : (
-          <ScrollView contentContainerStyle={styles.deckGrid}>
-            {deckEntries.map((entry) => {
-              const def = entry.def as CardDefinition
-              const rarityColor = def?.rarity ? RARITY_COLORS[def.rarity as keyof typeof RARITY_COLORS] ?? "#253146" : "#253146"
-              return (
-                <Pressable key={entry.cardId} style={[styles.deckGridCard, { width: GRID_CARD_WIDTH, height: GRID_CARD_HEIGHT, borderColor: rarityColor }]} onPress={() => setCardPreview(def)}>
-                  <View style={styles.gridCostBadge}>
-                    <Text style={styles.gridCostText}>{def?.cost ?? 0}</Text>
-                  </View>
-                  {entry.count > 1 ? (
-                    <View style={styles.gridCountBadge}>
-                      <Text style={styles.gridCountText}>x{entry.count}</Text>
-                    </View>
-                  ) : null}
-                  <View style={styles.gridCardArt}>
-                    <Canvas style={styles.gridCardCanvas}>
-                      {itemIconSkia ? (
-                        <SkiaImage
-                          image={itemIconSkia}
-                          x={8}
-                          y={8}
-                          width={GRID_CARD_WIDTH - 16}
-                          height={GRID_CARD_HEIGHT - 40}
-                          fit="contain"
-                          sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
-                        />
-                      ) : null}
-                    </Canvas>
-                  </View>
-                  <View style={styles.gridCardFooter}>
-                    <Text numberOfLines={1} style={styles.gridCardTitle}>{def?.name ?? entry.cardId}</Text>
-                    <Text style={styles.gridCardMeta}>{def?.type ?? "?"}</Text>
-                  </View>
-                </Pressable>
-              )
-            })}
-          </ScrollView>
+          <FlatList
+            data={deckEntries}
+            renderItem={renderDeckGridItem}
+            keyExtractor={(item) => item.cardId}
+            numColumns={GRID_COLUMNS}
+            contentContainerStyle={styles.deckGrid}
+            columnWrapperStyle={styles.deckGridRow}
+            removeClippedSubviews
+            initialNumToRender={15}
+            windowSize={7}
+          />
         )}
 
         <View style={styles.toggleRow}>
@@ -693,48 +745,18 @@ export default function ProfilePanel() {
               </View>
             ) : null}
             {selectionView === "cards" ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.deckGrid, { flexWrap: "nowrap", paddingVertical: 6 }] }>
-                {selectedCards.length ? selectedCards.map((card: CardDefinition) => {
-                  const borderColor = card.rarity ? RARITY_COLORS[card.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
-                  const count = deckCounts.get(card.id) ?? 0
-                  return (
-                    <Pressable key={card.id} style={[styles.deckGridCard, { width: GRID_CARD_WIDTH, height: GRID_CARD_HEIGHT, borderColor }]} onPress={() => setCardPreview(card)}>
-                      <View style={styles.gridCostBadge}>
-                        <Text style={styles.gridCostText}>{card.cost ?? 0}</Text>
-                      </View>
-                      {count > 1 ? (
-                        <View style={styles.gridCountBadge}>
-                          <Text style={styles.gridCountText}>x{count}</Text>
-                        </View>
-                      ) : null}
-                      <View style={[styles.gridCardArt, { height: GRID_CARD_HEIGHT - 48 }] }>
-                        <Canvas style={styles.gridCardCanvas}>
-                          {itemIconSkia ? (
-                            <SkiaImage
-                              image={itemIconSkia}
-                              x={8}
-                              y={8}
-                              width={GRID_CARD_WIDTH - 16}
-                              height={GRID_CARD_HEIGHT - 40}
-                              fit="contain"
-                              sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
-                            />
-                          ) : null}
-                        </Canvas>
-                      </View>
-                      <View style={styles.gridCardFooter}>
-                        <View style={styles.deckTitleRow}>
-                          <Text numberOfLines={1} style={styles.gridCardTitle}>{card.name}</Text>
-                        </View>
-                        <Text style={styles.gridCardMeta}>{card.type ?? "?"}</Text>
-                        
-                      </View>
-                    </Pressable>
-                  )
-                }) : (
-                  <Text style={styles.selectionDesc}>No cards.</Text>
-                )}
-              </ScrollView>
+              <FlatList
+                data={selectedCards}
+                renderItem={renderSelectionCard}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[styles.deckGrid, { flexWrap: "nowrap", paddingVertical: 6 }] }
+                removeClippedSubviews
+                initialNumToRender={8}
+                windowSize={5}
+                ListEmptyComponent={<Text style={styles.selectionDesc}>No cards.</Text>}
+              />
             ) : null}
           </View>
         </View>
@@ -752,50 +774,17 @@ export default function ProfilePanel() {
           ) : null}
         </View>
 
-        <ScrollView style={styles.inventoryList} contentContainerStyle={styles.inventoryListContent}>
-          {filteredInventory.length === 0 ? (
-            <Text style={styles.empty}>No items found.</Text>
-          ) : filteredInventory.map(({ instance, template }) => {
-            const borderColor = template.rarity ? RARITY_COLORS[template.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
-            const isSelected = selectedId === instance.id
-            const equippedSlot = equippedSlotByItem.get(instance.id)
-            const isWeapon = template.kind === "weapon"
-            const canEquipSlot = (template.kind === "equipment" || template.kind === "weapon" || template.kind === "cybernetic") && (!isWeapon || !!slotFilter)
-            return (
-              <Pressable key={instance.id} style={[styles.inventoryRow, isSelected ? styles.inventoryRowSelected : null]} onPress={() => handleItemSelect(instance.id)}>
-                <View style={[styles.inventoryIconWrap, { borderColor }]}>
-                  <Canvas style={styles.inventoryIconCanvas}>
-                    {itemIconSkia ? (
-                      <SkiaImage
-                        image={itemIconSkia}
-                        x={3}
-                        y={3}
-                        width={ITEM_ICON_SIZE - 6}
-                        height={ITEM_ICON_SIZE - 6}
-                        fit="contain"
-                        sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
-                      />
-                    ) : null}
-                  </Canvas>
-                </View>
-                <View style={styles.inventoryTypeIcon}>
-                  <Feather name={resolveItemIcon(template) as any} size={16} color="#cfe1ff" />
-                </View>
-                <View style={styles.inventoryTextWrap}>
-                  <Text numberOfLines={1} style={styles.inventoryName}>{template.name}</Text>
-                  <Text style={styles.inventoryMeta}>{formatItemKindLabel(template)}</Text>
-                </View>
-                <Pressable
-                  style={[styles.equipButton, equippedSlot ? styles.equipButtonActive : null, !canEquipSlot ? styles.equipButtonDisabled : null]}
-                  onPress={() => handleEquipToggle(instance.id, template)}
-                  disabled={!canEquipSlot}
-                >
-                  <Feather name={equippedSlot ? "x" : "arrow-up"} size={14} color="#cfe1ff" />
-                </Pressable>
-              </Pressable>
-            )
-          })}
-        </ScrollView>
+        <FlatList
+          data={filteredInventory}
+          renderItem={renderInventoryItem}
+          keyExtractor={(item) => item.instance.id}
+          style={styles.inventoryList}
+          contentContainerStyle={styles.inventoryListContent}
+          removeClippedSubviews
+          initialNumToRender={12}
+          windowSize={7}
+          ListEmptyComponent={<Text style={styles.empty}>No items found.</Text>}
+        />
 
         <View style={styles.equipRow}>
           {(activeTab === "equipment" ? EQUIP_SLOTS : CYBER_SLOTS).map((label) => {
@@ -1211,12 +1200,11 @@ const styles = StyleSheet.create({
   deckCardDesc: { color: "#c9cdd8", fontSize: 10, lineHeight: 14 },
   countBadgeText: { color: "#cfe1ff", fontSize: 10, fontFamily: FACES.BOLD },
   deckGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
     gap: GRID_GAP,
     paddingBottom: 12,
-    justifyContent: "center",
+    alignItems: "center",
   },
+  deckGridRow: { gap: GRID_GAP, justifyContent: "center" },
   deckGridCard: {
     borderRadius: 12,
     borderWidth: 1,

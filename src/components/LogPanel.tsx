@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react"
-import { View, Text, StyleSheet, ScrollView } from "react-native"
+import { View, Text, StyleSheet, FlatList } from "react-native"
 import { renderDeltaPills } from "@shared/utils/ui"
 import { useGame } from "@shared/game/engine/GameContext"
 import fontConfig from "@shared/utils/fontConfig"
@@ -16,7 +16,7 @@ const formatMonthYear = (m: number) => {
 
 export default function LogPanel() {
   const { state } = useGame()
-  const scrollRef = useRef<ScrollView | null>(null)
+  const listRef = useRef<FlatList | null>(null)
 
   const grouped = useMemo(() => {
     const groups: Record<number, typeof state.log> = {}
@@ -29,9 +29,20 @@ export default function LogPanel() {
     return { groups, months }
   }, [state.log])
 
+  const logItems = useMemo(() => {
+    const items: Array<{ id: string; kind: "header" | "entry"; month: number; entry?: (typeof state.log)[number] }> = []
+    grouped.months.forEach((month) => {
+      items.push({ id: `header-${month}`, kind: "header", month })
+      grouped.groups[month].forEach((entry) => {
+        items.push({ id: entry.id, kind: "entry", month, entry })
+      })
+    })
+    return items
+  }, [grouped])
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true })
+      listRef.current?.scrollToEnd({ animated: true })
     }, 50)
     return () => clearTimeout(timer)
   }, [state.log])
@@ -39,22 +50,36 @@ export default function LogPanel() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Log</Text>
-      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={{ paddingBottom: 12 }}>
-        {grouped.months.map(month => (
-          <View key={`month-${month}`} style={{ marginBottom: 12 }}>
-            <View style={styles.monthHeader}>
-              <Text style={styles.monthLabel}>{formatMonthYear(month)}</Text>
-              <View style={styles.monthSep} />
-            </View>
-            {grouped.groups[month].map(entry => (
-              <View key={entry.id} style={styles.logCard}>
-                <Text style={styles.logText}>{entry.text}</Text>
-                {entry.deltas ? renderDeltaPills(entry.deltas) : null}
+      <FlatList
+        ref={listRef}
+        data={logItems}
+        keyExtractor={(item) => item.id}
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: 12 }}
+        removeClippedSubviews
+        initialNumToRender={16}
+        windowSize={7}
+        renderItem={({ item }) => {
+          if (item.kind === "header") {
+            return (
+              <View style={{ marginBottom: 12 }}>
+                <View style={styles.monthHeader}>
+                  <Text style={styles.monthLabel}>{formatMonthYear(item.month)}</Text>
+                  <View style={styles.monthSep} />
+                </View>
               </View>
-            ))}
-          </View>
-        ))}
-      </ScrollView>
+            )
+          }
+          const entry = item.entry
+          if (!entry) return null
+          return (
+            <View style={styles.logCard}>
+              <Text style={styles.logText}>{entry.text}</Text>
+              {entry.deltas ? renderDeltaPills(entry.deltas) : null}
+            </View>
+          )
+        }}
+      />
     </View>
   )
 }

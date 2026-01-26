@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Dimensions,
+  FlatList,
   LayoutRectangle,
   Modal,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -14,7 +14,9 @@ import Animated, {
   Easing,
   interpolate,
   runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
+  type SharedValue,
   useSharedValue,
   withDelay,
   withSpring,
@@ -33,7 +35,7 @@ import {
   applyEnemyCard,
 } from "@shared/game/engine/combatEngine"
 import type { CardDefinition, CardInstance, CombatState, StatusInstance } from "@shared/game/engine/combatTypes"
-import CARDS from "@shared/game/content/cards"
+import { getCardLibraryMap } from "@shared/game/services/cardLibrary"
 import fontConfig from "@shared/utils/fontConfig"
 import { STATUS_ICON_MAP, STAT_ICONS } from "@shared/utils/ui"
 const FACES = fontConfig.fontFaceNames()
@@ -77,10 +79,13 @@ const DEFAULT_SKILLS = {
 
 type Phase = "player" | "enemy"
 type HoverTarget = "enemyTile" | "enemyLane" | null
+type HoverTargetValue = 0 | 1 | 2
 
 type ZonesOverlay = "deck" | "discard" | null
 
 const cardCost = (card: CardInstance, def: CardDefinition) => Math.max(0, card.temporaryCost ?? def.cost)
+
+const DEBUFF_IDS = new Set(["skip_next_turn", "hand_size_minus_one", "blood_tax"])
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(v, max))
 
@@ -118,7 +123,7 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
   const [phase, setPhase] = useState<Phase>("player")
   const [enemyAiIndex, setEnemyAiIndex] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
-  const [hoverTarget, setHoverTarget] = useState<HoverTarget>(null)
+  const [, setHoverTarget] = useState<HoverTarget>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [zonesOpen, setZonesOpen] = useState<ZonesOverlay>(null)
   const [logOpen, setLogOpen] = useState(false)
@@ -144,7 +149,10 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
   const enemyTileRef = useRef<View>(null)
   const [enemyLaneBox, setEnemyLaneBox] = useState<LayoutRectangle | null>(null)
   const [enemyTileBox, setEnemyTileBox] = useState<LayoutRectangle | null>(null)
-  const cardMap = useMemo(() => CARDS.reduce<Record<string, CardDefinition>>((acc, c) => { acc[c.id] = c; return acc }, {}), [])
+  const enemyLaneBoxSV = useSharedValue<LayoutRectangle | null>(null)
+  const enemyTileBoxSV = useSharedValue<LayoutRectangle | null>(null)
+  const hoverTargetSV = useSharedValue<HoverTargetValue>(0)
+  const cardMap = useMemo(() => getCardLibraryMap(), [])
 
   const deriveDeck = () => {
     const equipped = (gameState as any)?.derivedLoadout?.equippedCards ?? []
@@ -192,10 +200,14 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
 
   const updateLaneBoxes = () => {
     enemyLaneRef.current?.measure((x, y, width, height, pageX, pageY) => {
-      setEnemyLaneBox({ x: pageX, y: pageY, width, height })
+      const box = { x: pageX, y: pageY, width, height }
+      setEnemyLaneBox(box)
+      enemyLaneBoxSV.value = box
     })
     enemyTileRef.current?.measure((x, y, width, height, pageX, pageY) => {
-      setEnemyTileBox({ x: pageX, y: pageY, width, height })
+      const box = { x: pageX, y: pageY, width, height }
+      setEnemyTileBox(box)
+      enemyTileBoxSV.value = box
     })
   }
 
@@ -208,7 +220,27 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
     })
   }
 
-  const onPlayCard = (uid: string, target: "enemy" | "player" = "enemy") => {
+  useAnimatedReaction(
+    () => hoverTargetSV.value,
+    (value, prev) => {
+      if (value === prev) return
+      const next: HoverTarget = value === 1 ? "enemyTile" : value === 2 ? "enemyLane" : null
+      runOnJS(setHoverTarget)(next)
+    },
+  )
+
+  const boxCenter = useCallback((box: LayoutRectangle) => ({
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+  }), [])
+
+  const hand = combat?.zones.hand ?? []
+  const selectedIndex = hand.findIndex((c) => c.uid === selected)
+  const selectedCard = combat ? combat.zones.hand.find((c) => c.uid === selected) : null
+  const selectedDef = selectedCard ? cardMap[selectedCard.cardId] : undefined
+  const playable = combat && selectedCard && selectedDef && phase === "player" && combat.energy >= cardCost(selectedCard, selectedDef)
+
+  const onPlayCard = useCallback((uid: string, target: "enemy" | "player" = "enemy") => {
     if (!combat) return
     if (isAnimating) return
     const located = combat.zones.hand.find((c) => c.uid === uid)
@@ -246,7 +278,7 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
       ...prev,
       [located.uid]: { x: delta.x, y: delta.y, scale: 0.4, opacity: exhaust ? 0 : 1, duration: 190 * ANIM_SPEED },
     }))
-  }
+  }, [boxCenter, cardMap, combat, discardBox, handTrayBox, handShift, isAnimating, phase, selectedIndex])
 
   const resolveEnemyPhase = (state: CombatState) => {
     const enemyCycle = ["aimed_shot", "smoke_screen"]
@@ -304,12 +336,6 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
     setCardAnimTargets((prev) => ({ ...prev, ...updates }))
   }
 
-  const selectedCard = combat ? combat.zones.hand.find((c) => c.uid === selected) : null
-  const selectedDef = selectedCard ? cardMap[selectedCard.cardId] : undefined
-  const playable = combat && selectedCard && selectedDef && phase === "player" && combat.energy >= cardCost(selectedCard, selectedDef)
-  const hand = combat?.zones.hand ?? []
-  const selectedIndex = hand.findIndex((c) => c.uid === selected)
-
   const deckCountStyle = useAnimatedStyle(() => ({
     transform: [{ scale: deckCountScale.value }],
   }))
@@ -317,6 +343,18 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
   const discardCountStyle = useAnimatedStyle(() => ({
     transform: [{ scale: discardCountScale.value }],
   }))
+
+  const enemyTileHoverStyle = useAnimatedStyle(() => {
+    if (!hoverTargetSV.value) return {}
+    return {
+      borderColor: "#7be0ff",
+      backgroundColor: "#13263d",
+      shadowColor: "#7be0ff",
+      shadowOpacity: 0.5,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 5 },
+    }
+  })
 
   const counts = combat
     ? {
@@ -342,34 +380,35 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
   }, [counts.discard, counts.exhaust, isAnimating, discardCountScale])
 
   
-  const handleHover = (x: number, y: number) => {
-    if (pointInside(enemyTileBox, x, y)) {
-      setHoverTarget("enemyTile")
-      return
-    }
-    if (pointInside(enemyLaneBox, x, y)) {
-      setHoverTarget("enemyLane")
-      return
-    }
-    setHoverTarget(null)
-  }
-
-  const handleRelease = (uid: string, x: number, y: number) => {
+  const handleRelease = useCallback((uid: string, x: number, y: number) => {
     const insideTile = pointInside(enemyTileBox, x, y)
     const insideLane = pointInside(enemyLaneBox, x, y)
     if (!insideTile && !insideLane) {
       setMessage("No target found")
       setHoverTarget(null)
+      hoverTargetSV.value = 0
       return
     }
     onPlayCard(uid, "enemy")
     setHoverTarget(null)
-  }
+    hoverTargetSV.value = 0
+  }, [enemyLaneBox, enemyTileBox, onPlayCard, hoverTargetSV])
 
-  const boxCenter = (box: LayoutRectangle) => ({
-    x: box.x + box.width / 2,
-    y: box.y + box.height / 2,
-  })
+  const handleSelectCard = useCallback((uid: string) => {
+    setTooltipPayload(null)
+    setSelected(uid)
+  }, [])
+
+  const handleDeselectCard = useCallback(() => {
+    setSelected(null)
+    setHoverTarget(null)
+    setTooltipPayload(null)
+    hoverTargetSV.value = 0
+  }, [hoverTargetSV])
+
+  const handleLongPressCard = useCallback((def?: CardDefinition) => {
+    if (def) setTooltipPayload({ kind: "card", def })
+  }, [])
 
   const onCardAnimComplete = (uid: string) => {
     setCardAnimTargets((prev) => {
@@ -404,24 +443,11 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
     }
   }
 
-  const renderStatusBadge = (status: StatusInstance) => {
-    const iconDef = STATUS_ICON_MAP[status.id]
-    const Icon = iconDef?.Icon
-    // classify as debuff or buff (simple explicit list)
-    const DEBUFF_IDS = new Set(["skip_next_turn", "hand_size_minus_one", "blood_tax"])
-    const isDebuff = DEBUFF_IDS.has(status.id)
-    const accent = isDebuff ? "#ff6b7a" : "#76e39c"
-    const remaining = typeof status.remaining === "number" ? String(status.remaining) : null
+  const handleStatusPress = useCallback((status: StatusInstance) => {
+    setTooltipPayload({ kind: "status", status })
+  }, [])
 
-    return (
-      <Pressable key={`${status.id}-${status.remaining}`} onPress={() => setTooltipPayload({ kind: "status", status })} style={[styles.statusChip, { borderColor: accent }] as any}>
-        {Icon ? <Icon size={16} color={accent} /> : <Text style={[styles.statusName, { color: accent }]}>{status.name}</Text>}
-        {remaining ? <Text style={[styles.statusValue, { color: accent }]}>{remaining}</Text> : null}
-      </Pressable>
-    )
-  }
-
-  const renderHandCard = (card: CardInstance, index: number, total: number) => {
+  const renderHandCard = useCallback((card: CardInstance, index: number, total: number) => {
     const def = cardMap[card.cardId]
     const angleRange = total > 7 ? 12 : 8
     const center = (total - 1) / 2
@@ -450,7 +476,6 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
         total={total}
         angle={angle}
         shiftTarget={shiftTarget}
-        selectedId={selected}
         isSelected={selected === card.uid}
         hasSelection={!!selected}
         isAnimating={isAnimating}
@@ -459,23 +484,16 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
         playable={!!playable && selected === card.uid}
         cardAnimTarget={cardAnimTargets[card.uid]}
         onAnimComplete={onCardAnimComplete}
-        onSelect={() => {
-          setTooltipPayload(null)
-          setSelected(card.uid)
-        }}
-        onDeselect={() => {
-          setSelected(null)
-          setHoverTarget(null)
-          setTooltipPayload(null)
-        }}
-        onHover={handleHover}
-        onRelease={handleRelease}
-        onLongPress={() => {
-          if (def) setTooltipPayload({ kind: "card", def })
-        }}
+        onSelectCard={handleSelectCard}
+        onDeselectCard={handleDeselectCard}
+        onReleaseCard={handleRelease}
+        onLongPressCard={handleLongPressCard}
+        hoverTargetSV={hoverTargetSV}
+        enemyLaneBoxSV={enemyLaneBoxSV}
+        enemyTileBoxSV={enemyTileBoxSV}
       />
     )
-  }
+  }, [cardAnimTargets, cardMap, combat?.tagLocks, enemyLaneBoxSV, enemyTileBoxSV, handleDeselectCard, handleLongPressCard, handleRelease, handleSelectCard, handShift, hoverTargetSV, isAnimating, onCardAnimComplete, playable, selected, selectedIndex])
 
   // tooltip state for status pills
   type TooltipPayload = { kind: "status"; status: StatusInstance } | { kind: "card"; def: CardDefinition }
@@ -502,6 +520,16 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
     )
   }
 
+  const renderOverlayItem = useCallback(({ item }: { item: CardInstance }) => {
+    const def = cardMap[item.cardId]
+    return (
+      <View style={styles.overlayRow}>
+        <Text style={styles.overlayText}>{def?.name ?? item.cardId}</Text>
+        <Text style={styles.overlayMeta}>{def?.type ?? "?"} · {def?.cost ?? 0}</Text>
+      </View>
+    )
+  }, [cardMap])
+
   const renderZonesOverlay = () => {
     if (!zonesOpen || !combat) return null
     const cards = zonesOpen === "deck" ? combat.zones.deck : [...combat.zones.discard, ...combat.zones.exhaust]
@@ -509,17 +537,16 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
       <Pressable style={styles.overlay} onPress={() => setZonesOpen(null)}>
         <View style={styles.overlayCard}>
           <Text style={styles.overlayTitle}>{zonesOpen === "deck" ? "Deck" : "Discard | Exhaust"}</Text>
-          <ScrollView style={{ maxHeight: 320 }}>
-            {cards.map((ci) => {
-              const def = cardMap[ci.cardId]
-              return (
-                <View key={ci.uid} style={styles.overlayRow}>
-                  <Text style={styles.overlayText}>{def?.name ?? ci.cardId}</Text>
-                  <Text style={styles.overlayMeta}>{def?.type ?? "?"} · {def?.cost ?? 0}</Text>
-                </View>
-              )
-            })}
-          </ScrollView>
+          <FlatList
+            data={cards}
+            keyExtractor={(item) => item.uid}
+            renderItem={renderOverlayItem}
+            style={{ maxHeight: 320 }}
+            contentContainerStyle={{ paddingBottom: 8 }}
+            removeClippedSubviews
+            initialNumToRender={14}
+            windowSize={7}
+          />
         </View>
       </Pressable>
     )
@@ -575,12 +602,12 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
 
           <View style={styles.lanes}>
             <View style={styles.enemyLane} ref={enemyLaneRef} onLayout={updateLaneBoxes}>
-              <View
+              <Animated.View
                 ref={enemyTileRef}
                 style={[
                   styles.enemyTile,
                   selected ? styles.enemyTileDim : null,
-                  hoverTarget ? styles.enemyTileActive : null,
+                  enemyTileHoverStyle,
                 ]}
               >
                 <Canvas style={styles.enemyCanvas}>
@@ -591,9 +618,11 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
                 <StatLine Icon={STAT_ICONS.health} value={combat.enemy.hp} max={combat.enemy.maxHP} barColor="#ff6b7a" accentColor="#ff9aa8" />
                 <StatLine Icon={STAT_ICONS.shield} value={combat.enemy.shield ?? 0} max={40} barColor="#66d1ff" accentColor="#7bb5ff" />
                 <View style={styles.statusRow}>
-                  {(combat.enemy.statuses ?? []).map(renderStatusBadge)}
+                  {(combat.enemy.statuses ?? []).map((status) => (
+                    <StatusBadge key={`${status.id}-${status.remaining}`} status={status} onPress={handleStatusPress} />
+                  ))}
                 </View>
-              </View>
+              </Animated.View>
             </View>
 
       <View style={styles.zoneControls}>
@@ -632,7 +661,9 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
                 <StatLine Icon={STAT_ICONS.health} value={combat.player.hp} max={combat.player.maxHP} barColor="#76e39c" accentColor="#9cf7b4" />
                 <StatLine Icon={STAT_ICONS.shield} value={combat.player.shield ?? 0} max={40} barColor="#66d1ff" accentColor="#7bb5ff" />
                 <View style={styles.statusRow}>
-                  {(combat.player.statuses ?? []).map(renderStatusBadge)}
+                  {(combat.player.statuses ?? []).map((status) => (
+                    <StatusBadge key={`${status.id}-${status.remaining}`} status={status} onPress={handleStatusPress} />
+                  ))}
                 </View>
               </View>
             </View>
@@ -656,9 +687,15 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
           {logOpen ? (
             <View style={styles.logBox}>
               <Text style={styles.sectionTitle}>Log</Text>
-              <ScrollView style={{ maxHeight: 120 }}>
-                {logs.map((l, idx) => (<Text key={`${l}-${idx}`} style={styles.logText}>• {l}</Text>))}
-              </ScrollView>
+              <FlatList
+                data={logs}
+                keyExtractor={(item, index) => `${item}-${index}`}
+                renderItem={({ item }) => <Text style={styles.logText}>• {item}</Text>}
+                style={{ maxHeight: 120 }}
+                removeClippedSubviews
+                initialNumToRender={12}
+                windowSize={5}
+              />
             </View>
           ) : null}
           </View>
@@ -668,6 +705,27 @@ export default function CombatScreen({ open, onClose }: { open: boolean; onClose
     </Modal>
   )
 }
+
+const StatusBadge = React.memo(function StatusBadge({
+  status,
+  onPress,
+}: {
+  status: StatusInstance
+  onPress: (status: StatusInstance) => void
+}) {
+  const iconDef = STATUS_ICON_MAP[status.id]
+  const Icon = iconDef?.Icon
+  const isDebuff = DEBUFF_IDS.has(status.id)
+  const accent = isDebuff ? "#ff6b7a" : "#76e39c"
+  const remaining = typeof status.remaining === "number" ? String(status.remaining) : null
+
+  return (
+    <Pressable onPress={() => onPress(status)} style={[styles.statusChip, { borderColor: accent }] as any}>
+      {Icon ? <Icon size={16} color={accent} /> : <Text style={[styles.statusName, { color: accent }]}>{status.name}</Text>}
+      {remaining ? <Text style={[styles.statusValue, { color: accent }]}>{remaining}</Text> : null}
+    </Pressable>
+  )
+})
 
 function StatLine({ Icon, value, max, barColor, accentColor }: { Icon: React.ComponentType<{ size?: number; color?: string }>; value: number; max: number; barColor: string; accentColor?: string }) {
   const immediate = useSharedValue(value)
@@ -703,12 +761,11 @@ function StatLine({ Icon, value, max, barColor, accentColor }: { Icon: React.Com
   )
 }
 
-function HandCard({
+const HandCard = React.memo(function HandCard({
   card,
   def,
   angle,
   shiftTarget,
-  selectedId,
   isSelected,
   hasSelection,
   isAnimating,
@@ -717,11 +774,13 @@ function HandCard({
   playable,
   cardAnimTarget,
   onAnimComplete,
-  onSelect,
-  onDeselect,
-  onHover,
-  onRelease,
-  onLongPress,
+  onSelectCard,
+  onDeselectCard,
+  onReleaseCard,
+  onLongPressCard,
+  hoverTargetSV,
+  enemyLaneBoxSV,
+  enemyTileBoxSV,
 }: {
   card: CardInstance
   def?: CardDefinition
@@ -729,7 +788,6 @@ function HandCard({
   total: number
   angle: number
   shiftTarget: number
-  selectedId: string | null
   isSelected: boolean
   hasSelection: boolean
   isAnimating: boolean
@@ -738,11 +796,13 @@ function HandCard({
   playable: boolean
   cardAnimTarget?: { x: number; y: number; scale: number; opacity: number; duration: number }
   onAnimComplete: (uid: string) => void
-  onSelect: () => void
-  onDeselect: () => void
-  onHover: (x: number, y: number) => void
-  onRelease: (uid: string, x: number, y: number) => void
-  onLongPress: () => void
+  onSelectCard: (uid: string) => void
+  onDeselectCard: () => void
+  onReleaseCard: (uid: string, x: number, y: number) => void
+  onLongPressCard: (def?: CardDefinition) => void
+  hoverTargetSV: SharedValue<HoverTargetValue>
+  enemyLaneBoxSV: SharedValue<LayoutRectangle | null>
+  enemyTileBoxSV: SharedValue<LayoutRectangle | null>
 }) {
   const shift = useSharedValue(shiftTarget)
   const lift = useSharedValue(0)
@@ -806,7 +866,15 @@ function HandCard({
       if (isAnimating) return
       dragX.value = event.translationX
       dragY.value = event.translationY
-      runOnJS(onHover)(event.absoluteX, event.absoluteY)
+      const tileBox = enemyTileBoxSV.value
+      const laneBox = enemyLaneBoxSV.value
+      let nextHover: HoverTargetValue = 0
+      if (tileBox && event.absoluteX >= tileBox.x && event.absoluteX <= tileBox.x + tileBox.width && event.absoluteY >= tileBox.y && event.absoluteY <= tileBox.y + tileBox.height) {
+        nextHover = 1
+      } else if (laneBox && event.absoluteX >= laneBox.x && event.absoluteX <= laneBox.x + laneBox.width && event.absoluteY >= laneBox.y && event.absoluteY <= laneBox.y + laneBox.height) {
+        nextHover = 2
+      }
+      if (hoverTargetSV.value !== nextHover) hoverTargetSV.value = nextHover
     })
     .onEnd((event) => {
       if (isAnimating) return
@@ -814,13 +882,14 @@ function HandCard({
       dragX.value = withTiming(0, { duration: 120 * ANIM_SPEED, easing: Easing.out(Easing.quad) })
       dragY.value = withTiming(0, { duration: 120 * ANIM_SPEED, easing: Easing.out(Easing.quad) })
       if (dist < 4) {
-        runOnJS(isSelected ? onDeselect : onSelect)()
+        runOnJS(isSelected ? onDeselectCard : onSelectCard)(card.uid)
         return
       }
-      runOnJS(onRelease)(card.uid, event.absoluteX, event.absoluteY)
+      runOnJS(onReleaseCard)(card.uid, event.absoluteX, event.absoluteY)
     })
     .onFinalize(() => {
       isDragging.value = false
+      hoverTargetSV.value = 0
     })
 
   return (
@@ -834,20 +903,18 @@ function HandCard({
           locked={locked}
           playable={playable}
           description={def?.description ?? ""}
-          onPress={isSelected ? onDeselect : onSelect}
-          onLongPress={onLongPress}
+          onPress={() => (isSelected ? onDeselectCard() : onSelectCard(card.uid))}
+          onLongPress={() => onLongPressCard(def)}
         />
       </Animated.View>
     </GestureDetector>
   )
-}
+})
 
-function MiniCard({ name, type, cost, selected, locked, playable, description, onPress, onLongPress }: { name: string; type: string; cost: number; selected: boolean; locked: boolean; playable: boolean; description: string; onPress: () => void; onLongPress?: () => void }) {
+const MiniCard = React.memo(function MiniCard({ name, type, cost, selected, locked, playable, description, onPress, onLongPress }: { name: string; type: string; cost: number; selected: boolean; locked: boolean; playable: boolean; description: string; onPress: () => void; onLongPress?: () => void }) {
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} style={[styles.miniCard, selected ? styles.miniCardSelected : null, locked ? styles.miniCardLocked : null]}>
-      <Canvas style={StyleSheet.absoluteFill}>
-        <RoundedRect x={10} y={10} width={24} height={24} r={8} color={locked ? "#5c5c68" : "#2e74ff"} />
-      </Canvas>
+      <View style={[styles.cardBadge, { backgroundColor: locked ? "#5c5c68" : "#2e74ff" }]} />
       <Text style={styles.cardCost}>{locked ? "X" : cost}</Text>
       <View style={styles.cardTop}>
         <Text numberOfLines={1} style={styles.cardName}>{name}</Text>
@@ -857,7 +924,7 @@ function MiniCard({ name, type, cost, selected, locked, playable, description, o
       {locked ? <Text style={styles.cardLock}>Locked</Text> : null}
     </Pressable>
   )
-}
+})
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#05050b" },
@@ -908,6 +975,7 @@ const styles = StyleSheet.create({
   miniCard: { width: 140, height: 180, borderRadius: 14, overflow: "hidden", padding: 10, gap: 6, borderWidth: 1, borderColor: "#1f2738", backgroundColor: "#0d101c" },
   miniCardSelected: { borderColor: "#4ea1ff", shadowColor: "#4ea1ff", shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
   miniCardLocked: { opacity: 0.6 },
+  cardBadge: { position: "absolute", top: 10, left: 10, width: 24, height: 24, borderRadius: 8 },
   cardCost: { position: "absolute", top: 12, left: 16, color: "#fff", fontFamily: FACES.EXTRABOLD, fontSize: 14 },
   cardTop: { paddingTop: 8 },
   cardName: { color: "#fff", fontFamily: FACES.BOLD, fontSize: 13, marginLeft: 30, marginTop: -5 },

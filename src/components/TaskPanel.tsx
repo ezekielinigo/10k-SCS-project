@@ -1,5 +1,5 @@
-import React, { useState } from "react"
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native"
+import React, { useCallback, useState } from "react"
+import { View, Text, StyleSheet, Pressable, FlatList } from "react-native"
 import { useGame } from "@shared/game/engine/GameContext"
 import { describeTask } from "@shared/game/generators/taskLookup"
 import fontConfig from "@shared/utils/fontConfig"
@@ -9,7 +9,7 @@ export default function TaskPanel({ onOpenInk }: { onOpenInk?: (taskId: string, 
   const { state, dispatch } = useGame()
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const handleResolve = (taskId: string) => {
+  const handleResolve = useCallback((taskId: string) => {
     const task = state.tasks.find(t => t.id === taskId)
     if (!task) return
 
@@ -30,34 +30,43 @@ export default function TaskPanel({ onOpenInk }: { onOpenInk?: (taskId: string, 
       dispatch({ type: "ADD_LOG", text: `Finished ${taskId}.` })
     }
   }
+  , [dispatch, onOpenInk, state.tasks])
+
+  const renderTaskItem = useCallback(({ item }: { item: (typeof state.tasks)[number] }) => {
+    const presentation = describeTask(item)
+    const isExpanded = expandedId === item.id
+    return (
+      <Pressable
+        onPress={() => setExpandedId(isExpanded ? null : item.id)}
+        style={[styles.card, isExpanded && styles.cardExpanded, item.resolved && styles.cardResolved]}
+      >
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text numberOfLines={1} style={styles.cardTitle}>{presentation.title}</Text>
+          {isExpanded ? <Text style={styles.cardBody}>{presentation.description}</Text> : null}
+        </View>
+        {isExpanded && !item.resolved ? (
+          <Pressable onPress={() => handleResolve(item.id)} style={[styles.resolveBtn, item.taskGraphId ? styles.playBtn : styles.doneBtn]}>
+            <Text style={styles.resolveText}>{item.taskGraphId ? "Play" : "Done"}</Text>
+          </Pressable>
+        ) : null}
+      </Pressable>
+    )
+  }, [expandedId, handleResolve])
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Tasks this month</Text>
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-        {state.tasks.length === 0 && <Text style={styles.empty}>No tasks yet. Advance month.</Text>}
-        {state.tasks.map(task => {
-          const presentation = describeTask(task)
-          const isExpanded = expandedId === task.id
-          return (
-            <Pressable
-              key={task.id}
-              onPress={() => setExpandedId(isExpanded ? null : task.id)}
-              style={[styles.card, isExpanded && styles.cardExpanded, task.resolved && styles.cardResolved]}
-            >
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text numberOfLines={1} style={styles.cardTitle}>{presentation.title}</Text>
-                {isExpanded ? <Text style={styles.cardBody}>{presentation.description}</Text> : null}
-              </View>
-              {isExpanded && !task.resolved ? (
-                <Pressable onPress={() => handleResolve(task.id)} style={[styles.resolveBtn, task.taskGraphId ? styles.playBtn : styles.doneBtn]}>
-                  <Text style={styles.resolveText}>{task.taskGraphId ? "Play" : "Done"}</Text>
-                </Pressable>
-              ) : null}
-            </Pressable>
-          )
-        })}
-      </ScrollView>
+      <FlatList
+        data={state.tasks}
+        renderItem={renderTaskItem}
+        keyExtractor={(item) => item.id}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
+        removeClippedSubviews
+        initialNumToRender={10}
+        windowSize={7}
+        ListEmptyComponent={<Text style={styles.empty}>No tasks yet. Advance month.</Text>}
+      />
     </View>
   )
 }

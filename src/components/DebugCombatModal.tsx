@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react"
-import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
+import { FlatList, StyleSheet, Text, View, Pressable } from "react-native"
 import ModalCard from "./ModalCard"
 import { useGame } from "@shared/game/engine/GameContext"
 import {
@@ -11,7 +11,7 @@ import {
   enemyPing,
 } from "@shared/game/engine/combatEngine"
 import type { CardDefinition, CardInstance, CombatState, StatusInstance } from "@shared/game/engine/combatTypes"
-import CARDS from "@shared/game/content/cards"
+import { getCardLibraryMap } from "@shared/game/services/cardLibrary"
 import fontConfig from "@shared/utils/fontConfig"
 import { STATUS_ICON_MAP } from "@shared/utils/ui"
 const FACES = fontConfig.fontFaceNames()
@@ -47,6 +47,8 @@ const DEFAULT_SKILLS = {
   },
 }
 
+const DEBUFF_IDS = new Set(["skip_next_turn", "hand_size_minus_one", "blood_tax"])
+
 type Phase = "player" | "enemy"
 
 type LogEntry = { id: string; text: string }
@@ -72,7 +74,7 @@ export default function DebugCombatModal({ open, onClose }: { open: boolean; onC
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [logOpen, setLogOpen] = useState(false)
 
-  const cardMap = useMemo(() => CARDS.reduce<Record<string, CardDefinition>>((acc, c) => { acc[c.id] = c; return acc }, {}), [])
+  const cardMap = useMemo(() => getCardLibraryMap(), [])
 
   const addLog = (text: string) => {
     setLogs((prev) => limitLogs([...prev, { id: makeId(), text }]))
@@ -167,6 +169,29 @@ export default function DebugCombatModal({ open, onClose }: { open: boolean; onC
   const selectedDef = selectedCard ? cardMap[selectedCard.cardId] : undefined
   const playable = combat && selectedCard && selectedDef ? isPlayable(combat, selectedCard, selectedDef, phase) : false
 
+  const renderHandItem = useCallback(({ item }: { item: CardInstance }) => {
+    const def = cardMap[item.cardId]
+    const cost = def ? cardCost(item, def) : 0
+    const locked = def ? def.tags.some((t) => combat.tagLocks.includes(t)) : false
+    const canPlay = def ? isPlayable(combat, item, def, phase) : false
+    return (
+      <Pressable
+        style={[styles.handItem, selected === item.uid ? styles.handItemSelected : null, !canPlay ? styles.handItemDisabled : null]}
+        onPress={() => setSelected(item.uid)}
+      >
+        <Text style={styles.cardName}>{def?.name ?? item.cardId}</Text>
+        <Text style={styles.cardMeta}>Cost {cost} · {def?.type ?? "?"} · {def?.rarity ?? ""}</Text>
+        <Text style={styles.cardMeta}>Tags {def?.tags.join(", ") ?? "-"}</Text>
+        <Text style={styles.cardDesc}>{def?.description ?? ""}</Text>
+        {locked ? <Text style={styles.lockedText}>Tag locked</Text> : null}
+      </Pressable>
+    )
+  }, [cardMap, combat, phase, selected])
+
+  const renderLogItem = useCallback(({ item }: { item: { id: string; text: string } }) => (
+    <Text style={styles.logText}>• {item.text}</Text>
+  ), [])
+
   return (
     <ModalCard open={open} onClose={onClose} title="Combat Debug" maxHeight="90%">
       {combat ? (
@@ -207,27 +232,16 @@ export default function DebugCombatModal({ open, onClose }: { open: boolean; onC
           <View style={styles.handHeader}>
             <Text style={styles.sectionTitle}>Hand ({counts.hand})</Text>
           </View>
-          <ScrollView style={styles.handList}>
-            {combat.zones.hand.map((card) => {
-              const def = cardMap[card.cardId]
-              const cost = def ? cardCost(card, def) : 0
-              const locked = def ? def.tags.some((t) => combat.tagLocks.includes(t)) : false
-              const canPlay = def ? isPlayable(combat, card, def, phase) : false
-              return (
-                <Pressable
-                  key={card.uid}
-                  style={[styles.handItem, selected === card.uid ? styles.handItemSelected : null, !canPlay ? styles.handItemDisabled : null]}
-                  onPress={() => setSelected(card.uid)}
-                >
-                  <Text style={styles.cardName}>{def?.name ?? card.cardId}</Text>
-                  <Text style={styles.cardMeta}>Cost {cost} · {def?.type ?? "?"} · {def?.rarity ?? ""}</Text>
-                  <Text style={styles.cardMeta}>Tags {def?.tags.join(", ") ?? "-"}</Text>
-                  <Text style={styles.cardDesc}>{def?.description ?? ""}</Text>
-                  {locked ? <Text style={styles.lockedText}>Tag locked</Text> : null}
-                </Pressable>
-              )
-            })}
-          </ScrollView>
+          <FlatList
+            data={combat.zones.hand}
+            renderItem={renderHandItem}
+            keyExtractor={(item) => item.uid}
+            style={styles.handList}
+            contentContainerStyle={{ paddingBottom: 6 }}
+            removeClippedSubviews
+            initialNumToRender={10}
+            windowSize={5}
+          />
 
           <View style={styles.footer}>
             <View style={styles.preview}>
@@ -259,11 +273,15 @@ export default function DebugCombatModal({ open, onClose }: { open: boolean; onC
           {logOpen ? (
             <View style={styles.logBox}>
               <Text style={styles.sectionTitle}>Event Log</Text>
-              <ScrollView style={styles.logList}>
-                {logs.map((l) => (
-                  <Text key={l.id} style={styles.logText}>• {l.text}</Text>
-                ))}
-              </ScrollView>
+              <FlatList
+                data={logs}
+                renderItem={renderLogItem}
+                keyExtractor={(item) => item.id}
+                style={styles.logList}
+                removeClippedSubviews
+                initialNumToRender={12}
+                windowSize={5}
+              />
             </View>
           ) : null}
         </View>
@@ -275,7 +293,6 @@ export default function DebugCombatModal({ open, onClose }: { open: boolean; onC
 function StatusList({ statuses }: { statuses: CombatState["player"]["statuses"] }) {
   if (!statuses?.length) return <Text style={styles.cardMeta}>No statuses</Text>
   const [tooltip, setTooltip] = React.useState<StatusInstance | null>(null)
-  const DEBUFF_IDS = new Set(["skip_next_turn", "hand_size_minus_one", "blood_tax"])
   return (
     <View style={styles.statusRow}>
       {statuses.map((s) => {
