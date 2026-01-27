@@ -172,8 +172,8 @@ export default function DebugCombatModal({ open, onClose }: { open: boolean; onC
   const renderHandItem = useCallback(({ item }: { item: CardInstance }) => {
     const def = cardMap[item.cardId]
     const cost = def ? cardCost(item, def) : 0
-    const locked = def ? def.tags.some((t) => combat.tagLocks.includes(t)) : false
-    const canPlay = def ? isPlayable(combat, item, def, phase) : false
+    const locked = def && combat ? def.tags.some((t) => combat.tagLocks.includes(t)) : false
+    const canPlay = def && combat ? isPlayable(combat, item, def, phase) : false
     return (
       <Pressable
         style={[styles.handItem, selected === item.uid ? styles.handItemSelected : null, !canPlay ? styles.handItemDisabled : null]}

@@ -3,7 +3,11 @@ import fontConfig from "@shared/utils/fontConfig"
 
 export const FACES = fontConfig.fontFaceNames()
 export const EQUIP_SLOTS = ["accessory", "top", "bottom", "primary", "secondary", "utility", "trash"] as const
-export const CYBER_SLOTS = ["neural", "ocular", "skeletal", "dermal", "systems", "external", "trash"] as const
+export const CYBER_BUCKETS = [
+	{ key: "combatInterface", label: "Combat Interface" },
+	{ key: "vitalSystems", label: "Vital Systems" },
+	{ key: "auxiliaries", label: "Auxiliaries" },
+] as const
 export const ITEM_ICON_SIZE = 34
 export const SELECTION_ICON_SIZE = 56
 export const MINI_CARD_SIZE = 44

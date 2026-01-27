@@ -4,7 +4,8 @@ import type {
   PendingTaskRun,
   EquipmentSlot,
   WeaponSlot,
-  CyberSlot,
+  CyberwareSlot,
+  CyberwareSlotKey,
 } from "../types"
 import { getJobById, getCareerForJobId } from "../content/careers"
 import { getAffiliationById } from "../content/affiliations"
@@ -40,8 +41,8 @@ export type GameAction =
   | { type: "GRANT_ITEM"; templateId: string; ownerId?: string; quantity?: number }
   | { type: "CONSUME_ITEM"; instanceId: string; quantity?: number }
   | { type: "REMOVE_ITEM"; instanceId: string }
-  | { type: "EQUIP_ITEM"; instanceId: string; slot: EquipmentSlot | WeaponSlot | CyberSlot }
-  | { type: "UNEQUIP_SLOT"; slot: EquipmentSlot | WeaponSlot | CyberSlot }
+  | { type: "EQUIP_ITEM"; instanceId: string; slot: EquipmentSlot | WeaponSlot | CyberwareSlot | CyberwareSlotKey }
+  | { type: "UNEQUIP_SLOT"; slot: EquipmentSlot | WeaponSlot | CyberwareSlotKey }
   | { type: "RECOMPUTE_LOADOUT" }
 
 const randId = () => Math.random().toString(36).slice(2)

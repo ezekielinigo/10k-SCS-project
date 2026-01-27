@@ -1,7 +1,7 @@
 import React, { createContext, useContext } from "react"
 import type { SkImage } from "@shopify/react-native-skia"
 import type { CardDefinition } from "@shared/game/engine/combatTypes"
-import type { CyberSlot, EquipmentSlot, ItemTemplate, WeaponSlot } from "@shared/game/types"
+import type { CyberwareSlotKey, EquipmentSlot, ItemTemplate, WeaponSlot } from "@shared/game/types"
 import type { DeckEntry, DeckSortMode, DeckViewMode, InventorySortMode, SelectionViewMode, SlotFilter } from "./profilePanelTypes"
 
 type ProfilePanelContextValue = {
@@ -21,12 +21,12 @@ type ProfilePanelContextValue = {
   slotFilter: SlotFilter
   filteredInventory: { instance: any; template: ItemTemplate }[]
   selectedId: string | null
-  equippedSlotByItem: Map<string, EquipmentSlot | WeaponSlot | CyberSlot>
+  equippedSlotByItem: Map<string, EquipmentSlot | WeaponSlot | CyberwareSlotKey>
   handleItemSelect: (itemId: string) => void
   handleEquipToggle: (itemId: string, template?: ItemTemplate | null) => void
-  equippedBySlot: Map<EquipmentSlot | WeaponSlot | CyberSlot, string>
+  equippedBySlot: Map<EquipmentSlot | WeaponSlot | CyberwareSlotKey, string>
   templateByInstance: Map<string, ItemTemplate>
-  handleSlotPress: (slotId: EquipmentSlot | WeaponSlot | CyberSlot | "trash") => void
+  handleSlotPress: (slotId: EquipmentSlot | WeaponSlot | CyberwareSlotKey | "trash") => void
   deckEntries: DeckEntry[]
   deckView: DeckViewMode
   deckSortMode: DeckSortMode

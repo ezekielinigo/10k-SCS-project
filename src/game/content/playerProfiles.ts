@@ -1,10 +1,10 @@
-import type { CyberSlot, EquipmentSlot, Gender, SkillBlock, VitalBlock, WeaponSlot } from "../types"
+import type { CyberwareSlotKey, EquipmentSlot, Gender, SkillBlock, VitalBlock, WeaponSlot } from "../types"
 import { listItems } from "./items"
 
 // Seed data for creating a PlayerState plus some optional starting hooks
 export type StartingInventoryItem = {
   templateId: string
-  slot?: EquipmentSlot | WeaponSlot | CyberSlot
+  slot?: EquipmentSlot | WeaponSlot | CyberwareSlotKey
 }
 
 export type PlayerProfile = {
@@ -21,6 +21,8 @@ export type PlayerProfile = {
   startingAffiliationId?: string | null
   startingInventory?: StartingInventoryItem[]
 }
+
+export const DEFAULT_STARTING_INVENTORY: StartingInventoryItem[] = []
 
 const zeroSubSkills: SkillBlock["subSkills"] = {
   athletics: 0,

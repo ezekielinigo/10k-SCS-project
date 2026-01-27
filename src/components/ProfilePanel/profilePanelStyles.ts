@@ -10,6 +10,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#1d2435",
     position: "relative",
+    justifyContent: "space-between",
   },
   content: {
     flex: 1,
@@ -51,8 +52,8 @@ const styles = StyleSheet.create({
   selectionStats: { gap: 3 },
   selectionStatText: { color: "#8eb6ff", fontSize: 11 },
   selectionButton: {
-    width: 36,
-    height: 36,
+    width: 64,
+    height: 64,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#2b3a55",
@@ -190,6 +191,34 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 8,
   },
+  cyberRowWrap: {
+    width: "100%",
+  },
+  cyberLabelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cyberSlotsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cyberBucket: {
+    alignItems: "center",
+  },
+  cyberBucketLabel: {
+    color: "#9aa6bf",
+    fontSize: 6,
+    textAlign: "center",
+    fontFamily: FACES.BOLD,
+  },
+  cyberBucketSlots: {
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  cyberSlotWrap: {
+    alignItems: "center",
+    width: 48,
+  },
   equipSlotWrap: {
     alignItems: "center",
     width: 48,
@@ -215,8 +244,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   trashSlot: {
-    borderColor: "#ff4d4d",
-    backgroundColor: "#2d0b0b",
+    backgroundColor: "#ff4d4d",
+    borderColor: "#2d0b0b",
   },
   slotIconWrap: {
     width: ITEM_ICON_SIZE + 4,

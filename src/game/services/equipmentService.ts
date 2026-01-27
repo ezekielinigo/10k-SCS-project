@@ -8,16 +8,24 @@ import type {
   WeaponSlot,
   WeaponSlotPolicy,
   Loadout,
+  CyberwareSlot,
+  CyberwareSlotKey,
+  CyberwareSlotIndex,
 } from "../types"
 import { findEntryByInstanceId, removeItemInstance } from "./inventoryService"
 
 const equipmentSlots: EquipmentSlot[] = ["accessory", "top", "bottom", "utility", "trash"]
 const weaponSlots: WeaponSlot[] = ["primary", "secondary"]
-const cyberSlots = ["neural", "ocular", "skeletal", "dermal", "systems", "external"] as const
+const cyberwareBuckets = ["combatInterface", "vitalSystems", "auxiliaries"] as const
 
 type SlotKind = "equipment" | "weapon" | "cyber"
 
 const randomId = () => Math.random().toString(36).slice(2)
+
+const normalizeCyberBucket = (bucket?: (string | null)[]): [string | null, string | null] => [
+  bucket?.[0] ?? null,
+  bucket?.[1] ?? null,
+]
 
 const ensureLoadout = (loadout?: Loadout): Loadout => ({
   equipment: {
@@ -34,20 +42,34 @@ const ensureLoadout = (loadout?: Loadout): Loadout => ({
     ...(loadout?.weapons ?? {}),
   },
   cyber: {
-    neural: null,
-    ocular: null,
-    skeletal: null,
-    dermal: null,
-    systems: null,
-    external: null,
-    ...(loadout?.cyber ?? {}),
+    combatInterface: normalizeCyberBucket(loadout?.cyber?.combatInterface),
+    vitalSystems: normalizeCyberBucket(loadout?.cyber?.vitalSystems),
+    auxiliaries: normalizeCyberBucket(loadout?.cyber?.auxiliaries),
   },
 })
 
-const resolveSlotKind = (slot: EquipmentSlot | WeaponSlot | (typeof cyberSlots)[number]): SlotKind | null => {
+const isCyberwareBucket = (slot: string): slot is CyberwareSlot =>
+  (cyberwareBuckets as readonly string[]).includes(slot)
+
+const isCyberwareSlotKey = (slot: string): slot is CyberwareSlotKey => {
+  const [bucket, index] = slot.split(":")
+  if (!bucket || index === undefined) return false
+  if (!isCyberwareBucket(bucket)) return false
+  return index === "0" || index === "1"
+}
+
+const parseCyberwareSlotKey = (slot: CyberwareSlotKey): { bucket: CyberwareSlot; index: CyberwareSlotIndex } => {
+  const [bucket, index] = slot.split(":")
+  return { bucket: bucket as CyberwareSlot, index: (index === "1" ? 1 : 0) as CyberwareSlotIndex }
+}
+
+const makeCyberwareSlotKey = (bucket: CyberwareSlot, index: CyberwareSlotIndex): CyberwareSlotKey =>
+  `${bucket}:${index}` as CyberwareSlotKey
+
+const resolveSlotKind = (slot: EquipmentSlot | WeaponSlot | CyberwareSlot | CyberwareSlotKey): SlotKind | null => {
   if ((equipmentSlots as string[]).includes(slot)) return "equipment"
   if ((weaponSlots as string[]).includes(slot)) return "weapon"
-  if ((cyberSlots as readonly string[]).includes(slot)) return "cyber"
+  if (typeof slot === "string" && (isCyberwareBucket(slot) || isCyberwareSlotKey(slot))) return "cyber"
   return null
 }
 
@@ -61,7 +83,7 @@ const policyAllows = (policy: WeaponSlotPolicy | undefined, slot: WeaponSlot) =>
 export const canEquip = (
   state: GameState,
   instanceId: string,
-  slot: EquipmentSlot | WeaponSlot | (typeof cyberSlots)[number],
+  slot: EquipmentSlot | WeaponSlot | CyberwareSlot | CyberwareSlotKey,
 ): { ok: boolean; reason?: string } => {
   const instance = state.itemInstances?.[instanceId]
   if (!instance) return { ok: false, reason: "Missing instance" }
@@ -82,7 +104,8 @@ export const canEquip = (
     }
     case "cyber": {
       if (template.kind !== "cybernetic") return { ok: false, reason: "Not cybernetic" }
-      if (template.equipSlot !== slot) return { ok: false, reason: "Slot mismatch" }
+      const bucket = isCyberwareSlotKey(slot as string) ? parseCyberwareSlotKey(slot as CyberwareSlotKey).bucket : (slot as CyberwareSlot)
+      if (!bucket || template.equipSlot !== bucket) return { ok: false, reason: "Slot mismatch" }
       return { ok: true }
     }
     case "weapon": {
@@ -100,7 +123,7 @@ export const canEquip = (
 export const equipItem = (
   state: GameState,
   instanceId: string,
-  slot: EquipmentSlot | WeaponSlot | (typeof cyberSlots)[number],
+  slot: EquipmentSlot | WeaponSlot | CyberwareSlot | CyberwareSlotKey,
 ): GameState => {
   // allow trash specially
   const validation = canEquip(state, instanceId, slot)
@@ -116,12 +139,28 @@ export const equipItem = (
   const entry = findEntryByInstanceId(state, instanceId)
   const ownerId = entry?.ownerId ?? state.player.id
 
+  const resolveCyberSlotKey = (l: Loadout): CyberwareSlotKey | null => {
+    if (slotKind !== "cyber") return null
+    if (isCyberwareSlotKey(slot as string)) return slot as CyberwareSlotKey
+    const bucket = slot as CyberwareSlot
+    if (!bucket) return null
+    const firstEmpty = l.cyber[bucket].findIndex((id) => !id)
+    const index = (firstEmpty >= 0 ? firstEmpty : 0) as CyberwareSlotIndex
+    return makeCyberwareSlotKey(bucket, index)
+  }
+
+  const resolvedCyberSlotKey = resolveCyberSlotKey(loadout)
+
   const updateSlot = (setter: (l: Loadout) => Loadout) => setter(loadout)
   const nextLoadout = updateSlot((l) => {
     const clone: Loadout = {
       equipment: { ...l.equipment },
       weapons: { ...l.weapons },
-      cyber: { ...l.cyber },
+      cyber: {
+        combatInterface: [...l.cyber.combatInterface] as [string | null, string | null],
+        vitalSystems: [...l.cyber.vitalSystems] as [string | null, string | null],
+        auxiliaries: [...l.cyber.auxiliaries] as [string | null, string | null],
+      },
     }
 
     // Ensure the instance is not present in any other slot before assigning
@@ -133,14 +172,19 @@ export const equipItem = (
       const key = k as WeaponSlot
       if (clone.weapons[key] === instanceId) clone.weapons[key] = null
     })
-    Object.keys(clone.cyber).forEach((k) => {
-      const key = k as (typeof cyberSlots)[number]
-      if (clone.cyber[key] === instanceId) clone.cyber[key] = null
+    Object.entries(clone.cyber).forEach(([bucket, slots]) => {
+      slots.forEach((id, index) => {
+        if (id === instanceId) slots[index] = null
+      })
+      clone.cyber[bucket as CyberwareSlot] = slots as [string | null, string | null]
     })
 
     if (slotKind === "equipment") clone.equipment[slot as EquipmentSlot] = instanceId
     if (slotKind === "weapon") clone.weapons[slot as WeaponSlot] = instanceId
-    if (slotKind === "cyber") clone.cyber[slot as (typeof cyberSlots)[number]] = instanceId
+    if (slotKind === "cyber" && resolvedCyberSlotKey) {
+      const { bucket, index } = parseCyberwareSlotKey(resolvedCyberSlotKey)
+      clone.cyber[bucket][index] = instanceId
+    }
     return clone
   })
 
@@ -151,7 +195,11 @@ export const equipItem = (
       ? state.loadout?.equipment?.[slot as EquipmentSlot] ?? null
       : slotKind === "weapon"
         ? state.loadout?.weapons?.[slot as WeaponSlot] ?? null
-        : state.loadout?.cyber?.[slot as (typeof cyberSlots)[number]] ?? null
+        : (() => {
+            if (!state.loadout?.cyber || !resolvedCyberSlotKey) return null
+            const { bucket, index } = parseCyberwareSlotKey(resolvedCyberSlotKey)
+            return state.loadout.cyber[bucket]?.[index] ?? null
+          })()
   if (occupantId) {
     const occEntry = findEntryByInstanceId(state, occupantId)
     if (occEntry) {
@@ -160,7 +208,10 @@ export const equipItem = (
   }
 
   if (entry) {
-    entries[entry.id] = { ...entry, slot }
+    const entrySlot = slotKind === "cyber"
+      ? (resolvedCyberSlotKey as CyberwareSlotKey)
+      : (slot as EquipmentSlot | WeaponSlot | CyberwareSlotKey)
+    entries[entry.id] = { ...entry, slot: entrySlot }
   } else {
     // instance without entry: create a passive entry to keep consistency
     const newEntryId = `${ownerId}__${instanceId}`
@@ -170,7 +221,9 @@ export const equipItem = (
       templateId: state.itemInstances?.[instanceId]?.templateId ?? "",
       instanceId,
       quantity: state.itemInstances?.[instanceId]?.quantity ?? 1,
-      slot,
+      slot: slotKind === "cyber"
+        ? (resolvedCyberSlotKey as CyberwareSlotKey)
+        : (slot as EquipmentSlot | WeaponSlot | CyberwareSlotKey),
     }
   }
 
@@ -188,7 +241,7 @@ export const equipItem = (
 
 export const unequipSlot = (
   state: GameState,
-  slot: EquipmentSlot | WeaponSlot | (typeof cyberSlots)[number],
+  slot: EquipmentSlot | WeaponSlot | CyberwareSlotKey,
 ): GameState => {
   const loadout = ensureLoadout(state.loadout)
   const slotKind = resolveSlotKind(slot)
@@ -197,12 +250,20 @@ export const unequipSlot = (
   let instanceId: string | null = null
   if (slotKind === "equipment") instanceId = loadout.equipment[slot as EquipmentSlot]
   if (slotKind === "weapon") instanceId = loadout.weapons[slot as WeaponSlot]
-  if (slotKind === "cyber") instanceId = loadout.cyber[slot as (typeof cyberSlots)[number]]
+  if (slotKind === "cyber") {
+    if (!isCyberwareSlotKey(slot as string)) return state
+    const { bucket, index } = parseCyberwareSlotKey(slot as CyberwareSlotKey)
+    instanceId = loadout.cyber[bucket][index]
+  }
 
   const nextLoadout = { ...loadout }
   if (slotKind === "equipment") nextLoadout.equipment[slot as EquipmentSlot] = null
   if (slotKind === "weapon") nextLoadout.weapons[slot as WeaponSlot] = null
-  if (slotKind === "cyber") nextLoadout.cyber[slot as (typeof cyberSlots)[number]] = null
+  if (slotKind === "cyber") {
+    if (!isCyberwareSlotKey(slot as string)) return state
+    const { bucket, index } = parseCyberwareSlotKey(slot as CyberwareSlotKey)
+    nextLoadout.cyber[bucket][index] = null
+  }
 
   const entries = { ...(state.inventoryEntries ?? {}) }
   if (instanceId) {
@@ -220,7 +281,7 @@ export const collectEquippedEffects = (
   const ids = [
     ...Object.values(loadout.equipment),
     ...Object.values(loadout.weapons),
-    ...Object.values(loadout.cyber),
+    ...Object.values(loadout.cyber).flat(),
   ].filter(Boolean) as string[]
 
   const effects: ItemEffect[] = []
@@ -267,13 +328,13 @@ export const recomputeDerivedLoadout = (state: GameState): GameState => {
 export const equipAndRecompute = (
   state: GameState,
   instanceId: string,
-  slot: EquipmentSlot | WeaponSlot | (typeof cyberSlots)[number],
+  slot: EquipmentSlot | WeaponSlot | CyberwareSlot | CyberwareSlotKey,
 ): GameState => recomputeDerivedLoadout(equipItem(state, instanceId, slot))
 
 // convenience: unequip and recompute in one call
 export const unequipAndRecompute = (
   state: GameState,
-  slot: EquipmentSlot | WeaponSlot | (typeof cyberSlots)[number],
+  slot: EquipmentSlot | WeaponSlot | CyberwareSlotKey,
 ): GameState => recomputeDerivedLoadout(unequipSlot(state, slot))
 
 export const createLoadoutEntry = (): Loadout => ({
@@ -289,12 +350,9 @@ export const createLoadoutEntry = (): Loadout => ({
     secondary: null,
   },
   cyber: {
-    neural: null,
-    ocular: null,
-    skeletal: null,
-    dermal: null,
-    systems: null,
-    external: null,
+    combatInterface: [null, null],
+    vitalSystems: [null, null],
+    auxiliaries: [null, null],
   },
 })
 
@@ -309,7 +367,7 @@ export const grantAndEquip = (
   state: GameState,
   templateId: string,
   ownerId: string,
-  slot: EquipmentSlot | WeaponSlot | (typeof cyberSlots)[number],
+  slot: EquipmentSlot | WeaponSlot | CyberwareSlot | CyberwareSlotKey,
 ): GameState => {
   const entryId = randomId()
   // create a minimal instance + entry if one is missing

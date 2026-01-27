@@ -1,11 +1,11 @@
 import React, { useCallback } from "react"
 import { FlatList, Image, Pressable, Text, View } from "react-native"
 import { Feather } from "@expo/vector-icons"
-import type { CyberSlot, EquipmentSlot, ItemTemplate, WeaponSlot } from "@shared/game/types"
+import type { ItemTemplate } from "@shared/game/types"
 import { RARITY_COLORS } from "@shared/utils/ui"
 import iconDefault from "../../assets/icon_default.png"
 import styles from "./profilePanelStyles"
-import { formatItemKindLabel, resolveItemIcon, resolveSlotIcon } from "./profilePanelUtils"
+import { formatItemKindLabel, formatSlotLabel, resolveItemIcon, resolveSlotIcon } from "./profilePanelUtils"
 import { useProfilePanel } from "./ProfilePanelContext"
 
 type InventoryItem = { instance: any; template: ItemTemplate }
@@ -60,8 +60,8 @@ export default function InventoryList() {
         </Pressable>
         {slotFilter ? (
           <View style={styles.filterChip}>
-            <Feather name={resolveSlotIcon(slotFilter as any)} size={12} color="#cfe1ff" />
-            <Text style={styles.filterText}>{slotFilter}</Text>
+            <Feather name={resolveSlotIcon(slotFilter)} size={12} color="#cfe1ff" />
+            <Text style={styles.filterText}>{formatSlotLabel(slotFilter)}</Text>
           </View>
         ) : null}
       </View>

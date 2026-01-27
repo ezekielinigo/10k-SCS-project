@@ -22,7 +22,7 @@ export type Gender = "male" | "female"
 
 /**
  * ITEM SYSTEM
- */
+ * / 
 
 // rarity tiers used for drop rates and flavor
 export type ItemRarity = "common" | "uncommon" | "rare" | "unique"
@@ -36,14 +36,10 @@ export type EquipmentSlot = "accessory" | "top" | "bottom" | "utility" | "trash"
 // slots for weapons
 export type WeaponSlot = "primary" | "secondary"
 
-// slots for cybernetics
-export type CyberSlot =
-  | "neural"
-  | "ocular"
-  | "skeletal"
-  | "dermal"
-  | "systems"
-  | "external"
+// slots for cyberware (bucketed, 2 slots each)
+export type CyberwareSlot = "combatInterface" | "vitalSystems" | "auxiliaries"
+export type CyberwareSlotIndex = 0 | 1
+export type CyberwareSlotKey = `${CyberwareSlot}:${CyberwareSlotIndex}`
 
 // weapon policy for slot eligibility
 export type WeaponSlotPolicy = "either" | "primaryOnly" | "secondaryOnly"
@@ -115,6 +111,7 @@ export type NpcState = {
 export type DistrictState = {
   id: string
   name: string
+  description?: string
   security: number
   unrest: number
   economy: number
@@ -226,6 +223,42 @@ export type OutcomeTier =
   | "great_failure"
 
 export type Gender = "male" | "female"
+
+/** ITEM SYSTEM */
+
+// rarity tiers used for drop rates and flavor
+export type ItemRarity = "common" | "uncommon" | "rare" | "unique"
+
+// top-level item categories
+export type ItemKind = "equipment" | "cybernetic" | "weapon" | "consumable" | "misc"
+
+// slots for non-weapon equipment
+export type EquipmentSlot = "accessory" | "top" | "bottom" | "utility" | "trash"
+
+// slots for weapons
+export type WeaponSlot = "primary" | "secondary"
+
+// slots for cyberware (bucketed, 2 slots each)
+export type CyberwareSlot = "combatInterface" | "vitalSystems" | "auxiliaries"
+export type CyberwareSlotIndex = 0 | 1
+export type CyberwareSlotKey = `${CyberwareSlot}:${CyberwareSlotIndex}`
+
+// weapon policy for slot eligibility
+export type WeaponSlotPolicy = "either" | "primaryOnly" | "secondaryOnly"
+
+// simple reference types
+export type CardRef = string
+export type EffectRef = string
+
+// flexible effect payload for items (can be replaced with a richer effect engine later)
+export type ItemEffect = {
+  kind: "stat" | "faction" | "custom"
+  // partial deltas applied when equipped or consumed
+  vitals?: Partial<VitalBlock>
+  skills?: Partial<Omit<SkillBlock, "subSkills">> & { subSkills?: Partial<SkillBlock["subSkills"]> }
+  factionTags?: string[]
+  data?: Record<string, any>
+}
 
 /** EVERYTHING ABOUT THE PLAYER */
 
@@ -419,7 +452,7 @@ export type ItemTemplate = {
   // effects applied when equipped/consumed
   effects?: ItemEffect[]
   // slot binding for equipment/cybernetics
-  equipSlot?: EquipmentSlot | CyberSlot
+  equipSlot?: EquipmentSlot | CyberwareSlot
   // weapon-specific fields
   weaponSlotPolicy?: WeaponSlotPolicy
   weaponCards?: Partial<Record<WeaponSlot, CardRef[]>>
@@ -446,14 +479,14 @@ export type InventoryEntry = {
   templateId: string
   instanceId: string
   quantity: number
-  slot?: WeaponSlot | EquipmentSlot | CyberSlot | null
+  slot?: WeaponSlot | EquipmentSlot | CyberwareSlotKey | null
 }
 
 // mapping of equipped instanceIds by slot category
 export type Loadout = {
   equipment: Record<EquipmentSlot, string | null>
   weapons: Record<WeaponSlot, string | null>
-  cyber: Record<CyberSlot, string | null>
+  cyber: Record<CyberwareSlot, [string | null, string | null]>
 }
 
 export type DerivedLoadoutState = {
@@ -465,6 +498,7 @@ export type DerivedLoadoutState = {
 export type DistrictState = {
   id: string
   name: string
+  description?: string
   security: number
   unrest: number
   economy: number
@@ -492,6 +526,7 @@ export type TaskState = {
   resolved: boolean
   assignedNpcId?: string | null
   contextTags: Tag[]
+  metadata?: Record<string, any>
 }
 
 export type TaskChoice = {

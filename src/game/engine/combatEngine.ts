@@ -476,7 +476,10 @@ const testCondition = (cond: ConditionSpec | undefined, state: CombatState): boo
     case "always":
       return true
     case "statAtLeast":
-      return state.playerSkills[cond.key] >= cond.value
+      {
+        const value = state.playerSkills[cond.key]
+        return typeof value === "number" ? value >= cond.value : false
+      }
     case "handEmpty":
       return state.zones.hand.length === 0
     case "hasTagLock":
@@ -501,7 +504,10 @@ const testCondition = (cond: ConditionSpec | undefined, state: CombatState): boo
 const resolveAmount = (amount: number | { type: string; [key: string]: any }, state: CombatState): number => {
   if (typeof amount === "number") return amount
   const ref = amount as any
-  if (ref.type === "stat") return state.playerSkills[ref.key as keyof SkillBlock] ?? 0
+  if (ref.type === "stat") {
+    const value = state.playerSkills[ref.key as keyof SkillBlock]
+    return typeof value === "number" ? value : 0
+  }
   if (ref.type === "counter") return state.counters[ref.key as keyof CombatCounters] ?? 0
   if (ref.type === "counterTimes") {
     const base = state.counters[ref.key as keyof CombatCounters] ?? 0

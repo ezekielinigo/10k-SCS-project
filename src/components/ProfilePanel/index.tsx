@@ -6,7 +6,7 @@ import type { CardDefinition } from "@shared/game/engine/combatTypes"
 import { getCardLibraryMap, getCardSourceMap } from "@shared/game/services/cardLibrary"
 import { canEquip } from "@shared/game/services/equipmentService"
 import { listOwnerInventory } from "@shared/game/services/inventoryService"
-import type { CyberSlot, EquipmentSlot, ItemTemplate, WeaponSlot } from "@shared/game/types"
+import type { CyberwareSlot, CyberwareSlotKey, EquipmentSlot, ItemTemplate, WeaponSlot } from "@shared/game/types"
 import { RARITY_COLORS } from "@shared/utils/ui"
 import iconDefault from "../../assets/icon_default.png"
 import DeckTab from "./DeckTab"
@@ -67,7 +67,7 @@ export default function ProfilePanel() {
   const itemIconSkia = useImage(iconDefault)
 
   const equippedBySlot = useMemo(() => {
-    const map = new Map<EquipmentSlot | WeaponSlot | CyberSlot, string>()
+    const map = new Map<EquipmentSlot | WeaponSlot | CyberwareSlotKey, string>()
     Object.entries(gameState.loadout?.equipment ?? {}).forEach(([slotId, instanceId]) => {
       if (!instanceId) return
       if (slotId === "trash") return
@@ -77,9 +77,12 @@ export default function ProfilePanel() {
       if (!instanceId) return
       map.set(slotId as WeaponSlot, instanceId as string)
     })
-    Object.entries(gameState.loadout?.cyber ?? {}).forEach(([slotId, instanceId]) => {
-      if (!instanceId) return
-      map.set(slotId as CyberSlot, instanceId as string)
+    Object.entries(gameState.loadout?.cyber ?? {}).forEach(([bucket, slots]) => {
+      if (!Array.isArray(slots)) return
+      slots.forEach((instanceId, index) => {
+        if (!instanceId) return
+        map.set(`${bucket}:${index}` as CyberwareSlotKey, instanceId as string)
+      })
     })
     return map
   }, [gameState.loadout])
@@ -94,7 +97,7 @@ export default function ProfilePanel() {
   )
 
   const equippedSlotByItem = useMemo(() => {
-    const map = new Map<string, EquipmentSlot | WeaponSlot | CyberSlot>()
+    const map = new Map<string, EquipmentSlot | WeaponSlot | CyberwareSlotKey>()
     equippedBySlot.forEach((instanceId, slotId) => {
       map.set(instanceId, slotId)
     })
@@ -258,7 +261,7 @@ export default function ProfilePanel() {
     ])
   }, [dispatch, selectedId])
 
-  const handleSlotPress = useCallback((slotId: EquipmentSlot | WeaponSlot | CyberSlot | "trash") => {
+  const handleSlotPress = useCallback((slotId: EquipmentSlot | WeaponSlot | CyberwareSlotKey | "trash") => {
     if (slotId === "trash") {
       handleTrashPress()
       return
@@ -291,7 +294,7 @@ export default function ProfilePanel() {
     }
     if (!template) return
 
-    const tryEquip = (slot?: EquipmentSlot | WeaponSlot | CyberSlot | null) => {
+    const tryEquip = (slot?: EquipmentSlot | WeaponSlot | CyberwareSlot | CyberwareSlotKey | null) => {
       if (!slot || slot === "trash") return false
       const validation = canEquip(equipState, itemId, slot)
       if (!validation.ok) return false
@@ -304,7 +307,11 @@ export default function ProfilePanel() {
       return
     }
     if (template.kind === "cybernetic") {
-      tryEquip(template.equipSlot as CyberSlot)
+      if (slotFilter && slotFilter.includes(":")) {
+        tryEquip(slotFilter as CyberwareSlotKey)
+        return
+      }
+      tryEquip(template.equipSlot as CyberwareSlot)
       return
     }
     if (template.kind === "weapon") {

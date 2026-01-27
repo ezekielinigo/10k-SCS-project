@@ -6,7 +6,10 @@ export type LayerSelection = Record<ControlKey, number>
 export type PaletteSelection = Partial<Record<PaletteCategory, number>>
 
 // Build available character options from asset folders (same strategy used in DebugAvatarModal)
-const modules = import.meta.glob("../assets/characters/**/*.{png,jpg,jpeg,webp,svg}", { eager: true, import: "default" }) as Record<string, string>
+const modules = (import.meta as any).glob?.("../assets/characters/**/*.{png,jpg,jpeg,webp,svg}", {
+  eager: true,
+  import: "default",
+}) as Record<string, string>
 export function getCharacterOptions(): CharOptionsMap {
   const options: CharOptionsMap = {}
   for (const [path, src] of Object.entries(modules)) {

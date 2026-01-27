@@ -228,15 +228,22 @@ export default function ProfileModal({ open, onClose, profile, onRemoveAssignmen
         <View style={styles.skillRow}>
             {MAIN_SKILLS.map(skill => (
             <View key={skill.key} style={[styles.cardBase, styles.skillColumn]}>
+              {(() => {
+                const rawValue = profile.skills[skill.key]
+                const skillValue = typeof rawValue === "number" ? rawValue : 0
+                return (
+                  <>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 {(() => {
                   const Icon = SKILL_DEFINITIONS[skill.label]?.Icon
                   return Icon ? <Icon size={14} color={skill.color} /> : null
                 })()}
-                <Text style={styles.skillTitle}>{skill.label} {profile.skills[skill.key]}{`\n${flavorFor(skill.label, profile.skills[skill.key])}`}</Text>
+                <Text style={styles.skillTitle}>
+                  {skill.label} {skillValue}{`\n${flavorFor(skill.label, skillValue)}`}
+                </Text>
               </View>
               <View style={styles.skillInnerRow}>
-                <SegmentedBar value={profile.skills[skill.key]} color={skill.color} />
+                <SegmentedBar value={skillValue} color={skill.color} />
                 <View style={styles.subSkillsList}>
                   {SUBSKILL_GROUPS[skill.label].map(sub => {
                     const subValue = subSkills[sub] ?? 0
@@ -252,6 +259,9 @@ export default function ProfileModal({ open, onClose, profile, onRemoveAssignmen
                   })}
                 </View>
               </View>
+                  </>
+                )
+              })()}
             </View>
           ))}
         </View>

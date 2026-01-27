@@ -1,5 +1,5 @@
 import React from "react"
-import { Modal, View, Pressable, StyleSheet, Text, ScrollView } from "react-native"
+import { Modal, View, Pressable, StyleSheet, Text, ScrollView, type DimensionValue } from "react-native"
 import fontConfig from "@shared/utils/fontConfig"
 const FACES = fontConfig.fontFaceNames()
 
@@ -8,7 +8,7 @@ export type ModalCardProps = {
   onClose: () => void
   title?: string
   children: React.ReactNode
-  maxHeight?: number | string
+  maxHeight?: DimensionValue
 }
 
 export default function ModalCard({ open, onClose, title, children, maxHeight = "80%" }: ModalCardProps) {

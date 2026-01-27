@@ -141,13 +141,13 @@ export function SkiaPaletteSwap({ source, baseTone, targetTone, tolerance = 18, 
       }
       if (!imageShader) return null
 
-      const shader = PALETTE_EFFECT.makeShader(
+      const shader = (PALETTE_EFFECT as any).makeShader(
         {
           anchorCount,
           tolerance: tol,
           baseAnchors: toVec3Array(baseAnchors),
           targetAnchors: toVec3Array(targetAnchors),
-        },
+        } as any,
         [imageShader]
       )
       if (!shader) return null

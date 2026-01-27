@@ -1,4 +1,10 @@
-import type { CardRef, CyberSlot, EquipmentSlot, ItemTemplate, WeaponSlot } from "@shared/game/types"
+import type { CardRef, CyberwareSlot, CyberwareSlotKey, EquipmentSlot, ItemTemplate, WeaponSlot } from "@shared/game/types"
+import { CYBER_BUCKETS } from "./profilePanelConstants"
+
+/*
+Utilities for ProfilePanel display labels, slot parsing, and icons.
+Slot keys use "bucket:index" for cyberware (e.g., "combatInterface:0").
+*/
 
 export const rarityRank: Record<string, number> = {
   common: 1,
@@ -12,6 +18,52 @@ export const capitalizeSlot = (slot?: string) => {
   return slot.charAt(0).toUpperCase() + slot.slice(1)
 }
 
+const CYBERWARE_LABELS = Object.fromEntries(CYBER_BUCKETS.map((bucket) => [bucket.key, bucket.label])) as Record<
+  CyberwareSlot,
+  string
+>
+
+const CYBERWARE_ICON_BY_BUCKET: Record<CyberwareSlot, string> = {
+  combatInterface: "cpu",
+  vitalSystems: "shield",
+  auxiliaries: "tool",
+}
+
+const EQUIPMENT_ICON_BY_SLOT: Record<EquipmentSlot, string> = {
+  accessory: "watch",
+  top: "layers",
+  bottom: "square",
+  utility: "tool",
+  trash: "trash",
+}
+
+const CARD_TYPE_ICON_BY_KIND: Record<string, string> = {
+  attack: "crosshair",
+  DMG: "crosshair",
+  utility: "zap",
+  SKL: "zap",
+  skill: "activity",
+  defense: "shield",
+  DEF: "shield",
+  ERR: "alert-triangle",
+}
+
+export const getCyberwareBucketFromKey = (slot: CyberwareSlotKey): CyberwareSlot => {
+  const [bucket] = slot.split(":")
+  return bucket as CyberwareSlot
+}
+
+export const formatCyberwareSlotLabel = (slot?: CyberwareSlot) => {
+  if (!slot) return ""
+  return CYBERWARE_LABELS[slot] ?? "Cyberware"
+}
+
+export const formatSlotLabel = (slot?: EquipmentSlot | WeaponSlot | CyberwareSlotKey | null) => {
+  if (!slot) return ""
+  if (slot.includes(":")) return formatCyberwareSlotLabel(getCyberwareBucketFromKey(slot as CyberwareSlotKey))
+  return capitalizeSlot(slot)
+}
+
 export const formatItemKindLabel = (template: ItemTemplate) => {
   switch (template.kind) {
     case "equipment": {
@@ -19,8 +71,8 @@ export const formatItemKindLabel = (template: ItemTemplate) => {
       return slot || "Equipment"
     }
     case "cybernetic": {
-      const slot = capitalizeSlot(template.equipSlot)
-      return slot ? `${slot} Cyberware` : "Cyberware"
+      const slotLabel = formatCyberwareSlotLabel(template.equipSlot as CyberwareSlot)
+      return slotLabel || "Cyberware"
     }
     case "weapon": {
       if (template.weaponSlotPolicy === "primaryOnly") return "Primary"
@@ -39,18 +91,7 @@ export const formatItemKindLabel = (template: ItemTemplate) => {
 export const resolveItemIcon = (template: ItemTemplate) => {
   switch (template.kind) {
     case "equipment": {
-      switch (template.equipSlot) {
-        case "accessory":
-          return "watch"
-        case "top":
-          return "layers"
-        case "bottom":
-          return "square"
-        case "utility":
-          return "tool"
-        default:
-          return "shield"
-      }
+      return EQUIPMENT_ICON_BY_SLOT[template.equipSlot as EquipmentSlot] ?? "shield"
     }
     case "cybernetic":
       return "cpu"
@@ -64,52 +105,21 @@ export const resolveItemIcon = (template: ItemTemplate) => {
 }
 
 export const resolveCardTypeIcon = (type?: string) => {
-  switch (type) {
-    case "attack":
-    case "DMG":
-      return "crosshair"
-    case "utility":
-    case "SKL":
-      return "zap"
-    case "skill":
-      return "activity"
-    case "defense":
-    case "DEF":
-      return "shield"
-    case "ERR":
-      return "alert-triangle"
-    default:
-      return "layers"
-  }
+  if (!type) return "layers"
+  return CARD_TYPE_ICON_BY_KIND[type] ?? "layers"
 }
 
-export const resolveSlotIcon = (slot: EquipmentSlot | WeaponSlot | CyberSlot) => {
+export const resolveSlotIcon = (slot: EquipmentSlot | WeaponSlot | CyberwareSlotKey) => {
+  if (slot.includes(":")) {
+    const bucket = getCyberwareBucketFromKey(slot as CyberwareSlotKey)
+    return CYBERWARE_ICON_BY_BUCKET[bucket] ?? "box"
+  }
   switch (slot) {
-    case "accessory":
-      return "watch"
-    case "top":
-      return "layers"
-    case "bottom":
-      return "square"
-    case "utility":
-      return "tool"
     case "primary":
     case "secondary":
       return "crosshair"
-    case "neural":
-      return "cpu"
-    case "ocular":
-      return "eye"
-    case "skeletal":
-      return "activity"
-    case "dermal":
-      return "shield"
-    case "systems":
-      return "hard-drive"
-    case "external":
-      return "wifi"
     default:
-      return "box"
+      return EQUIPMENT_ICON_BY_SLOT[slot as EquipmentSlot] ?? "box"
   }
 }
 
