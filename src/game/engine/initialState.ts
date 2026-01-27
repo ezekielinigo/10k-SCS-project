@@ -8,6 +8,7 @@ import DISTRICTS from "../content/districts"
 import { generateRandomNpc } from "../generators/npcGenerator"
 import { generateMonthlyTasks } from "../generators/taskGenerator"
 import { generateJobInstances } from "../generators/jobInstanceGenerator"
+import { warmCardLibraryCaches } from "../services/cardLibrary"
 
 const randId = () => Math.random().toString(36).slice(2)
 
@@ -133,6 +134,7 @@ export const createInitialGameState = (): GameState => {
   })
 
   const starterTasks = generateMonthlyTasks(baseState)
+  warmCardLibraryCaches(baseState.itemTemplates)
 
   return { ...baseState, tasks: starterTasks }
 }
