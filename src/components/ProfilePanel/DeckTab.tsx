@@ -2,7 +2,7 @@ import React, { useCallback } from "react"
 import { FlatList, Image, Pressable, Text, View } from "react-native"
 import { Feather } from "@expo/vector-icons"
 import type { CardDefinition } from "@shared/game/engine/combatTypes"
-import { RARITY_COLORS } from "@shared/utils/ui"
+import { RARITY_COLORS, AnimatedFlickerSwap } from "@shared/utils/ui"
 import iconDefault from "../../assets/icon_default.png"
 import styles from "./profilePanelStyles"
 import type { DeckEntry } from "./profilePanelTypes"
@@ -71,11 +71,11 @@ export default function DeckTab() {
     <>
       <View style={styles.deckControls}>
         <Pressable style={styles.deckToggleButton} onPress={cycleDeckView}>
-          <Feather name={deckView === "list" ? "grid" : "list"} size={16} color="#cfe1ff" />
+          <AnimatedFlickerSwap keyProp={`deck-view-${deckView}`} loading={false} iconElement={<Feather name={deckView === "list" ? "grid" : "list"} size={16} color="#cfe1ff" />} />
         </Pressable>
         <Pressable style={styles.deckSortButton} onPress={cycleDeckSort}>
           <Feather name="filter" size={14} color="#cfe1ff" />
-          <Text style={styles.deckSortText}>Sort: {deckSortMode}</Text>
+          <AnimatedFlickerSwap keyProp={`deck-sort-${deckSortMode}`} loading={false} iconElement={<Text style={styles.deckSortText}>Sort: {deckSortMode}</Text>} />
         </Pressable>
       </View>
 

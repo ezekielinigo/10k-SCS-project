@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useEffect, useRef } from "react"
 import { View, Text, StyleSheet } from "react-native"
 import { Feather } from "@expo/vector-icons"
 import {
@@ -103,6 +103,64 @@ export const RARITY_COLORS: Record<RarityColorKey, string> = {
   uncommon: "#47A8BD",
   rare: "#ff1053",
   unique: "#F5E663",
+}
+
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated"
+
+type AnimatedFlickerSwapProps = {
+  loading: boolean
+  loadingElement?: React.ReactNode
+  iconElement: React.ReactNode
+  keyProp?: string | number
+  durationOut?: number
+  durationIn?: number
+  animate?: boolean
+  active?: boolean
+  animateOnEnter?: boolean
+}
+export function AnimatedFlickerSwap({
+  loading,
+  loadingElement,
+  iconElement,
+  keyProp,
+  durationOut = 80,
+  durationIn = 160,
+  animate = true,
+  active,
+  animateOnEnter = false,
+}: AnimatedFlickerSwapProps) {
+  const opacity = useSharedValue(1)
+  const prevActiveRef = useRef<boolean>(!!active)
+
+  useEffect(() => {
+    const prevActive = !!prevActiveRef.current
+    const isActive = !!active
+
+    if (animateOnEnter && loading) {
+      return
+    }
+
+    let shouldAnimate = animate
+    if (animateOnEnter) {
+      shouldAnimate = animate && (!prevActive && isActive)
+    }
+
+    if (!shouldAnimate) {
+      opacity.value = 1
+      prevActiveRef.current = isActive
+      return
+    }
+
+    opacity.value = withTiming(0, { duration: durationOut, easing: Easing.out(Easing.quad) }, () => {
+      opacity.value = withTiming(1, { duration: durationIn, easing: Easing.out(Easing.cubic) }, () => {
+        prevActiveRef.current = isActive
+      })
+    })
+  }, [animate, animateOnEnter, keyProp, loading, active, opacity, durationIn, durationOut])
+
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }))
+
+  return <Animated.View style={style}>{loading ? loadingElement ?? null : iconElement}</Animated.View>
 }
 
 

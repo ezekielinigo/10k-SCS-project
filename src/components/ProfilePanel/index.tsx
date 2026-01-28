@@ -61,6 +61,7 @@ export default function ProfilePanel() {
   const [deckView, setDeckView] = useState<DeckViewMode>("list")
   const [deckSortMode, setDeckSortMode] = useState<DeckSortMode>("name")
   const [cardPreview, setCardPreview] = useState<CardDefinition | null>(null)
+  const [equippingIds, setEquippingIds] = useState<Set<string>>(new Set())
   const isEquipmentTab = activeTab === "equipment"
   const isCyberTab = activeTab === "cyberware"
 
@@ -284,12 +285,41 @@ export default function ProfilePanel() {
     setSelectedId(itemId)
   }, [])
 
+  const startEquip = useCallback((id: string) => {
+    setEquippingIds((prev) => {
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+  }, [])
+
+  const finishEquip = useCallback((id: string) => {
+    setEquippingIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }, [])
+
   const handleEquipToggle = useCallback((itemId: string, template?: ItemTemplate | null) => {
     setSelectedId(itemId)
     const equippedSlot = equippedSlotByItem.get(itemId)
+
+    const schedule = (action: () => void) => {
+      // let the spinner render before doing synchronous work
+      requestAnimationFrame(() => {
+        try {
+          action()
+        } finally {
+          finishEquip(itemId)
+        }
+      })
+    }
+
     if (equippedSlot) {
       if (template?.kind === "weapon" && !slotFilter) return
-      dispatch({ type: "UNEQUIP_SLOT", slot: equippedSlot })
+      startEquip(itemId)
+      schedule(() => dispatch({ type: "UNEQUIP_SLOT", slot: equippedSlot }))
       return
     }
     if (!template) return
@@ -303,25 +333,30 @@ export default function ProfilePanel() {
     }
 
     if (template.kind === "equipment") {
-      tryEquip(template.equipSlot as EquipmentSlot)
+      startEquip(itemId)
+      schedule(() => tryEquip(template.equipSlot as EquipmentSlot))
       return
     }
     if (template.kind === "cybernetic") {
-      if (slotFilter && slotFilter.includes(":")) {
-        tryEquip(slotFilter as CyberwareSlotKey)
-        return
-      }
-      tryEquip(template.equipSlot as CyberwareSlot)
+      startEquip(itemId)
+      schedule(() => {
+        if (slotFilter && slotFilter.includes(":")) {
+          tryEquip(slotFilter as CyberwareSlotKey)
+          return
+        }
+        tryEquip(template.equipSlot as CyberwareSlot)
+      })
       return
     }
     if (template.kind === "weapon") {
       if (!slotFilter) return
       const forcedSlot = slotFilter === "primary" || slotFilter === "secondary" ? slotFilter : null
       if (!forcedSlot) return
-      tryEquip(forcedSlot)
+      startEquip(itemId)
+      schedule(() => tryEquip(forcedSlot))
       return
     }
-  }, [dispatch, equipState, equippedSlotByItem, slotFilter])
+  }, [dispatch, equipState, equippedSlotByItem, slotFilter, startEquip, finishEquip])
 
   const contextValue = useMemo(
     () => ({
@@ -355,6 +390,9 @@ export default function ProfilePanel() {
       cardPreview,
       setCardPreview,
       closeCardPreview: () => setCardPreview(null),
+      equippingIds,
+      startEquip,
+      finishEquip,
     }),
     [
       activeTab,
@@ -384,6 +422,9 @@ export default function ProfilePanel() {
       selectionView,
       setActiveTab,
       setCardPreview,
+      equippingIds,
+      startEquip,
+      finishEquip,
       slotFilter,
       templateByInstance,
     ],

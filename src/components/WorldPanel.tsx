@@ -20,9 +20,17 @@ const COLOR_LABELS: Record<string, string> = {
   "#2ce8f5": "redlined_chodanshell",
 }
 
-function SkiaMap({ onColor, displaySize, currentDistrictId }: { onColor: (hex: string) => void; displaySize: { w: number; h: number }; currentDistrictId?: string | null }) {
+function SkiaMap({ onColor, displaySize, currentDistrictId, onReady }: { onColor: (hex: string) => void; displaySize: { w: number; h: number }; currentDistrictId?: string | null; onReady?: () => void }) {
   const gfx = useImage(require("../assets/map_gfx.png"))
   const idMap = useImage(require("../assets/map_ID.png"))
+  const readyOnceRef = React.useRef(false)
+
+  useEffect(() => {
+    if (readyOnceRef.current) return
+    if (!gfx) return
+    readyOnceRef.current = true
+    onReady?.()
+  }, [gfx, onReady])
 
   const getDim = (img: any) => {
     if (!img) return null
@@ -199,11 +207,13 @@ function SkiaMap({ onColor, displaySize, currentDistrictId }: { onColor: (hex: s
     )
 }
 
-export default function WorldPanel() {
+export default function WorldPanel({ onReady }: { onReady?: () => void }) {
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null)
   const { state, dispatch } = useGame()
   const [skiaAvailable, setSkiaAvailable] = React.useState<boolean | null>(null)
+  const [mapReady, setMapReady] = React.useState(false)
+  const panelReadyOnceRef = React.useRef(false)
 
   React.useEffect(() => {
     try {
@@ -220,6 +230,19 @@ export default function WorldPanel() {
 
     setSkiaAvailable(true)
   }, [])
+
+  React.useEffect(() => {
+    if (panelReadyOnceRef.current) return
+    if (skiaAvailable === false) {
+      panelReadyOnceRef.current = true
+      onReady?.()
+      return
+    }
+    if (skiaAvailable && mapReady) {
+      panelReadyOnceRef.current = true
+      onReady?.()
+    }
+  }, [mapReady, onReady, skiaAvailable])
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout
@@ -243,6 +266,7 @@ export default function WorldPanel() {
             }}
             displaySize={size}
             currentDistrictId={state.player?.currentDistrict ?? null}
+            onReady={() => setMapReady(true)}
           />
         )}
       </View>

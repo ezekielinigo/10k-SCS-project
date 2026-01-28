@@ -35,6 +35,9 @@ type ProfilePanelContextValue = {
   cardPreview: CardDefinition | null
   setCardPreview: (card: CardDefinition | null) => void
   closeCardPreview: () => void
+  equippingIds: Set<string>
+  startEquip: (id: string) => void
+  finishEquip: (id: string) => void
 }
 
 const ProfilePanelContext = createContext<ProfilePanelContextValue | null>(null)

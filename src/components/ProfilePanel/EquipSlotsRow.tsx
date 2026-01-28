@@ -3,7 +3,7 @@ import { Pressable, Text, View } from "react-native"
 import { Feather } from "@expo/vector-icons"
 import { Canvas, Image as SkiaImage, FilterMode, MipmapMode, type SkImage } from "@shopify/react-native-skia"
 import type { CyberwareSlotKey, EquipmentSlot, WeaponSlot } from "@shared/game/types"
-import { RARITY_COLORS } from "@shared/utils/ui"
+import { RARITY_COLORS, AnimatedFlickerSwap } from "@shared/utils/ui"
 import styles from "./profilePanelStyles"
 import { resolveSlotIcon } from "./profilePanelUtils"
 import { CYBER_BUCKETS, EQUIP_SLOTS, ITEM_ICON_SIZE } from "./profilePanelConstants"
@@ -12,6 +12,8 @@ import { useProfilePanel } from "./ProfilePanelContext"
 export default function EquipSlotsRow() {
   const { activeTab, slotFilter, equippedBySlot, templateByInstance, handleSlotPress, itemIconSkia } = useProfilePanel()
   const [cyberRowWidth, setCyberRowWidth] = React.useState<number | null>(null)
+  const [trashPulseTop, setTrashPulseTop] = React.useState(0)
+  const [trashPulseBottom, setTrashPulseBottom] = React.useState(0)
   const cyberSlotGap = cyberRowWidth ? Math.max(0, (cyberRowWidth - 48 * 7) / 6) : 0
   const cyberBucketWidth = 48 * 2 + cyberSlotGap
   return (
@@ -23,34 +25,50 @@ export default function EquipSlotsRow() {
             const equippedId = !isTrash ? equippedBySlot.get(slotId) : null
             const template = equippedId ? templateByInstance.get(equippedId) : null
             const borderColor = template?.rarity ? RARITY_COLORS[template.rarity as keyof typeof RARITY_COLORS] ?? "#2b3a55" : "#2b3a55"
-            return (
-              <View key={label} style={styles.equipSlotWrap}>
-                <Text style={styles.equipLabel}>{label.toUpperCase()}</Text>
-                <Pressable onPress={() => handleSlotPress(isTrash ? "trash" : slotId)}>
-                  <View style={[styles.equipSlot, isTrash ? styles.trashSlot : null, slotFilter === slotId ? styles.equipSlotActive : null]}>
-                    {isTrash ? (
-                      <Feather name="trash" size={18} color="#2d0b0b" />
-                    ) : equippedId && itemIconSkia ? (
-                      <View style={[styles.slotIconWrap, { borderColor }]}> 
-                        <Canvas style={styles.slotIconCanvas}>
-                          <SkiaImage
-                            image={itemIconSkia}
-                            x={4}
-                            y={4}
-                            width={ITEM_ICON_SIZE - 8}
-                            height={ITEM_ICON_SIZE - 8}
-                            fit="contain"
-                            sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
+                    return (
+                      <View key={label} style={styles.equipSlotWrap}>
+                        <Text style={styles.equipLabel}>{label.toUpperCase()}</Text>
+                        <Pressable onPress={() => {
+                          if (isTrash) setTrashPulseTop((prev) => prev + 1)
+                          handleSlotPress(isTrash ? "trash" : slotId)
+                        }}>
+                          <AnimatedFlickerSwap
+                            keyProp={`slot-border-${slotId}-${slotFilter === slotId}`}
+                            animate={slotFilter === slotId}
+                            loading={false}
+                            iconElement={
+                            <View style={[styles.equipSlot, isTrash ? styles.trashSlot : null, slotFilter === slotId ? styles.equipSlotActive : null]}>
+                              {isTrash ? (
+                                <AnimatedFlickerSwap keyProp={`trash-${trashPulseTop}`} loading={false} iconElement={<Feather name="trash" size={18} color="#2d0b0b" />} />
+                              ) : equippedId && itemIconSkia ? (
+                                <AnimatedFlickerSwap
+                                  keyProp={equippedId}
+                                  loading={false}
+                                  iconElement={
+                                    <View style={[styles.slotIconWrap, { borderColor }]}> 
+                                      <Canvas style={styles.slotIconCanvas}>
+                                        <SkiaImage
+                                          image={itemIconSkia}
+                                          x={4}
+                                          y={4}
+                                          width={ITEM_ICON_SIZE - 8}
+                                          height={ITEM_ICON_SIZE - 8}
+                                          fit="contain"
+                                          sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
+                                        />
+                                      </Canvas>
+                                    </View>
+                                  }
+                                />
+                              ) : (
+                                <AnimatedFlickerSwap keyProp={`slot-empty-${slotId}`} loading={false} iconElement={<Feather name={resolveSlotIcon(slotId)} size={16} color="#44506b" />} />
+                              )}
+                            </View>
+                          }
                           />
-                        </Canvas>
+                        </Pressable>
                       </View>
-                    ) : (
-                      <Feather name={resolveSlotIcon(slotId)} size={16} color="#44506b" />
-                    )}
-                  </View>
-                </Pressable>
-              </View>
-            )
+                    )
           })
         : (
             <View style={styles.cyberRowWrap}>
@@ -78,33 +96,49 @@ export default function EquipSlotsRow() {
                       : "#2b3a55"
                     return (
                       <Pressable key={slotKey} style={styles.equipSlotWrap} onPress={() => handleSlotPress(slotKey)}>
-                        <View style={[styles.equipSlot, slotFilter === slotKey ? styles.equipSlotActive : null]}>
-                          {equippedId && itemIconSkia ? (
-                            <View style={[styles.slotIconWrap, { borderColor }]}>
-                              <Canvas style={styles.slotIconCanvas}>
-                                <SkiaImage
-                                  image={itemIconSkia}
-                                  x={4}
-                                  y={4}
-                                  width={ITEM_ICON_SIZE - 8}
-                                  height={ITEM_ICON_SIZE - 8}
-                                  fit="contain"
-                                  sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
-                                />
-                              </Canvas>
+                        <AnimatedFlickerSwap
+                          keyProp={`slot-border-${slotKey}-${slotFilter === slotKey}`}
+                          animate={slotFilter === slotKey}
+                          loading={false}
+                          iconElement={
+                            <View style={[styles.equipSlot, slotFilter === slotKey ? styles.equipSlotActive : null]}>
+                            {equippedId && itemIconSkia ? (
+                              <AnimatedFlickerSwap
+                                keyProp={equippedId}
+                                loading={false}
+                                iconElement={
+                                  <View style={[styles.slotIconWrap, { borderColor }]}>
+                                    <Canvas style={styles.slotIconCanvas}>
+                                      <SkiaImage
+                                        image={itemIconSkia}
+                                        x={4}
+                                        y={4}
+                                        width={ITEM_ICON_SIZE - 8}
+                                        height={ITEM_ICON_SIZE - 8}
+                                        fit="contain"
+                                        sampling={{ filter: FilterMode.Nearest, mipmap: MipmapMode.None }}
+                                      />
+                                    </Canvas>
+                                  </View>
+                                }
+                              />
+                            ) : (
+                              <AnimatedFlickerSwap keyProp={`slot-empty-${slotKey}`} loading={false} iconElement={<Feather name={resolveSlotIcon(slotKey)} size={16} color="#44506b" />} />
+                            )}
                             </View>
-                          ) : (
-                            <Feather name={resolveSlotIcon(slotKey)} size={16} color="#44506b" />
-                          )}
-                        </View>
+                          }
+                        />
                       </Pressable>
                     )
                   })
                 )}
                 <View style={styles.equipSlotWrap}>
-                  <Pressable onPress={() => handleSlotPress("trash")}>
+                  <Pressable onPress={() => {
+                    setTrashPulseBottom((prev) => prev + 1)
+                    handleSlotPress("trash")
+                  }}>
                     <View style={[styles.equipSlot, styles.trashSlot]}>
-                      <Feather name="trash" size={18} color="#2d0b0b" />
+                      <AnimatedFlickerSwap keyProp={`trash-bottom-${trashPulseBottom}`} loading={false} iconElement={<Feather name="trash" size={18} color="#2d0b0b" />} />
                     </View>
                   </Pressable>
                 </View>

@@ -3,7 +3,7 @@ import { FlatList, Pressable, Text, View, Image } from "react-native"
 import { Feather } from "@expo/vector-icons"
 import { Canvas, Image as SkiaImage, FilterMode, MipmapMode } from "@shopify/react-native-skia"
 import type { CardDefinition } from "@shared/game/engine/combatTypes"
-import { RARITY_COLORS } from "@shared/utils/ui"
+import { RARITY_COLORS, AnimatedFlickerSwap } from "@shared/utils/ui"
 import iconDefault from "../../assets/icon_default.png"
 import styles from "./profilePanelStyles"
 import { GRID_CARD_HEIGHT, GRID_CARD_WIDTH, SELECTION_ICON_SIZE } from "./profilePanelConstants"
@@ -68,10 +68,16 @@ export default function SelectionPanel() {
           </Canvas>
         </View>
         <Pressable style={styles.selectionButton} onPress={cycleSelectionView}>
-          <Feather
-            name={selectionView === "description" ? "align-left" : selectionView === "stats" ? "bar-chart-2" : "image"}
-            size={16}
-            color="#cfe1ff"
+          <AnimatedFlickerSwap
+            keyProp={selectionView}
+            loading={false}
+            iconElement={
+              <Feather
+                name={selectionView === "description" ? "align-left" : selectionView === "stats" ? "bar-chart-2" : "image"}
+                size={16}
+                color="#cfe1ff"
+              />
+            }
           />
         </Pressable>
       </View>
