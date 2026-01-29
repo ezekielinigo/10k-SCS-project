@@ -126,12 +126,14 @@ export default function DebugCombatModal({ open, onClose }: { open: boolean; onC
     const located = combat.zones.hand.find((c) => c.uid === selected)
     if (!located) return
     const def = cardMap[located.cardId]
-    const res = playCard(combat, { cardInstanceId: located.uid, target: "enemy" })
+    const res = playCard(combat, { cardInstanceId: located.uid, target: { side: "enemy", index: 0 } })
     if (!res.ok) {
       addLog(`Play failed: ${res.reason}`)
       return
     }
-    const damage = combat.enemy.hp - res.state.enemy.hp
+    const beforeEnemy = combat.enemies?.[0] ?? combat.enemy
+    const afterEnemy = res.state.enemies?.[0] ?? res.state.enemy
+    const damage = beforeEnemy.hp - afterEnemy.hp
     addLog(`Played ${def?.name ?? located.cardId}${damage > 0 ? `, dealt ${damage}` : ""}`)
     setCombat(res.state)
     setSelected(null)
@@ -208,9 +210,9 @@ export default function DebugCombatModal({ open, onClose }: { open: boolean; onC
           <View style={styles.panelRow}>
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Enemy: Dummy</Text>
-              <Text style={styles.statText}>HP {combat.enemy.hp}/{combat.enemy.maxHP}</Text>
-              <Text style={styles.statText}>Shield {combat.enemy.shield ?? 0}</Text>
-              <StatusList statuses={combat.enemy.statuses} />
+              <Text style={styles.statText}>HP {(combat.enemies?.[0] ?? combat.enemy).hp}/{(combat.enemies?.[0] ?? combat.enemy).maxHP}</Text>
+              <Text style={styles.statText}>Shield {(combat.enemies?.[0] ?? combat.enemy).shield ?? 0}</Text>
+              <StatusList statuses={(combat.enemies?.[0] ?? combat.enemy).statuses} />
               <Pressable onPress={resetCombat} style={styles.smallButton}>
                 <Text style={styles.buttonText}>Reset Dummy</Text>
               </Pressable>

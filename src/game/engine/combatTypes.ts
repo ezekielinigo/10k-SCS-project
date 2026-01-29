@@ -2,6 +2,8 @@ import type { SkillBlock } from "../types"
 
 export type CombatSide = "player" | "enemy"
 
+export type TargetSpecifier = CombatSide | { side: CombatSide; index?: number }
+
 export type CardType = "attack" | "defense" | "utility" | "DMG" | "DEF" | "SKL" | "ERR"
 
 export type CardTag = "STR" | "REF" | "INT" | "CHR"
@@ -160,6 +162,7 @@ export type CombatState = {
   zones: CombatZones
   player: CombatantState
   enemy: CombatantState
+  enemies: CombatantState[]
   cardLibrary: Record<string, CardDefinition>
   tagLocks: CardTag[]
 }
@@ -175,5 +178,5 @@ export type CombatTrigger =
 
 export type PlayCardParams = {
   cardInstanceId: string
-  target?: CombatSide
+  target?: TargetSpecifier
 }

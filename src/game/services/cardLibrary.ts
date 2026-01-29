@@ -63,3 +63,18 @@ export const warmCardLibraryCaches = (itemTemplates?: Record<string, ItemTemplat
   getCardLibraryMap()
   if (itemTemplates) getCardSourceMap(itemTemplates)
 }
+
+export const getCardTargetType = (
+  def?: CardDefinition | null,
+): "self" | "enemySingle" | "enemiesAll" | "mixed" | "none" => {
+  if (!def) return "none"
+  const targets = def.effects
+    .map((effect) => effect.target ?? (effect.operation as any)?.target)
+    .filter((value): value is "self" | "enemySingle" | "enemiesAll" =>
+      value === "self" || value === "enemySingle" || value === "enemiesAll",
+    )
+  if (targets.length === 0) return "none"
+  const unique = new Set(targets)
+  if (unique.size > 1) return "mixed"
+  return targets[0] ?? "none"
+}

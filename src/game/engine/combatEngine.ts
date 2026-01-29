@@ -14,6 +14,7 @@ import type {
   EffectSpec,
   KeywordKind,
   PlayCardParams,
+  TargetSpecifier,
   StatusInstance,
   StatusStacking,
   StatusTemplate,
@@ -24,6 +25,7 @@ import type { SkillBlock } from "../types"
 export type CreateCombatParams = {
   player: { hp: number; maxHP: number; skills: SkillBlock }
   enemy: { hp: number; maxHP: number; skills?: SkillBlock }
+  enemies?: { hp: number; maxHP: number; skills?: SkillBlock }[]
   deckCardIds: string[]
   cardLibrary: CardDefinition[] | Record<string, CardDefinition>
   rngSeed?: string
@@ -48,6 +50,35 @@ const defaultCounters = (): CombatCounters => ({
   attackCardsPlayedThisCombat: 0,
   shieldGainedThisTurn: 0,
 })
+
+type TargetRef = { side: "player" } | { side: "enemy"; index: number }
+
+const ensureEnemies = (state: CombatState): CombatState => {
+  if (state.enemies && state.enemies.length > 0) return state
+  const enemies = [state.enemy]
+  return { ...state, enemies, enemy: enemies[0] }
+}
+
+const clampEnemyIndex = (state: CombatState, index?: number): number | null => {
+  const enemies = state.enemies
+  if (!enemies || enemies.length === 0) return null
+  const maxIndex = Math.min(enemies.length - 1, 2)
+  const idx = typeof index === "number" ? Math.max(0, Math.min(index, maxIndex)) : null
+  if (idx !== null && enemies[idx] && enemies[idx].hp > 0) return idx
+  const firstAlive = enemies.findIndex((enemy) => enemy.hp > 0)
+  return firstAlive >= 0 ? firstAlive : null
+}
+
+const getEnemyAt = (state: CombatState, index: number): CombatantState => {
+  const enemies = state.enemies ?? [state.enemy]
+  return enemies[index] ?? enemies[0]
+}
+
+const setEnemyAt = (state: CombatState, index: number, enemy: CombatantState): CombatState => {
+  const enemies = [...(state.enemies ?? [state.enemy])]
+  enemies[index] = enemy
+  return { ...state, enemies, enemy: enemies[0] }
+}
 
 const cloneZones = (zones: CombatZones): CombatZones => ({
   deck: [...zones.deck],
@@ -117,24 +148,32 @@ const addErrorCardsToDeck = (state: CombatState, count: number): CombatState => 
 
 const clampStack = (value: number, max = 3) => Math.max(0, Math.min(max, value))
 
-const updateElements = (state: CombatState, side: "player" | "enemy", updater: (current: CombatantState["elements"]) => CombatantState["elements"]): CombatState => {
-  const elements = updater(state[side].elements)
-  if (side === "player") return { ...state, player: { ...state.player, elements } }
-  return { ...state, enemy: { ...state.enemy, elements } }
+const updateElements = (
+  state: CombatState,
+  target: TargetRef,
+  updater: (current: CombatantState["elements"]) => CombatantState["elements"],
+): CombatState => {
+  if (target.side === "player") {
+    const elements = updater(state.player.elements)
+    return { ...state, player: { ...state.player, elements } }
+  }
+  const current = getEnemyAt(state, target.index)
+  const elements = updater(current.elements)
+  return setEnemyAt(state, target.index, { ...current, elements })
 }
 
-const applyCorruptedEffect = (state: CombatState, side: "player" | "enemy"): CombatState => {
-  if (side !== "player") return state
+const applyCorruptedEffect = (state: CombatState, target: TargetRef): CombatState => {
+  if (target.side !== "player") return state
   let next = drawCards(state, 1)
   next = addErrorCardsToDeck(next, 1)
   return next
 }
 
-const applyElementStack = (state: CombatState, side: "player" | "enemy", element: "FIRE" | "PHYS" | "HACK" | "ELDR"): CombatState => {
-  const elements = { ...state[side].elements }
+const applyElementStack = (state: CombatState, target: TargetRef, element: "FIRE" | "PHYS" | "HACK" | "ELDR"): CombatState => {
+  const elements = { ...(target.side === "player" ? state.player.elements : getEnemyAt(state, target.index).elements) }
 
   const applyStun = (current: CombatState) =>
-    addStatusToSide(current, side, {
+    addStatusToSide(current, target, {
       id: "stun",
       name: "Stunned",
       description: "Skip next turn.",
@@ -145,7 +184,7 @@ const applyElementStack = (state: CombatState, side: "player" | "enemy", element
     })
 
   const applyMania = (current: CombatState) =>
-    addStatusToSide(current, side, {
+    addStatusToSide(current, target, {
       id: "mania",
       name: "Mania",
       description: "Intent becomes unstable.",
@@ -161,20 +200,20 @@ const applyElementStack = (state: CombatState, side: "player" | "enemy", element
       elements.fire = 0
       elements.eldr = Math.max(0, elements.eldr - 1)
       elements.blueFire += converted
-      return updateElements(state, side, () => elements)
+      return updateElements(state, target, () => elements)
     }
     if (elements.phys > 0) {
       elements.phys = Math.max(0, elements.phys - 1)
-      let next = updateElements(state, side, () => elements)
-      next = applyDamage(next, side, 20)
+      let next = updateElements(state, target, () => elements)
+      next = applyDamage(next, target, 20)
       return next
     }
     if (elements.hack > 0) {
       elements.hack = Math.max(0, elements.hack - 1)
-      return updateElements(state, side, () => elements)
+      return updateElements(state, target, () => elements)
     }
     elements.fire = clampStack(elements.fire + 1)
-    return updateElements(state, side, () => elements)
+    return updateElements(state, target, () => elements)
   }
 
   if (element === "PHYS") {
@@ -182,23 +221,23 @@ const applyElementStack = (state: CombatState, side: "player" | "enemy", element
       if (elements.phys + 1 >= 3) {
         elements.phys = Math.max(0, elements.phys - 2)
         elements.eldr = Math.max(0, elements.eldr - 1)
-        let next = updateElements(state, side, () => elements)
+        let next = updateElements(state, target, () => elements)
         return applyStun(next)
       }
       elements.eldr = Math.max(0, elements.eldr - 1)
-      let next = updateElements(state, side, () => elements)
-      return applyCorruptedEffect(next, side)
+      let next = updateElements(state, target, () => elements)
+      return applyCorruptedEffect(next, target)
     }
     if (elements.fire > 0) {
       elements.fire = Math.max(0, elements.fire - 1)
-      let next = updateElements(state, side, () => elements)
-      next = applyDamage(next, side, 20)
+      let next = updateElements(state, target, () => elements)
+      next = applyDamage(next, target, 20)
       return next
     }
     if (elements.hack > 0) {
       elements.hack = Math.max(0, elements.hack - 1)
-      let next = updateElements(state, side, () => elements)
-      return addStatusToSide(next, side, {
+      let next = updateElements(state, target, () => elements)
+      return addStatusToSide(next, target, {
         id: "jam_next",
         name: "Jam",
         description: "Negate next damage taken.",
@@ -209,7 +248,7 @@ const applyElementStack = (state: CombatState, side: "player" | "enemy", element
       })
     }
     elements.phys = clampStack(elements.phys + 1)
-    return updateElements(state, side, () => elements)
+    return updateElements(state, target, () => elements)
   }
 
   if (element === "HACK") {
@@ -217,21 +256,21 @@ const applyElementStack = (state: CombatState, side: "player" | "enemy", element
       if (elements.hack + 1 >= 3) {
         elements.hack = Math.max(0, elements.hack - 2)
         elements.eldr = Math.max(0, elements.eldr - 1)
-        let next = updateElements(state, side, () => elements)
+        let next = updateElements(state, target, () => elements)
         return applyMania(next)
       }
       elements.eldr = Math.max(0, elements.eldr - 1)
-      let next = updateElements(state, side, () => elements)
-      return applyCorruptedEffect(next, side)
+      let next = updateElements(state, target, () => elements)
+      return applyCorruptedEffect(next, target)
     }
     if (elements.fire > 0) {
       elements.fire = Math.max(0, elements.fire - 1)
-      return updateElements(state, side, () => elements)
+      return updateElements(state, target, () => elements)
     }
     if (elements.phys > 0) {
       elements.phys = Math.max(0, elements.phys - 1)
-      let next = updateElements(state, side, () => elements)
-      return addStatusToSide(next, side, {
+      let next = updateElements(state, target, () => elements)
+      return addStatusToSide(next, target, {
         id: "jam_next",
         name: "Jam",
         description: "Negate next damage taken.",
@@ -242,62 +281,62 @@ const applyElementStack = (state: CombatState, side: "player" | "enemy", element
       })
     }
     elements.hack = clampStack(elements.hack + 1)
-    return updateElements(state, side, () => elements)
+    return updateElements(state, target, () => elements)
   }
 
   if (element === "ELDR") {
     if (elements.fire > 0) {
       elements.blueFire += elements.fire
       elements.fire = 0
-      return updateElements(state, side, () => elements)
+      return updateElements(state, target, () => elements)
     }
     if (elements.phys > 0) {
       if (elements.phys >= 3) {
         elements.phys = Math.max(0, elements.phys - 3)
-        let next = updateElements(state, side, () => elements)
+        let next = updateElements(state, target, () => elements)
         return applyStun(next)
       }
       elements.phys = Math.max(0, elements.phys - 1)
-      let next = updateElements(state, side, () => elements)
-      return applyCorruptedEffect(next, side)
+      let next = updateElements(state, target, () => elements)
+      return applyCorruptedEffect(next, target)
     }
     if (elements.hack > 0) {
       if (elements.hack >= 3) {
         elements.hack = Math.max(0, elements.hack - 3)
-        let next = updateElements(state, side, () => elements)
+        let next = updateElements(state, target, () => elements)
         return applyMania(next)
       }
       elements.hack = Math.max(0, elements.hack - 1)
-      let next = updateElements(state, side, () => elements)
-      return applyCorruptedEffect(next, side)
+      let next = updateElements(state, target, () => elements)
+      return applyCorruptedEffect(next, target)
     }
     elements.eldr = clampStack(elements.eldr + 1)
-    return updateElements(state, side, () => elements)
+    return updateElements(state, target, () => elements)
   }
 
   return state
 }
 
-const applyElementalTurnStart = (state: CombatState, side: "player" | "enemy"): CombatState => {
+const applyElementalTurnStart = (state: CombatState, target: TargetRef): CombatState => {
   let next = state
-  const elements = { ...next[side].elements }
+  const elements = { ...(target.side === "player" ? next.player.elements : getEnemyAt(next, target.index).elements) }
 
   if (elements.fire > 0) {
     elements.fire = Math.max(0, elements.fire - 1)
-    next = updateElements(next, side, () => elements)
-    next = applyDamage(next, side, 10)
+    next = updateElements(next, target, () => elements)
+    next = applyDamage(next, target, 10)
   }
 
   if (elements.blueFire > 0) {
     elements.blueFire = Math.max(0, elements.blueFire - 1)
-    next = updateElements(next, side, () => elements)
-    next = applyDirectDamage(next, side, 20)
+    next = updateElements(next, target, () => elements)
+    next = applyDirectDamage(next, target, 20)
   }
 
   if (elements.phys > 0) {
     elements.phys = Math.max(0, elements.phys - 1)
-    next = updateElements(next, side, () => elements)
-    next = addStatusToSide(next, side, {
+    next = updateElements(next, target, () => elements)
+    next = addStatusToSide(next, target, {
       id: "vulnerable_next",
       name: "Vulnerable",
       description: "Next damage ignores 50% DEF.",
@@ -310,8 +349,8 @@ const applyElementalTurnStart = (state: CombatState, side: "player" | "enemy"): 
 
   if (elements.hack > 0) {
     elements.hack = Math.max(0, elements.hack - 1)
-    next = updateElements(next, side, () => elements)
-    next = addStatusToSide(next, side, {
+    next = updateElements(next, target, () => elements)
+    next = addStatusToSide(next, target, {
       id: "shorted_next",
       name: "Shorted",
       description: "Next damage reduced by 25%.",
@@ -324,8 +363,8 @@ const applyElementalTurnStart = (state: CombatState, side: "player" | "enemy"): 
 
   if (elements.eldr > 0) {
     elements.eldr = Math.max(0, elements.eldr - 1)
-    next = updateElements(next, side, () => elements)
-    next = applyCorruptedEffect(next, side)
+    next = updateElements(next, target, () => elements)
+    next = applyCorruptedEffect(next, target)
   }
 
   return next
@@ -357,7 +396,7 @@ const buildDeck = (
   return { deck, prepared, autoCast }
 }
 
-export const createCombatState = ({ player, enemy, deckCardIds, cardLibrary, rngSeed, config, tagLocks }: CreateCombatParams): CombatState => {
+export const createCombatState = ({ player, enemy, enemies, deckCardIds, cardLibrary, rngSeed, config, tagLocks }: CreateCombatParams): CombatState => {
   const rng = makeRng(rngSeed)
   const library = createCardLibraryMap(cardLibrary)
   const { deck, prepared, autoCast } = buildDeck(deckCardIds, library)
@@ -378,6 +417,10 @@ export const createCombatState = ({ player, enemy, deckCardIds, cardLibrary, rng
     elements: { fire: 0, phys: 0, hack: 0, eldr: 0, blueFire: 0 },
   })
 
+  const sourceEnemies = (enemies && enemies.length > 0 ? enemies : [enemy]).slice(0, 3)
+  const enemyStates = sourceEnemies.map((entry) => baseCombatant(entry.hp, entry.maxHP))
+  const primaryEnemy = enemyStates[0] ?? baseCombatant(enemy.hp, enemy.maxHP)
+
   return {
     turn: 0,
     activeSide: "player",
@@ -387,12 +430,13 @@ export const createCombatState = ({ player, enemy, deckCardIds, cardLibrary, rng
     rngSeed,
     rng,
     playerSkills: player.skills,
-    enemySkills: enemy.skills,
+    enemySkills: sourceEnemies[0]?.skills ?? enemy.skills,
     preparedCardIds: prepared,
     autoCastCards: autoCast,
     zones,
     player: baseCombatant(player.hp, player.maxHP),
-    enemy: baseCombatant(enemy.hp, enemy.maxHP),
+    enemy: primaryEnemy,
+    enemies: enemyStates.length > 0 ? enemyStates : [primaryEnemy],
     cardLibrary: library,
     tagLocks: tagLocks ?? [],
   }
@@ -529,53 +573,57 @@ const resolveAmount = (amount: number | { type: string; [key: string]: any }, st
   if (ref.type === "constant") return ref.value ?? 0
   if (ref.type === "shield") {
     const side = ref.side === "enemy" ? "enemy" : "player"
-    const shield = state[side].shield ?? 0
+    const shield = side === "player"
+      ? state.player.shield ?? 0
+      : getEnemyAt(state, clampEnemyIndex(state) ?? 0).shield ?? 0
     const divisor = ref.divisor ?? 1
     return divisor > 1 ? Math.floor(shield / divisor) * divisor : shield
   }
   return 0
 }
 
-const applyDamage = (state: CombatState, target: "player" | "enemy", amount: number): CombatState => {
+const applyDamage = (state: CombatState, target: TargetRef, amount: number): CombatState => {
   const clamp = (v: number, max: number) => Math.max(0, Math.min(v, max))
   if (amount <= 0) return state
 
-  const applyDirect = (current: CombatState, side: "player" | "enemy", raw: number): CombatState => {
+  const applyDirect = (current: CombatState, side: "player" | "enemy", raw: number, enemyIndex?: number): CombatState => {
     if (raw <= 0) return current
     if (side === "player") {
       const hp = clamp(current.player.hp - raw, current.player.maxHP)
       return { ...current, player: { ...current.player, hp } }
     }
-    const hp = clamp(current.enemy.hp - raw, current.enemy.maxHP)
+    const enemy = getEnemyAt(current, enemyIndex ?? 0)
+    const hp = clamp(enemy.hp - raw, enemy.maxHP)
     const counters = {
       ...current.counters,
       damageDealtThisTurn: current.counters.damageDealtThisTurn + raw,
       damageDealtThisCombat: current.counters.damageDealtThisCombat + raw,
       damageTicksThisTurn: current.counters.damageTicksThisTurn + 1,
     }
-    return { ...current, enemy: { ...current.enemy, hp }, counters }
+    return setEnemyAt({ ...current, counters }, enemyIndex ?? 0, { ...enemy, hp })
   }
 
-  const side = target
-  const statusIds = new Set(state[side].statuses.map((s) => s.id))
+  const side = target.side
+  const combatant = side === "player" ? state.player : getEnemyAt(state, target.index)
+  const statusIds = new Set(combatant.statuses.map((s) => s.id))
   let next = state
 
   if (statusIds.has("jam_next")) {
-    next = removeStatusById(next, side, "jam_next")
+    next = removeStatusById(next, target, "jam_next")
     return next
   }
 
   let incoming = amount
   if (statusIds.has("shorted_next")) {
     incoming = Math.floor(incoming * 0.75)
-    next = removeStatusById(next, side, "shorted_next")
+    next = removeStatusById(next, target, "shorted_next")
   }
 
-  let shield = next[side].shield ?? 0
+  let shield = side === "player" ? next.player.shield ?? 0 : getEnemyAt(next, target.index).shield ?? 0
   if (shield > 0) {
     const ignoreShield = statusIds.has("vulnerable_next") ? 0.5 : 0
     if (statusIds.has("vulnerable_next")) {
-      next = removeStatusById(next, side, "vulnerable_next")
+      next = removeStatusById(next, target, "vulnerable_next")
     }
     const effectiveShield = Math.floor(shield * (1 - ignoreShield))
     const absorbed = Math.min(incoming, effectiveShield)
@@ -588,48 +636,52 @@ const applyDamage = (state: CombatState, target: "player" | "enemy", amount: num
     return { ...next, player: { ...next.player, hp, shield } }
   }
 
-  const hp = clamp(next.enemy.hp - incoming, next.enemy.maxHP)
+  const enemy = getEnemyAt(next, target.index)
+  const hp = clamp(enemy.hp - incoming, enemy.maxHP)
   const counters = {
     ...next.counters,
     damageDealtThisTurn: next.counters.damageDealtThisTurn + incoming,
     damageDealtThisCombat: next.counters.damageDealtThisCombat + incoming,
     damageTicksThisTurn: next.counters.damageTicksThisTurn + (incoming > 0 ? 1 : 0),
   }
-  return { ...next, enemy: { ...next.enemy, hp, shield }, counters }
+  return setEnemyAt({ ...next, counters }, target.index, { ...enemy, hp, shield })
 }
 
-const applyDirectDamage = (state: CombatState, target: "player" | "enemy", amount: number): CombatState => {
+const applyDirectDamage = (state: CombatState, target: TargetRef, amount: number): CombatState => {
   const clamp = (v: number, max: number) => Math.max(0, Math.min(v, max))
   if (amount <= 0) return state
-  if (target === "player") {
+  if (target.side === "player") {
     const hp = clamp(state.player.hp - amount, state.player.maxHP)
     return { ...state, player: { ...state.player, hp } }
   }
-  const hp = clamp(state.enemy.hp - amount, state.enemy.maxHP)
+  const enemy = getEnemyAt(state, target.index)
+  const hp = clamp(enemy.hp - amount, enemy.maxHP)
   const counters = {
     ...state.counters,
     damageDealtThisTurn: state.counters.damageDealtThisTurn + amount,
     damageDealtThisCombat: state.counters.damageDealtThisCombat + amount,
     damageTicksThisTurn: state.counters.damageTicksThisTurn + (amount > 0 ? 1 : 0),
   }
-  return { ...state, enemy: { ...state.enemy, hp }, counters }
+  return setEnemyAt({ ...state, counters }, target.index, { ...enemy, hp })
 }
 
-const heal = (state: CombatState, target: "player" | "enemy", amount: number): CombatState => {
+const heal = (state: CombatState, target: TargetRef, amount: number): CombatState => {
   if (amount <= 0) return state
-  if (target === "player") {
+  if (target.side === "player") {
     const hp = Math.min(state.player.maxHP, state.player.hp + amount)
     return { ...state, player: { ...state.player, hp } }
   }
-  const hp = Math.min(state.enemy.maxHP, state.enemy.hp + amount)
-  return { ...state, enemy: { ...state.enemy, hp } }
+  const enemy = getEnemyAt(state, target.index)
+  const hp = Math.min(enemy.maxHP, enemy.hp + amount)
+  return setEnemyAt(state, target.index, { ...enemy, hp })
 }
 
-const addStatusToSide = (state: CombatState, side: "player" | "enemy", status: StatusTemplate): CombatState => {
-  if (side === "player") {
+const addStatusToSide = (state: CombatState, target: TargetRef, status: StatusTemplate): CombatState => {
+  if (target.side === "player") {
     return { ...state, player: { ...state.player, statuses: applyStatus(state.player.statuses, status) } }
   }
-  return { ...state, enemy: { ...state.enemy, statuses: applyStatus(state.enemy.statuses, status) } }
+  const enemy = getEnemyAt(state, target.index)
+  return setEnemyAt(state, target.index, { ...enemy, statuses: applyStatus(enemy.statuses, status) })
 }
 
 const topDiscard = (zones: CombatZones): CardInstance | null => {
@@ -637,15 +689,16 @@ const topDiscard = (zones: CombatZones): CardInstance | null => {
   return zones.discard[zones.discard.length - 1]
 }
 
-const removeStatusById = (state: CombatState, side: "player" | "enemy", statusId: string): CombatState => {
-  if (side === "player") {
+const removeStatusById = (state: CombatState, target: TargetRef, statusId: string): CombatState => {
+  if (target.side === "player") {
     return { ...state, player: { ...state.player, statuses: state.player.statuses.filter((s) => s.id !== statusId) } }
   }
-  return { ...state, enemy: { ...state.enemy, statuses: state.enemy.statuses.filter((s) => s.id !== statusId) } }
+  const enemy = getEnemyAt(state, target.index)
+  return setEnemyAt(state, target.index, { ...enemy, statuses: enemy.statuses.filter((s) => s.id !== statusId) })
 }
 
 const dispatchTrigger = (state: CombatState, trigger: CombatTrigger): CombatState => {
-  const runStatusEffects = (statuses: StatusInstance[], side: "player" | "enemy", current: CombatState): CombatState => {
+  const runStatusEffects = (statuses: StatusInstance[], target: TargetRef, current: CombatState): CombatState => {
     let next = current
     statuses.forEach((status) => {
       const matches = status.triggers.some((t) => t.kind === trigger.kind)
@@ -657,20 +710,35 @@ const dispatchTrigger = (state: CombatState, trigger: CombatTrigger): CombatStat
           const targetType = effect.operation.targetType
           if (targetType === "any" || card.type === "attack" || card.type === "DMG") {
             card.effects.forEach((ef) => {
-              next = resolveEffect(next, ef, side, side === "player" ? "enemy" : "player", { source: "status", trigger, status })
+              next = resolveEffect(
+                next,
+                ef,
+                target.side,
+                target.side === "player" ? "enemy" : "player",
+                { source: "status", trigger, status, actorEnemyIndex: target.side === "enemy" ? target.index : undefined },
+              )
             })
-            next = removeStatusById(next, side, status.id)
+            next = removeStatusById(next, target, status.id)
           }
         } else {
-          next = resolveEffect(next, effect, side, side === "player" ? "enemy" : "player", { source: "status", trigger, status })
+          next = resolveEffect(
+            next,
+            effect,
+            target.side,
+            target.side === "player" ? "enemy" : "player",
+            { source: "status", trigger, status, actorEnemyIndex: target.side === "enemy" ? target.index : undefined },
+          )
         }
       })
     })
     return next
   }
 
-  let nextState = runStatusEffects(state.player.statuses, "player", state)
-  nextState = runStatusEffects(nextState.enemy.statuses, "enemy", nextState)
+  let nextState = runStatusEffects(state.player.statuses, { side: "player" }, state)
+  const enemies = state.enemies ?? [state.enemy]
+  enemies.forEach((enemy, index) => {
+    nextState = runStatusEffects(enemy.statuses, { side: "enemy", index }, nextState)
+  })
   return nextState
 }
 
@@ -680,6 +748,7 @@ type ResolveContext = {
   trigger?: CombatTrigger
   status?: StatusInstance
   cardInstanceId?: string
+  actorEnemyIndex?: number
 }
 
 const resolveEffect = (
@@ -688,50 +757,79 @@ const resolveEffect = (
   actor: "player" | "enemy",
   targetSide: "player" | "enemy" = actor === "player" ? "enemy" : "player",
   context: ResolveContext,
+  targetSpecifier?: TargetSpecifier,
 ): CombatState => {
-  if (!testCondition(effect.condition, state)) return state
+  const normalized = ensureEnemies(state)
+  if (!testCondition(effect.condition, normalized)) return normalized
 
   const op = effect.operation
 
-  const resolveTargeting = (): ("player" | "enemy")[] => {
+  const resolveTargeting = (): TargetRef[] => {
     const target = effect.target ?? targetSide
-    if (target === "self") return [actor]
-    if (target === "enemySingle") return [actor === "player" ? "enemy" : "player"]
-    if (target === "enemiesAll") return [actor === "player" ? "enemy" : "player"]
-    return [targetSide]
+    const actorEnemyIndex = context.actorEnemyIndex ?? 0
+    if (target === "self") {
+      return actor === "player" ? [{ side: "player" }] : [{ side: "enemy", index: actorEnemyIndex }]
+    }
+    if (target === "enemySingle" || target === "enemy") {
+      if (actor !== "player") return [{ side: "player" }]
+      const desiredIndex = typeof targetSpecifier === "object" && targetSpecifier.side === "enemy"
+        ? targetSpecifier.index
+        : undefined
+      const chosenIndex = clampEnemyIndex(normalized, desiredIndex)
+      return chosenIndex === null ? [] : [{ side: "enemy", index: chosenIndex }]
+    }
+    if (target === "enemiesAll") {
+      if (actor !== "player") return [{ side: "player" }]
+      return (normalized.enemies ?? [normalized.enemy])
+        .map((enemy, index) => (enemy.hp > 0 ? { side: "enemy" as const, index } : null))
+        .filter((value): value is TargetRef => Boolean(value))
+    }
+    if (target === "player") return [{ side: "player" }]
+    if (target === "enemy") {
+      const chosenIndex = clampEnemyIndex(normalized, undefined)
+      return chosenIndex === null ? [] : [{ side: "enemy", index: chosenIndex }]
+    }
+    if (targetSide === "player") return [{ side: "player" }]
+    const fallbackIndex = clampEnemyIndex(normalized, undefined)
+    return fallbackIndex === null ? [] : [{ side: "enemy", index: fallbackIndex }]
   }
 
   switch (op.op) {
     case "dealDamage": {
-      const amt = resolveAmount(op.amount as any, state)
+      const amt = resolveAmount(op.amount as any, normalized)
       const targets = resolveTargeting()
-      let next = state
+      let next = normalized
       targets.forEach((t) => {
         next = applyDamage(next, t, amt)
-        next = dispatchTrigger(next, { kind: "DamageDealt", amount: amt, target: t })
+        next = dispatchTrigger(next, { kind: "DamageDealt", amount: amt, target: t.side })
       })
       if (context.source === "card") {
-        next = dispatchTrigger(next, { kind: "DamageTaken", amount: amt, target: targets[0] })
+        const firstTarget = targets[0]
+        if (firstTarget) next = dispatchTrigger(next, { kind: "DamageTaken", amount: amt, target: firstTarget.side })
       }
       return next
     }
     case "gainShield": {
-      const amt = resolveAmount(op.amount as any, state)
+      const amt = resolveAmount(op.amount as any, normalized)
       const targets = resolveTargeting()
-      let next = state
+      let next = normalized
       targets.forEach((t) => {
-        if (t === "player") next = { ...next, player: { ...next.player, shield: (next.player.shield ?? 0) + amt } }
-        else next = { ...next, enemy: { ...next.enemy, shield: (next.enemy.shield ?? 0) + amt } }
+        if (t.side === "player") {
+          next = { ...next, player: { ...next.player, shield: (next.player.shield ?? 0) + amt } }
+        } else {
+          const enemy = getEnemyAt(next, t.index)
+          next = setEnemyAt(next, t.index, { ...enemy, shield: (enemy.shield ?? 0) + amt })
+        }
       })
-      if (amt > 0 && targets.includes("player")) {
+      if (amt > 0 && targets.some((t) => t.side === "player")) {
         next = { ...next, counters: { ...next.counters, shieldGainedThisTurn: next.counters.shieldGainedThisTurn + amt } }
       }
       return next
     }
     case "heal": {
-      const amt = resolveAmount(op.amount as any, state)
+      const amt = resolveAmount(op.amount as any, normalized)
       const targets = resolveTargeting()
-      let next = state
+      let next = normalized
       targets.forEach((t) => {
         next = heal(next, t, amt)
       })
@@ -742,23 +840,23 @@ const resolveEffect = (
         context.cardInstanceId && context.cardDef && cardHasKeyword(context.cardDef, "exhaust")
           ? new Set([context.cardInstanceId])
           : undefined
-      return drawCards(state, op.amount, { skipUids })
+      return drawCards(normalized, op.amount, { skipUids })
     }
     case "backfire": {
-      return addErrorCardsToDeck(state, op.amount)
+      return addErrorCardsToDeck(normalized, op.amount)
     }
     case "addCardToDeck": {
       const count = op.count ?? 1
       const sourceId = op.cardId === "self" ? context.cardDef?.id : op.cardId
-      if (!sourceId) return state
-      return addCardsToDeck(state, sourceId, count, op.shuffle ?? true, {
+      if (!sourceId) return normalized
+      return addCardsToDeck(normalized, sourceId, count, op.shuffle ?? true, {
         temporaryCost: op.temporaryCost,
         fleeting: op.fleeting,
         createdFrom: context.cardDef?.id,
       })
     }
     case "createCardsInHand": {
-      return addCardsToHand(state, op.cardId, op.count, {
+      return addCardsToHand(normalized, op.cardId, op.count, {
         temporaryCost: op.temporaryCost,
         fleeting: op.fleeting,
         createdFrom: context.cardDef?.id,
@@ -766,20 +864,24 @@ const resolveEffect = (
     }
     case "convertShieldToHeal": {
       const side = actor
-      const shield = state[side].shield ?? 0
+      const shield = side === "player"
+        ? normalized.player.shield ?? 0
+        : getEnemyAt(normalized, context.actorEnemyIndex ?? 0).shield ?? 0
       const amount = Math.min(shield, op.amount)
-      if (amount <= 0) return state
-      let next = state
+      if (amount <= 0) return normalized
+      let next = normalized
       if (side === "player") {
         next = { ...next, player: { ...next.player, shield: shield - amount } }
-      } else {
-        next = { ...next, enemy: { ...next.enemy, shield: shield - amount } }
+        return heal(next, { side: "player" }, amount)
       }
-      return heal(next, side, amount)
+      const enemyIndex = context.actorEnemyIndex ?? 0
+      const enemy = getEnemyAt(next, enemyIndex)
+      next = setEnemyAt(next, enemyIndex, { ...enemy, shield: shield - amount })
+      return heal(next, { side: "enemy", index: enemyIndex }, amount)
     }
     case "applyElement": {
       const targets = resolveTargeting()
-      let next = state
+      let next = normalized
       targets.forEach((t) => {
         for (let i = 0; i < op.amount; i++) {
           next = applyElementStack(next, t, op.element)
@@ -794,25 +896,27 @@ const resolveEffect = (
         const r = state.rng()
         total += Math.floor(r * (op.max - op.min + 1)) + op.min
       }
-      const targets = effect.target ? resolveTargeting() : [targetSide]
-      let next = state
+      const targets = resolveTargeting()
+      let next = normalized
       targets.forEach((t) => {
-        next = applyDamage(next, t, total)
-        next = dispatchTrigger(next, { kind: "DamageDealt", amount: total, target: t })
+        const targetRef = typeof t === "string" ? { side: t } : t
+        next = applyDamage(next, targetRef, total)
+        next = dispatchTrigger(next, { kind: "DamageDealt", amount: total, target: targetRef.side })
       })
       return next
     }
     case "applyStatus": {
       const targets = resolveTargeting()
-      let next = state
+      let next = normalized
       targets.forEach((t) => {
         next = addStatusToSide(next, t, op.status)
         // if a status has no triggers, fire its effects immediately upon application
         if (!op.status.triggers || op.status.triggers.length === 0) {
           op.status.effects.forEach((ef) => {
-            next = resolveEffect(next, ef, t, t === "player" ? "enemy" : "player", {
+            next = resolveEffect(next, ef, t.side, t.side === "player" ? "enemy" : "player", {
               source: "status",
               status: { ...op.status, remaining: op.status.duration },
+              actorEnemyIndex: t.side === "enemy" ? t.index : undefined,
             })
           })
         }
@@ -826,21 +930,23 @@ const resolveEffect = (
     case "modifyStat": {
       if (op.stat === "maxHP") {
         if (actor === "player") {
-          const nextPlayer = { ...state.player, maxHP: state.player.maxHP + op.delta, hp: state.player.hp + op.delta }
-          return { ...state, player: nextPlayer }
+          const nextPlayer = { ...normalized.player, maxHP: normalized.player.maxHP + op.delta, hp: normalized.player.hp + op.delta }
+          return { ...normalized, player: nextPlayer }
         }
-        const nextEnemy = { ...state.enemy, maxHP: state.enemy.maxHP + op.delta, hp: state.enemy.hp + op.delta }
-        return { ...state, enemy: nextEnemy }
+        const enemyIndex = context.actorEnemyIndex ?? 0
+        const enemy = getEnemyAt(normalized, enemyIndex)
+        const nextEnemy = { ...enemy, maxHP: enemy.maxHP + op.delta, hp: enemy.hp + op.delta }
+        return setEnemyAt(normalized, enemyIndex, nextEnemy)
       }
-      return state
+      return normalized
     }
     case "modifyHandLimit": {
-      const nextLimit = Math.max(0, state.config.handLimit + op.delta)
-      return { ...state, config: { ...state.config, handLimit: nextLimit } }
+      const nextLimit = Math.max(0, normalized.config.handLimit + op.delta)
+      return { ...normalized, config: { ...normalized.config, handLimit: nextLimit } }
     }
     case "modifyEnergyPerTurn": {
-      const nextEnergy = Math.max(0, state.config.energyPerTurn + op.delta)
-      return { ...state, config: { ...state.config, energyPerTurn: nextEnergy } }
+      const nextEnergy = Math.max(0, normalized.config.energyPerTurn + op.delta)
+      return { ...normalized, config: { ...normalized.config, energyPerTurn: nextEnergy } }
     }
     case "repeatNext": {
       const status: StatusTemplate = {
@@ -850,7 +956,7 @@ const resolveEffect = (
         triggers: [{ kind: "CardPlayed" } as CombatTrigger],
         effects: [{ operation: op as EffectOperation } as EffectSpec],
       }
-      return addStatusToSide(state, actor, status)
+      return addStatusToSide(normalized, actor === "player" ? { side: "player" } : { side: "enemy", index: context.actorEnemyIndex ?? 0 }, status)
     }
     case "skipTurn": {
       const status: StatusTemplate = {
@@ -860,12 +966,13 @@ const resolveEffect = (
         triggers: [],
         effects: [],
       }
-      return addStatusToSide(state, op.side, status)
+      return addStatusToSide(normalized, op.side === "player" ? { side: "player" } : { side: "enemy", index: 0 }, status)
     }
     case "noop":
     case "combatEnd": {
-      const zones = { ...state.zones, hand: [], deck: [], discard: [], exhaust: [...state.zones.exhaust, ...state.zones.hand, ...state.zones.deck, ...state.zones.discard] }
-      const next: CombatState = { ...state, energy: 0, zones, enemy: { ...state.enemy, hp: 0 } }
+      const zones = { ...normalized.zones, hand: [], deck: [], discard: [], exhaust: [...normalized.zones.exhaust, ...normalized.zones.hand, ...normalized.zones.deck, ...normalized.zones.discard] }
+      const enemies = (normalized.enemies ?? [normalized.enemy]).map((enemy) => ({ ...enemy, hp: 0 }))
+      const next: CombatState = { ...normalized, energy: 0, zones, enemies, enemy: enemies[0] }
       return dispatchTrigger(next, { kind: "CombatEnd" })
     }
     case "moveFromDiscardToDeck": {
@@ -925,13 +1032,13 @@ const resolveEffect = (
 }
 
 export const startCombat = (state: CombatState): CombatState => {
-  let next = { ...state }
+  let next = ensureEnemies(state)
 
   // resolve autocast cards at combat start
-  state.autoCastCards
+  next.autoCastCards
     .filter((c) => c.trigger === "CombatStart")
     .forEach(({ cardId }) => {
-      const def = state.cardLibrary[cardId]
+      const def = next.cardLibrary[cardId]
       if (!def) return
       def.effects.forEach((effect) => {
         next = resolveEffect(next, effect, "player", "enemy", { source: "autocast", cardDef: def })
@@ -976,20 +1083,23 @@ export const startCombat = (state: CombatState): CombatState => {
 }
 
 export const startTurn = (state: CombatState): CombatState => {
+  const normalized = ensureEnemies(state)
+  const enemies = normalized.enemies.map((enemy) => ({ ...enemy, shield: 0 }))
   let next: CombatState = {
-    ...state,
-    turn: state.turn + 1,
-    energy: state.config.energyPerTurn,
+    ...normalized,
+    turn: normalized.turn + 1,
+    energy: normalized.config.energyPerTurn,
     counters: {
-      ...state.counters,
+      ...normalized.counters,
       cardsPlayedThisTurn: 0,
       attackCardsPlayedThisTurn: 0,
       damageDealtThisTurn: 0,
       damageTicksThisTurn: 0,
       shieldGainedThisTurn: 0,
     },
-    player: { ...state.player, shield: 0 },
-    enemy: { ...state.enemy, shield: 0 },
+    player: { ...normalized.player, shield: 0 },
+    enemies,
+    enemy: enemies[0],
   }
 
   // autocast on TurnStart
@@ -1004,8 +1114,10 @@ export const startTurn = (state: CombatState): CombatState => {
     })
 
   // elemental per-turn effects
-  next = applyElementalTurnStart(next, "player")
-  next = applyElementalTurnStart(next, "enemy")
+  next = applyElementalTurnStart(next, { side: "player" })
+  next.enemies.forEach((_, index) => {
+    next = applyElementalTurnStart(next, { side: "enemy", index })
+  })
 
   // cursed cards in hand backfire each turn
   if (next.zones.hand.length > 0) {
@@ -1072,11 +1184,19 @@ const discardNonRetained = (state: CombatState): CombatState => {
   return { ...state, zones: finalZones }
 }
 
-const clearExpiredStatuses = (state: CombatState): CombatState => ({
-  ...state,
-  player: { ...state.player, statuses: reduceStatuses(state.player.statuses) },
-  enemy: { ...state.enemy, statuses: reduceStatuses(state.enemy.statuses) },
-})
+const clearExpiredStatuses = (state: CombatState): CombatState => {
+  const normalized = ensureEnemies(state)
+  const enemies = normalized.enemies.map((enemy) => ({
+    ...enemy,
+    statuses: reduceStatuses(enemy.statuses),
+  }))
+  return {
+    ...normalized,
+    player: { ...normalized.player, statuses: reduceStatuses(normalized.player.statuses) },
+    enemies,
+    enemy: enemies[0],
+  }
+}
 
 export const endTurn = (state: CombatState): CombatState => {
   let next = dispatchTrigger(state, { kind: "TurnEnd" })
@@ -1095,32 +1215,35 @@ const findCardInstance = (zones: CombatZones, uid: string): { zone: ZoneName; ca
 }
 
 export const playCard = (state: CombatState, params: PlayCardParams): PlayResult => {
-  const located = findCardInstance(state.zones, params.cardInstanceId)
+  const normalized = ensureEnemies(state)
+  const located = findCardInstance(normalized.zones, params.cardInstanceId)
   if (!located || located.zone !== "hand") {
-    return { state, ok: false, reason: "Card not in hand" }
+    return { state: normalized, ok: false, reason: "Card not in hand" }
   }
 
-  const cardDef = state.cardLibrary[located.card.cardId]
-  if (!cardDef) return { state, ok: false, reason: "Unknown card" }
+  const cardDef = normalized.cardLibrary[located.card.cardId]
+  if (!cardDef) return { state: normalized, ok: false, reason: "Unknown card" }
 
   if (cardHasKeyword(cardDef, "cursed")) {
-    return { state, ok: false, reason: "Cursed" }
+    return { state: normalized, ok: false, reason: "Cursed" }
   }
 
-  const hasLock = cardDef.tags.some((t) => state.tagLocks.includes(t))
-  if (hasLock) return { state, ok: false, reason: "Tag locked" }
+  const hasLock = cardDef.tags.some((t) => normalized.tagLocks.includes(t))
+  if (hasLock) return { state: normalized, ok: false, reason: "Tag locked" }
 
   const cost = Math.max(0, located.card.temporaryCost ?? cardDef.cost)
-  if (state.energy < cost) return { state, ok: false, reason: "Not enough energy" }
+  if (normalized.energy < cost) return { state: normalized, ok: false, reason: "Not enough energy" }
 
-  let next = { ...state, energy: state.energy - cost }
+  let next = { ...normalized, energy: normalized.energy - cost }
 
   // remove from hand
   next = { ...next, zones: moveCard(next.zones, "hand", "discard", located.card.uid) }
 
   // resolve effects
+  const targetSpecifier = params.target
+  const targetSide = typeof targetSpecifier === "object" ? targetSpecifier.side : targetSpecifier ?? "enemy"
   cardDef.effects.forEach((effect) => {
-    next = resolveEffect(next, effect, "player", params.target ?? "enemy", { source: "card", cardDef, cardInstanceId: located.card.uid })
+    next = resolveEffect(next, effect, "player", targetSide, { source: "card", cardDef, cardInstanceId: located.card.uid }, targetSpecifier)
   })
 
   next = dispatchTrigger(next, { kind: "CardPlayed", card: cardDef })
@@ -1148,16 +1271,16 @@ export const playCard = (state: CombatState, params: PlayCardParams): PlayResult
 }
 
 export const enemyPing = (state: CombatState, amount = 1): CombatState => {
-  const next = applyDamage(state, "player", amount)
+  const next = applyDamage(ensureEnemies(state), { side: "player" }, amount)
   return dispatchTrigger(next, { kind: "DamageTaken", amount, target: "player" })
 }
 
 export const applyEnemyCard = (state: CombatState, cardId: string): CombatState => {
   const def = state.cardLibrary[cardId]
   if (!def) return state
-  let next = state
+  let next = ensureEnemies(state)
   def.effects.forEach((effect) => {
-    next = resolveEffect(next, effect, "enemy", "player", { source: "card", cardDef: def })
+    next = resolveEffect(next, effect, "enemy", "player", { source: "card", cardDef: def, actorEnemyIndex: 0 })
   })
   next = dispatchTrigger(next, { kind: "CardPlayed", card: def })
   return next
